@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><link rel="stylesheet" href="css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INETRIS | Instituto de Desenvolvimento de Líderes e Gestão Empresarial</title>
+<meta name="description" content="O INETRIS desenvolve líderes e estrutura empresas para crescer com clareza, gestão e resultado, por meio de mentorias, consultorias e formações estratégicas.">
+
+<!-- ======================================================================
+     ESTRUTURA PREPARADA PARA EXPANSÃO FUTURA
+     As rotas/páginas abaixo NÃO estão implementadas nesta etapa.
+     Servem apenas como mapa de navegação para os próximos módulos do
+     ecossistema digital do INETRIS (ver README.md > "Próximos módulos"):
+       /crm            -> CRM interno
+       /sistema-rh      -> Sistema de RH
+       /galeria         -> Galeria completa de mentorias (com filtros)
+       /login           -> Área de login / painel administrativo
+     Quando esses módulos forem desenvolvidos, basta criar as páginas
+     correspondentes e ligar os links já reservados no rodapé.
+     ====================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ========================= HEADER / NAV ========================= -->
+<header class="site-header" id="topo">
+  <div class="container header-inner">
+    <a href="#topo" class="brand">
+      <img src="assets/logo.png" alt="INETRIS Instituto" class="brand-logo">
+      <span class="brand-name">INETRIS</span>
+    </a>
+
+    <span class="nav-divider" aria-hidden="true"></span>
+
+    <nav class="main-nav" id="main-nav">
+      <ul>
+        <li><a href="#quem-somos" class="nav-link">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/></svg>
+          <span>Quem Somos</span>
+        </a></li>
+        <li><a href="#servicos" class="nav-link">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7.5" width="18" height="12" rx="2"/><path d="M8 7.5V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1.5"/><path d="M3 13h18"/></svg>
+          <span>Serviços</span>
+        </a></li>
+        <li><a href="#galeria" class="nav-link">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5.5-5.5a1.5 1.5 0 0 0-2.1 0L4 19"/></svg>
+          <span>Galeria</span>
+        </a></li>
+        <li><a href="#depoimentos" class="nav-link">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8.2c-2.1 0-3.7 1.7-3.7 3.8v3h3.9v-3.8H5.4c0-1 .8-1.8 1.8-1.8Z"/><path d="M17 8.2c-2.1 0-3.7 1.7-3.7 3.8v3h3.9v-3.8h-1.8c0-1 .8-1.8 1.8-1.8Z"/></svg>
+          <span>Depoimentos</span>
+        </a></li>
+        <li><a href="#contato" class="nav-link">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1.4 1.4 0 0 1 1.4-.34c1.2.4 2.5.6 3.8.6a1.4 1.4 0 0 1 1.4 1.4V20a1.4 1.4 0 0 1-1.4 1.4C11.7 21.4 2.6 12.3 2.6 3.4A1.4 1.4 0 0 1 4 2h2.6A1.4 1.4 0 0 1 8 3.4c0 1.3.2 2.6.6 3.8a1.4 1.4 0 0 1-.34 1.4L6.6 10.8Z"/></svg>
+          <span>Fale Conosco</span>
+        </a></li>
+        <li><a href="diagnostico.html" class="nav-link">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/></svg>
+          <span>Diagnóstico</span>
+        </a></li>
+        <li><a href="portfolio.html" class="nav-link">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>
+          <span>Portfólio</span>
+        </a></li>
+      </ul>
+      <!-- Reservado para módulo futuro de Login / Painel Administrativo
+      <a href="/login" class="nav-login">Entrar</a>
+      -->
+    </nav>
+
+    <div class="header-actions">
+      <a href="https://wa.me/5589988075328" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Falar pelo WhatsApp</a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ========================= HERO ========================= -->
+<section class="hero">
+  <canvas class="hero-constellation" aria-hidden="true"></canvas>
+  <div class="container hero-inner">
+    <p class="eyebrow"><span class="eyebrow-bar"></span> Instituto de Desenvolvimento de Líderes e Gestão</p>
+    <h1 class="hero-title">Desenvolvemos líderes e estruturamos empresas para crescer com <span class="text-gradient">clareza, gestão e resultado</span>.</h1>
+    <p class="hero-subtitle">Mentorias, consultorias e formações estratégicas para empresas que querem sair da dependência do dono e construir uma gestão sólida.</p>
+    <div class="hero-actions">
+      <a href="#servicos" class="btn btn-primary">Conhecer serviços</a>
+      <a href="https://wa.me/5589988075328" target="_blank" rel="noopener" class="btn btn-outline">Falar pelo WhatsApp</a>
+    </div>
+  </div>
+  <div class="hero-corner hero-corner-tl" aria-hidden="true"></div>
+  <div class="hero-corner hero-corner-br" aria-hidden="true"></div>
+</section>
+
+<!-- ========================= QUEM SOMOS ========================= -->
+<section class="section" id="quem-somos">
+  <div class="container split">
+    <div class="split-text reveal">
+      <p class="eyebrow eyebrow-dark"><span class="eyebrow-bar"></span> Quem Somos</p>
+      <h2 class="section-title">Um instituto dedicado a estruturar pessoas e empresas para o crescimento</h2>
+      <p class="section-text">
+        O INETRIS é um instituto voltado para o desenvolvimento de líderes e a estruturação de empresas. Atuamos diretamente sobre gestão, processos e crescimento organizacional, unindo conhecimento prático e metodologia própria para gerar resultado real.
+      </p>
+      <p class="section-text">
+        Acreditamos que toda empresa que cresce com solidez tem, por trás, uma liderança preparada e uma estrutura de gestão clara. Por isso, trabalhamos lado a lado com empreendedores, gestores e equipes — da formação individual de líderes à reorganização completa da operação.
+      </p>
+      <ul class="check-list">
+        <li>Metodologia própria de diagnóstico e estruturação</li>
+        <li>Atuação prática, não apenas teórica</li>
+        <li>Acompanhamento próximo de cada etapa do crescimento</li>
+      </ul>
+    </div>
+    <div class="split-visual reveal">
+      <div class="blueprint-card">
+        <div class="blueprint-card-row">
+          <span class="blueprint-tag">DIAGNÓSTICO</span>
+          <span class="blueprint-tag">ESTRUTURA</span>
+        </div>
+        <div class="blueprint-card-row">
+          <span class="blueprint-tag">LIDERANÇA</span>
+          <span class="blueprint-tag">PROCESSOS</span>
+        </div>
+        <div class="blueprint-card-row">
+          <span class="blueprint-tag blueprint-tag-accent">RESULTADO</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= PROBLEMAS ========================= -->
+<section class="section section-alt" id="problemas">
+  <div class="container">
+    <p class="eyebrow eyebrow-dark center"><span class="eyebrow-bar"></span> Problemas que Resolvemos</p>
+    <h2 class="section-title center">Reconhece algum desses desafios na sua empresa?</h2>
+    <p class="section-text center max-w">Esses são os gargalos mais comuns que encontramos ao iniciar um trabalho de estruturação e gestão.</p>
+
+    <div class="cards-grid problems-grid">
+      <div class="problem-card reveal">
+        <span class="problem-icon">⚠</span>
+        <h3>Empresa depende demais do líder</h3>
+        <p>A operação só anda quando o dono está presente, travando o crescimento.</p>
+      </div>
+      <div class="problem-card reveal">
+        <span class="problem-icon">⚠</span>
+        <h3>Falta de processos claros</h3>
+        <p>Cada pessoa faz do seu jeito, gerando retrabalho e inconsistência.</p>
+      </div>
+      <div class="problem-card reveal">
+        <span class="problem-icon">⚠</span>
+        <h3>Equipe sem direção</h3>
+        <p>Colaboradores sem clareza de papel, prioridade e objetivo comum.</p>
+      </div>
+      <div class="problem-card reveal">
+        <span class="problem-icon">⚠</span>
+        <h3>Dificuldade em desenvolver lideranças</h3>
+        <p>Faltam pessoas preparadas para assumir responsabilidade e decisão.</p>
+      </div>
+      <div class="problem-card reveal">
+        <span class="problem-icon">⚠</span>
+        <h3>Falta de organização interna</h3>
+        <p>Informações espalhadas, controles fracos e rotina pouco previsível.</p>
+      </div>
+      <div class="problem-card reveal">
+        <span class="problem-icon">⚠</span>
+        <h3>Crescimento travado</h3>
+        <p>A empresa para de evoluir porque a estrutura não acompanha a ambição.</p>
+      </div>
+      <div class="problem-card reveal">
+        <span class="problem-icon">⚠</span>
+        <h3>Dificuldade em decisões estratégicas</h3>
+        <p>Decisões importantes tomadas com pressa, no improviso ou no achismo.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= SERVIÇOS ========================= -->
+<section class="section" id="servicos">
+  <div class="container">
+    <p class="eyebrow eyebrow-dark center"><span class="eyebrow-bar"></span> Serviços</p>
+    <h2 class="section-title center">Nossos serviços disponíveis</h2>
+    <p class="section-text center max-w">Quatro frentes de atuação que podem ser contratadas isoladamente ou combinadas, de acordo com o momento da sua empresa.</p>
+
+    <nav class="service-pills reveal" aria-label="Atalhos para os serviços">
+      <a href="#formacao" class="service-pill">Formação de Líderes</a>
+      <a href="#mentoria" class="service-pill">Mentoria Empresarial</a>
+      <a href="#consultoria" class="service-pill">Consultoria de Gestão</a>
+      <a href="#solucoes-corporativas" class="service-pill">Soluções Corporativas</a>
+    </nav>
+  </div>
+
+  <!-- ---- Serviço 01 — Formação de Líderes ---- -->
+  <div class="service-row service-row-alt" id="formacao">
+    <div class="container split split-reverse">
+      <div class="split-visual reveal">
+        <div class="feature-panel">
+          <span class="feature-panel-label">SERVIÇO 01 · FORMAÇÃO</span>
+          <ul class="feature-panel-list">
+            <li>Postura e presença de liderança</li>
+            <li>Comunicação clara e assertiva</li>
+            <li>Organização da rotina de gestão</li>
+            <li>Tomada de decisão estratégica</li>
+            <li>Gestão de pessoas e de equipe</li>
+          </ul>
+        </div>
+      </div>
+      <div class="split-text reveal">
+        <p class="eyebrow eyebrow-dark"><span class="eyebrow-bar"></span> Formação de Líderes</p>
+        <h3 class="section-title">Líderes preparados para sustentar o crescimento da empresa</h3>
+        <p class="section-text">
+          Nossa formação ajuda líderes, empreendedores e colaboradores a desenvolverem postura, comunicação, organização, tomada de decisão e gestão de equipe — competências essenciais para sustentar uma empresa que cresce.
+        </p>
+        <p class="section-text">
+          O trabalho é prático e aplicado à realidade de cada negócio, para que o aprendizado se transforme em atitude no dia a dia da liderança.
+        </p>
+        <a href="https://wa.me/5589988075328" target="_blank" rel="noopener" class="btn btn-primary">Falar pelo WhatsApp</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- Serviço 02 — Mentoria Empresarial ---- -->
+  <div class="service-row" id="mentoria">
+    <div class="container split">
+      <div class="split-text reveal">
+        <p class="eyebrow eyebrow-dark"><span class="eyebrow-bar"></span> Mentoria Empresarial</p>
+        <h3 class="section-title">Clareza para identificar gargalos e organizar a gestão</h3>
+        <p class="section-text">
+          A mentoria empresarial do INETRIS ajuda empresas a identificar gargalos, melhorar processos, organizar a gestão e crescer com mais clareza. É um acompanhamento próximo, voltado para decisões reais do negócio.
+        </p>
+        <p class="section-text">
+          Trabalhamos em conjunto com o empresário ou gestor, trazendo direcionamento estratégico e prático para os desafios do momento.
+        </p>
+        <a href="https://wa.me/5589988075328" target="_blank" rel="noopener" class="btn btn-primary">Falar pelo WhatsApp</a>
+      </div>
+      <div class="split-visual reveal">
+        <div class="feature-panel feature-panel-accent">
+          <span class="feature-panel-label">SERVIÇO 02 · MENTORIA</span>
+          <ul class="feature-panel-list">
+            <li>Identificação de gargalos</li>
+            <li>Organização da gestão</li>
+            <li>Melhoria contínua de processos</li>
+            <li>Direcionamento estratégico</li>
+            <li>Acompanhamento próximo</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- Serviço 03 — Consultoria de Gestão ---- -->
+  <div class="service-row service-row-alt" id="consultoria">
+    <div class="container split split-reverse">
+      <div class="split-visual reveal">
+        <div class="feature-panel">
+          <span class="feature-panel-label">SERVIÇO 03 · CONSULTORIA</span>
+          <ul class="feature-panel-list">
+            <li>Estruturação de processos</li>
+            <li>Análise de problemas</li>
+            <li>Tomada de decisão orientada a dados</li>
+            <li>Melhoria da operação</li>
+            <li>Indicadores de acompanhamento</li>
+          </ul>
+        </div>
+      </div>
+      <div class="split-text reveal">
+        <p class="eyebrow eyebrow-dark"><span class="eyebrow-bar"></span> Consultoria de Gestão</p>
+        <h3 class="section-title">Estrutura sólida para uma operação mais eficiente</h3>
+        <p class="section-text">
+          A consultoria de gestão do INETRIS auxilia empresas na estruturação de processos, análise de problemas, tomada de decisão e melhoria da operação — com método, prática e foco em resultado.
+        </p>
+        <p class="section-text">
+          Atuamos para que a empresa ganhe estrutura suficiente para crescer sem depender exclusivamente de uma única pessoa.
+        </p>
+        <a href="https://wa.me/5589988075328" target="_blank" rel="noopener" class="btn btn-primary">Falar pelo WhatsApp</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- Serviço 04 — Soluções Corporativas (cards compactos) ---- -->
+  <div class="container" id="solucoes-corporativas" style="margin-top: 90px;">
+    <p class="eyebrow eyebrow-dark center"><span class="eyebrow-bar"></span> Serviço 04 · Soluções Corporativas</p>
+    <h2 class="section-title center">Soluções sob medida para cada área da sua empresa</h2>
+    <p class="section-text center max-w">Além da formação, mentoria e consultoria, oferecemos soluções específicas para necessidades pontuais da sua organização.</p>
+
+    <div class="cards-grid solutions-grid">
+      <div class="solution-card reveal">
+        <span class="solution-number">Serviço 04</span>
+        <h3>Planejamento Estratégico</h3>
+        <p class="solution-tagline">Estratégia para transformar visão em resultados.</p>
+        <p>Desenvolvemos estratégias personalizadas para direcionar o crescimento sustentável da organização, alinhando pessoas, processos e objetivos.</p>
+        <p class="solution-result"><strong>Resultado:</strong> Mais clareza, foco e capacidade de execução.</p>
+      </div>
+
+      <div class="solution-card reveal">
+        <span class="solution-number">Serviço 05</span>
+        <h3>Cultura Organizacional</h3>
+        <p class="solution-tagline">Cultura forte. Resultados consistentes.</p>
+        <p>A cultura define a forma como uma organização pensa, decide e age. Fortalecemos culturas capazes de gerar pertencimento, compromisso e alto desempenho.</p>
+        <p class="solution-result"><strong>Resultado:</strong> Organizações mais alinhadas e engajadas.</p>
+      </div>
+
+      <div class="solution-card reveal">
+        <span class="solution-number">Serviço 06</span>
+        <h3>Gestão de Pessoas</h3>
+        <p class="solution-tagline">Pessoas preparadas. Organizações fortes.</p>
+        <p>Apoiamos empresas na construção de uma gestão de pessoas estratégica, estruturada e orientada ao desenvolvimento contínuo.</p>
+        <p class="solution-result"><strong>Resultado:</strong> Maior desempenho, retenção de talentos e desenvolvimento contínuo.</p>
+      </div>
+
+      <div class="solution-card reveal">
+        <span class="solution-number">Serviço 07</span>
+        <h3>Desenvolvimento de Lideranças</h3>
+        <p class="solution-tagline">Líderes preparados constroem organizações extraordinárias.</p>
+        <p>Desenvolvemos líderes capazes de inspirar, conduzir mudanças e desenvolver equipes de alta performance.</p>
+        <p class="solution-result"><strong>Resultado:</strong> Lideranças mais seguras, estratégicas e preparadas para gerar resultados.</p>
+      </div>
+
+      <div class="solution-card reveal">
+        <span class="solution-number">Serviço 08</span>
+        <h3>Desenvolvimento Organizacional</h3>
+        <p class="solution-tagline">Organizações preparadas para crescer.</p>
+        <p>Estruturamos processos, governança e modelos de gestão para aumentar a eficiência organizacional.</p>
+        <p class="solution-result"><strong>Resultado:</strong> Mais organização, eficiência e sustentabilidade.</p>
+      </div>
+
+      <div class="solution-card reveal">
+        <span class="solution-number">Serviço 09</span>
+        <h3>Gestão Financeira</h3>
+        <p class="solution-tagline">Gestão financeira para decisões estratégicas.</p>
+        <p>Auxiliamos organizações a transformar informações financeiras em decisões mais inteligentes.</p>
+        <p class="solution-result"><strong>Resultado:</strong> Maior controle financeiro e crescimento sustentável.</p>
+      </div>
+
+      <div class="solution-card reveal">
+        <span class="solution-number">Serviço 10</span>
+        <h3>Marketing e Posicionamento</h3>
+        <p class="solution-tagline">Posicionamento que fortalece marcas.</p>
+        <p>Construímos estratégias para fortalecer a presença institucional e comercial das organizações.</p>
+        <p class="solution-result"><strong>Resultado:</strong> Marcas mais fortes, reconhecidas e conectadas ao mercado.</p>
+      </div>
+
+      <div class="solution-card reveal">
+        <span class="solution-number">Serviço 11</span>
+        <h3>Gestão Pública e Educação Corporativa</h3>
+        <p class="solution-tagline">Desenvolvendo pessoas para transformar instituições.</p>
+        <p>Levamos planejamento estratégico, governança e formação de lideranças para o setor público, além de treinamentos in company, workshops, palestras e mentorias para times corporativos.</p>
+        <p class="solution-result"><strong>Resultado:</strong> Equipes mais preparadas, organizações mais eficientes e lideranças mais fortes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= GALERIA / MENTORIAS ========================= -->
+<section class="section" id="galeria">
+  <div class="container">
+    <p class="eyebrow eyebrow-dark center"><span class="eyebrow-bar"></span> Galeria</p>
+    <h2 class="section-title center">Momentos das nossas mentorias</h2>
+    <p class="section-text center max-w">Registros reais das mentorias, formações e consultorias conduzidas pelo INETRIS.</p>
+
+    <div class="gallery-grid">
+      <figure class="gallery-card reveal">
+        <div class="gallery-img" style="background-image:url('assets/mentorias/mentoria-grupo-apresentacao.jpg');background-position:center 58%"></div>
+        <figcaption>
+          <h3>Mentoria Empresarial em Grupo</h3>
+          <p>Encontro de gestão e direcionamento estratégico com a equipe.</p>
+          <span class="gallery-meta">Mentoria · 2026</span>
+        </figcaption>
+      </figure>
+      <figure class="gallery-card reveal">
+        <div class="gallery-img" style="background-image:url('assets/mentorias/formacao-lideres-turma.jpg');background-position:center 55%"></div>
+        <figcaption>
+          <h3>Formação de Líderes</h3>
+          <p>Palestra sobre cultura organizacional e desenvolvimento de equipes.</p>
+          <span class="gallery-meta">Formação · 2026</span>
+        </figcaption>
+      </figure>
+      <figure class="gallery-card reveal">
+        <div class="gallery-img" style="background-image:url('assets/mentorias/consultoria-in-loco.jpg');background-position:center 15%"></div>
+        <figcaption>
+          <h3>Consultoria In Company</h3>
+          <p>Diagnóstico e mapeamento de processos na empresa.</p>
+          <span class="gallery-meta">Consultoria · 2026</span>
+        </figcaption>
+      </figure>
+      <figure class="gallery-card reveal">
+        <div class="gallery-img" style="background-image:url('assets/mentorias/diagnostico-organizacional.jpg');background-position:center 62%"></div>
+        <figcaption>
+          <h3>Diagnóstico Organizacional</h3>
+          <p>Sessão de mapeamento de gargalos com a liderança.</p>
+          <span class="gallery-meta">Diagnóstico · 2026</span>
+        </figcaption>
+      </figure>
+      <figure class="gallery-card reveal">
+        <div class="gallery-img" style="background-image:url('assets/mentorias/mentoria-individual-anotacoes.jpg');background-position:center 15%"></div>
+        <figcaption>
+          <h3>Mentoria Individual</h3>
+          <p>Acompanhamento próximo de líder e gestor.</p>
+          <span class="gallery-meta">Mentoria · 2026</span>
+        </figcaption>
+      </figure>
+      <figure class="gallery-card reveal">
+        <div class="gallery-img" style="background-image:url('assets/mentorias/producao-conteudo-retrato.jpg');background-position:center 15%"></div>
+        <figcaption>
+          <h3>Produção de Conteúdo</h3>
+          <p>Bastidores da gravação de conteúdos institucionais do INETRIS.</p>
+          <span class="gallery-meta">Desenvolvimento · 2026</span>
+        </figcaption>
+      </figure>
+    </div>
+
+    <!-- Reservado para módulo futuro de Galeria completa com filtros
+    <div class="center" style="margin-top: 2rem;">
+      <a href="/galeria" class="btn btn-outline-dark">Ver galeria completa</a>
+    </div>
+    -->
+  </div>
+</section>
+
+<!-- ========================= DEPOIMENTOS ========================= -->
+<section class="section" id="depoimentos">
+  <div class="container">
+    <p class="eyebrow eyebrow-dark center"><span class="eyebrow-bar"></span> Depoimentos</p>
+    <h2 class="section-title center">O que dizem quem já viveu essa transformação</h2>
+    <p class="section-text center max-w">Resultados reais de líderes e equipes que passaram pela mentoria e pela formação do INETRIS.</p>
+
+    <div class="testimonials-grid">
+
+      <article class="testimonial-card reveal">
+        <span class="testimonial-quote-mark">&ldquo;</span>
+        <p class="testimonial-text">Comecei a ter mais atitude com relação a pegar as responsabilidades para mim. É como se tivéssemos tido uma virada de chave: agora toda a equipe está empenhada em fazer dar certo, com mais vontade de fazer.</p>
+        <div class="testimonial-highlight"><strong>Principal mudança:</strong> a perspectiva de "Ser Dono"</div>
+        <footer class="testimonial-author">— Cliente INETRIS · Mentoria Empresarial</footer>
+      </article>
+
+      <article class="testimonial-card reveal">
+        <span class="testimonial-quote-mark">&ldquo;</span>
+        <p class="testimonial-text">Mudou a ideia de que a empresa é apenas do dono. Hoje sei que tenho autoridade própria para tomar minhas decisões, e que cada decisão tomada faz parte do meu crescimento pessoal e do crescimento da empresa.</p>
+        <div class="testimonial-highlight"><strong>Principal mudança:</strong> autoridade e autonomia de decisão</div>
+        <footer class="testimonial-author">— Cliente INETRIS · Mentoria Empresarial</footer>
+      </article>
+
+      <article class="testimonial-card reveal">
+        <span class="testimonial-quote-mark">&ldquo;</span>
+        <p class="testimonial-text">A mudança de não esperar ordens nem passo a passo. Hoje tenho autonomia para ver meus erros e aprender com eles, de forma que isso traga melhoria interna e reflita em todo o time.</p>
+        <div class="testimonial-highlight"><strong>Principal mudança:</strong> autonomia para aprender com os próprios erros</div>
+        <footer class="testimonial-author">— Cliente INETRIS · Mentoria Empresarial</footer>
+      </article>
+
+      <article class="testimonial-card reveal">
+        <span class="testimonial-quote-mark">&ldquo;</span>
+        <p class="testimonial-text">Foi uma experiência muito legal, que trouxe muita clareza para mim. A mentoria me fez enxergar algumas coisas de forma diferente e perceber pontos que posso melhorar, tanto no lado profissional quanto no pessoal. Me ajudou a entender melhor minha atuação, meus desafios e meus objetivos, e me fez refletir sobre atitudes e comportamentos que contribuem para a equipe e para os resultados do escritório. Hoje o time tem cabeça e comportamento de líder — e vamos seguir firmes nesse aprendizado!</p>
+        <div class="testimonial-highlight"><strong>Principal mudança:</strong> clareza pessoal e profissional</div>
+        <footer class="testimonial-author">— Cliente INETRIS · Mentoria Empresarial</footer>
+      </article>
+
+      <article class="testimonial-card reveal">
+        <span class="testimonial-quote-mark">&ldquo;</span>
+        <p class="testimonial-text">Desde o início da mentoria, passei a olhar a empresa com a visão de como ela realmente deveria ser — pensando no todo, entendendo o que funciona e qual é o meu papel nisso. A principal mudança foi perceber que não preciso resolver tudo sozinha: se for necessário, eu vou lá e faço; se errar, erro rápido. Hoje sinto impactos práticos na organização — estamos mais alinhados, com clareza sobre as responsabilidades e uma visão mais estruturada dos próximos passos.</p>
+        <div class="testimonial-highlight"><strong>Principal mudança:</strong> "erro rápido, aprendo rápido"</div>
+        <footer class="testimonial-author">— Cliente INETRIS · Mentoria Empresarial</footer>
+      </article>
+
+      <article class="testimonial-card reveal">
+        <span class="testimonial-quote-mark">&ldquo;</span>
+        <p class="testimonial-text">Liderar não é só apagar incêndios no dia a dia — é ter clareza de onde queremos chegar e como conduzir a equipe até lá. A Formação de Líderes me mostrou a importância da clareza nos processos e na comunicação, e a Mentoria de Gestão Financeira transformou a forma como vejo os números: hoje eles são um mapa de decisão, não apenas controle de entradas e saídas. Ganhei mais segurança para tomar decisões difíceis, o time está mais alinhado e a empresa tem hoje previsibilidade e controle financeiro e operacional. O medo que eu tinha ao assumir a função virou vontade de aprender e crescer cada dia mais.</p>
+        <div class="testimonial-highlight"><strong>Principal mudança:</strong> de apagar incêndios a liderar com estratégia</div>
+        <footer class="testimonial-author">— Cliente INETRIS · Formação de Líderes + Gestão Financeira</footer>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ========================= FALE CONOSCO ========================= -->
+<section class="section section-alt" id="contato">
+  <div class="container">
+    <p class="eyebrow eyebrow-dark center"><span class="eyebrow-bar"></span> Fale Conosco</p>
+    <h2 class="section-title center">Vamos estruturar o próximo passo da sua empresa?</h2>
+    <p class="section-text center max-w">Agende uma conversa de diagnóstico e descubra por onde começar.</p>
+
+    <div class="contact-grid">
+      <a href="https://wa.me/5589988075328" target="_blank" rel="noopener" class="contact-card reveal">
+        <span class="contact-icon icon-whatsapp">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.9 9.9 0 0 0 4.74 1.21h.01c5.46 0 9.9-4.45 9.9-9.91C21.96 6.45 17.5 2 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.23 8.23 0 0 1-1.26-4.38c0-4.55 3.7-8.25 8.26-8.25 2.2 0 4.27.86 5.83 2.42a8.19 8.19 0 0 1 2.41 5.83c0 4.55-3.71 8.24-8.25 8.24Zm4.52-6.17c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.81-.78.97-.15.16-.29.18-.54.06-.25-.12-1.04-.38-1.99-1.22-.73-.66-1.23-1.46-1.37-1.71-.15-.24-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.15.16-.25.24-.41.08-.16.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43h-.48c-.16 0-.43.06-.65.31-.23.24-.85.83-.85 2.03s.87 2.36.99 2.52c.12.16 1.7 2.6 4.13 3.64.58.25 1.03.4 1.38.51.58.18 1.11.16 1.53.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.08.15-1.18-.06-.11-.23-.17-.48-.29Z"/></svg>
+        </span>
+        <h3>WhatsApp</h3>
+        <p>Fale agora com nossa equipe</p>
+      </a>
+      <a href="https://www.instagram.com/inetris.instituto/" target="_blank" rel="noopener" class="contact-card reveal">
+        <span class="contact-icon icon-instagram">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.3"/><circle cx="17.2" cy="6.8" r="1.15" fill="currentColor" stroke="none"/></svg>
+        </span>
+        <h3>Instagram</h3>
+        <p>@inetris.instituto</p>
+      </a>
+      <a href="https://www.youtube.com/@inetristv" target="_blank" rel="noopener" class="contact-card reveal">
+        <span class="contact-icon icon-youtube">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.97C18.88 4 12 4 12 4s-6.88 0-8.59.45A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33 2.78 2.78 0 0 0 1.95 1.97C5.12 19.5 12 19.5 12 19.5s6.88 0 8.59-.45a2.78 2.78 0 0 0 1.95-1.97 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33ZM9.75 15.02V8.48l5.75 3.27-5.75 3.27Z"/></svg>
+        </span>
+        <h3>YouTube</h3>
+        <p>INETRIS TV</p>
+      </a>
+      <a href="mailto:inetris25@gmail.com" class="contact-card reveal">
+        <span class="contact-icon icon-email">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3.5 6 8.5 6.5L20.5 6"/></svg>
+        </span>
+        <h3>E-mail</h3>
+        <p>inetris25@gmail.com</p>
+      </a>
+    </div>
+
+    <div class="contact-cta reveal">
+      <a href="https://wa.me/5589988075328" target="_blank" rel="noopener" class="btn btn-primary btn-lg">Agendar conversa de diagnóstico</a>
+
+    </div>
+  </div>
+</section>
+
+<!-- ========================= FOOTER ========================= -->
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <img src="assets/logo.png" alt="INETRIS Instituto" class="brand-logo brand-logo-light">
+      <span class="brand-name">INETRIS</span>
+      <p>Desenvolvemos líderes e estruturamos empresas para crescer com clareza, gestão e resultado.</p>
+    </div>
+
+    <div class="footer-col">
+      <h4>Navegação</h4>
+      <ul>
+        <li><a href="#quem-somos">Quem Somos</a></li>
+        <li><a href="#servicos">Serviços</a></li>
+        <li><a href="#galeria">Galeria</a></li>
+        <li><a href="#depoimentos">Depoimentos</a></li>
+        <li><a href="#contato">Fale Conosco</a></li>
+      </ul>
+    </div>
+
+    <div class="footer-col">
+      <h4>Contato</h4>
+      <ul>
+        <li><a href="https://wa.me/5589988075328" target="_blank" rel="noopener">WhatsApp</a></li>
+        <li><a href="https://www.instagram.com/inetris.instituto/" target="_blank" rel="noopener">Instagram</a></li>
+        <li><a href="https://www.youtube.com/@inetristv" target="_blank" rel="noopener">YouTube</a></li>
+        <li><a href="mailto:inetris25@gmail.com">inetris25@gmail.com</a></li>
+      </ul>
+    </div>
+
+    <!--
+      Coluna reservada para módulos futuros do ecossistema INETRIS.
+      Descomentar e ativar somente quando os módulos forem implementados.
+
+      <div class="footer-col">
+        <h4>Área Interna</h4>
+        <ul>
+          <li><a href="/login">Entrar</a></li>
+          <li><a href="/crm">CRM</a></li>
+          <li><a href="/sistema-rh">Sistema de RH</a></li>
+        </ul>
+      </div>
+    -->
+  </div>
+  <div class="footer-bottom">
+    <div class="container">
+      <p>&copy; <span id="ano"></span> INETRIS Instituto. Todos os direitos reservados.</p>
+    </div>
+  </div>
+</footer>
+
+<a href="https://wa.me/5589988075328" target="_blank" rel="noopener" class="whatsapp-float" aria-label="Falar pelo WhatsApp">
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.9 9.9 0 0 0 4.74 1.21h.01c5.46 0 9.9-4.45 9.9-9.91C21.96 6.45 17.5 2 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.23 8.23 0 0 1-1.26-4.38c0-4.55 3.7-8.25 8.26-8.25 2.2 0 4.27.86 5.83 2.42a8.19 8.19 0 0 1 2.41 5.83c0 4.55-3.71 8.24-8.25 8.24Zm4.52-6.17c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.81-.78.97-.15.16-.29.18-.54.06-.25-.12-1.04-.38-1.99-1.22-.73-.66-1.23-1.46-1.37-1.71-.15-.24-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.15.16-.25.24-.41.08-.16.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43h-.48c-.16 0-.43.06-.65.31-.23.24-.85.83-.85 2.03s.87 2.36.99 2.52c.12.16 1.7 2.6 4.13 3.64.58.25 1.03.4 1.38.51.58.18 1.11.16 1.53.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.08.15-1.18-.06-.11-.23-.17-.48-.29Z"/></svg>
+</a>
+
+<script src="js/script.js"></script>
+<script>
+  document.querySelectorAll('a[href="#"]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  // Destaca no menu o item correspondente à seção visível na tela
+  (function () {
+    const navLinks = Array.from(document.querySelectorAll('.main-nav .nav-link[href^="#"]'));
+    const sections = navLinks
+      .map(link => document.querySelector(link.getAttribute('href')))
+      .filter(Boolean);
+
+    if (!sections.length) return;
+
+    const setActive = (id) => {
+      navLinks.forEach(link => {
+        link.classList.toggle('is-active', link.getAttribute('href') === '#' + id);
+      });
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter(e => e.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (visible) setActive(visible.target.id);
+    }, { rootMargin: '-40% 0px -50% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] });
+
+    sections.forEach(section => observer.observe(section));
+  })();
+</script>
+</body>
+</html>
+
