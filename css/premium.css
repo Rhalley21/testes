@@ -57,7 +57,7 @@
   top: 0; right: 0; bottom: 0; left: 0;
   background-image: url("../assets/hero-bg-equipe.jpg");
   background-size: cover;
-  background-position: center 18%;
+  background-position: center 0%;
   z-index: 0;
 }
 .hero-bg-overlay {
@@ -65,26 +65,27 @@
   top: 0; right: 0; bottom: 0; left: 0;
   z-index: 0;
   background:
-    linear-gradient(90deg, rgba(6, 18, 36, 0.94) 0%, rgba(6, 18, 36, 0.82) 32%, rgba(6, 18, 36, 0.35) 62%, rgba(6, 18, 36, 0.18) 100%),
-    linear-gradient(180deg, rgba(6, 18, 36, 0.55) 0%, rgba(6, 18, 36, 0.15) 22%, rgba(6, 18, 36, 0.35) 78%, rgba(6, 18, 36, 0.8) 100%);
+    linear-gradient(90deg, rgba(6, 18, 36, 0.62) 0%, rgba(6, 18, 36, 0.42) 30%, rgba(6, 18, 36, 0.08) 58%, rgba(6, 18, 36, 0.02) 100%),
+    linear-gradient(180deg, rgba(6, 18, 36, 0.3) 0%, rgba(6, 18, 36, 0.02) 24%, rgba(6, 18, 36, 0.1) 78%, rgba(6, 18, 36, 0.5) 100%);
 }
 .hero-photo .hero-row { position: relative; z-index: 2; }
 .hero-photo .hero-constellation { display: none; }
 .hero-photo .hero-corner { z-index: 3; }
 .hero-card {
-  background: rgba(8, 20, 40, 0.52);
+  background: rgba(8, 20, 40, 0.62);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(244, 198, 107, 0.25);
   border-radius: var(--radius);
   padding: 44px 44px 40px;
   box-shadow: 0 40px 80px -30px rgba(2, 8, 18, 0.65);
-  max-width: 620px;
+  max-width: 640px;
+  margin: 0 auto;
 }
 
 @media (max-width: 720px) {
   .hero-card { padding: 30px 26px; }
-  .hero-bg { background-position: center 12%; }
+  .hero-bg { background-position: center 0%; }
 }
 
 /* ---------- Header: encolhimento suave ao rolar ---------- */
