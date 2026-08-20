@@ -24,6 +24,37 @@ document.addEventListener("DOMContentLoaded", () => {
     onScrollHeader();
   }
 
+  /* ---------- Quem Somos: anima as tags do card em cascata ao entrar na tela ---------- */
+  const blueprintCard = document.querySelector(".blueprint-card");
+  if (blueprintCard && "IntersectionObserver" in window) {
+    const bpObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          blueprintCard.classList.add("is-visible");
+          bpObserver.disconnect();
+        }
+      });
+    }, { threshold: 0.35 });
+    bpObserver.observe(blueprintCard);
+  }
+
+  /* ---------- Quem Somos: clique em cada bloco revela uma explicação resumida ---------- */
+  const blueprintItems = document.querySelectorAll(".blueprint-tag, .blueprint-tag-accent");
+  blueprintItems.forEach((item) => {
+    const toggle = () => {
+      const willOpen = !item.classList.contains("is-open");
+      item.classList.toggle("is-open", willOpen);
+      item.setAttribute("aria-expanded", String(willOpen));
+    };
+    item.addEventListener("click", toggle);
+    item.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+      }
+    });
+  });
+
   /* ---------- Botão "Voltar ao topo" com anel de progresso ---------- */
   const backToTop = document.querySelector(".back-to-top");
   if (backToTop) {

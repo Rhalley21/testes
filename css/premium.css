@@ -88,6 +88,163 @@
   .hero-bg { background-position: center 0%; }
 }
 
+/* ---------- Quem Somos: card de diagnóstico (fiel à referência) ---------- */
+.blueprint-card {
+  background: #0d1526;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 22px;
+  box-shadow: 0 40px 70px -30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background-image: none;
+}
+.blueprint-card::before,
+.blueprint-card::after { content: none; }
+
+.blueprint-grid { position: relative; display: flex; flex-direction: column; gap: 20px; }
+
+.blueprint-card-row { display: flex; gap: 20px; }
+
+.blueprint-tag {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.028);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 30px 20px;
+  opacity: 0;
+  transform: translateY(16px) scale(0.96);
+  transition: transform 480ms var(--ease), border-color 320ms var(--ease), background 320ms var(--ease), box-shadow 320ms var(--ease), opacity 480ms var(--ease);
+}
+.blueprint-card.is-visible .blueprint-tag { opacity: 1; transform: translateY(0) scale(1); }
+.blueprint-card.is-visible .blueprint-card-row:nth-child(1) .blueprint-tag:nth-child(1) { transition-delay: 60ms; }
+.blueprint-card.is-visible .blueprint-card-row:nth-child(1) .blueprint-tag:nth-child(2) { transition-delay: 160ms; }
+.blueprint-card.is-visible .blueprint-card-row:nth-child(3) .blueprint-tag:nth-child(1) { transition-delay: 260ms; }
+.blueprint-card.is-visible .blueprint-card-row:nth-child(3) .blueprint-tag:nth-child(2) { transition-delay: 360ms; }
+.blueprint-card.is-visible .blueprint-tag-accent { transition-delay: 460ms; }
+
+.blueprint-tag::after { display: none; }
+
+.blueprint-icon {
+  width: 44px;
+  height: 44px;
+  color: var(--dourado-brilho);
+  transition: transform 380ms var(--ease);
+}
+.blueprint-tag-title {
+  font-family: var(--fonte-corpo);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  color: var(--branco);
+}
+.blueprint-tag-desc {
+  font-family: var(--fonte-corpo);
+  font-weight: 400;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: none;
+}
+.blueprint-tag:hover {
+  transform: translateY(-5px);
+  border-color: rgba(244, 198, 107, 0.5);
+  background: rgba(244, 198, 107, 0.06);
+  box-shadow: 0 16px 30px -14px rgba(244, 198, 107, 0.3);
+}
+.blueprint-tag:hover .blueprint-icon { transform: scale(1.12) rotate(-4deg); }
+.blueprint-tag { cursor: pointer; }
+.blueprint-tag-more {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 380ms var(--ease), opacity 280ms var(--ease), margin-top 380ms var(--ease);
+  width: 100%;
+}
+.blueprint-tag-more p {
+  overflow: hidden;
+  min-height: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 0;
+  margin: 0;
+}
+.blueprint-tag.is-open .blueprint-tag-more { grid-template-rows: 1fr; opacity: 1; margin-top: 12px; }
+.blueprint-tag.is-open .blueprint-tag-more p { padding-top: 12px; }
+.blueprint-tag.is-open { border-color: rgba(244, 198, 107, 0.55); background: rgba(244, 198, 107, 0.07); }
+.blueprint-tag-accent .blueprint-tag-more p { color: rgba(6, 26, 48, 0.75); border-top-color: rgba(6, 26, 48, 0.18); }
+.blueprint-tag-accent.is-open { box-shadow: 0 18px 34px -14px rgba(244, 198, 107, 0.5); }
+
+/* Linha divisória com pontos brilhantes entre as duas fileiras */
+.blueprint-divider {
+  position: relative;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: -4px 0;
+}
+.blueprint-dot {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dourado-brilho);
+  box-shadow: 0 0 12px 3px rgba(244, 198, 107, 0.65);
+  transform: translate(-50%, -50%);
+  animation: blueprint-dot-pulse 2.4s ease-in-out infinite;
+}
+.blueprint-dot:nth-child(2) { animation-delay: 0.3s; }
+.blueprint-dot:nth-child(3) { animation-delay: 0.6s; }
+@keyframes blueprint-dot-pulse {
+  0%, 100% { opacity: 0.55; box-shadow: 0 0 8px 2px rgba(244, 198, 107, 0.4); }
+  50% { opacity: 1; box-shadow: 0 0 16px 4px rgba(244, 198, 107, 0.75); }
+}
+
+/* Barra de destaque RESULTADO */
+.blueprint-tag-accent {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  background: linear-gradient(120deg, var(--dourado-brilho), var(--laranja));
+  border-radius: 16px;
+  padding: 24px 28px;
+  opacity: 0;
+  transform: translateY(16px) scale(0.96);
+  transition: transform 480ms var(--ease), opacity 480ms var(--ease), box-shadow 320ms var(--ease);
+}
+.blueprint-card.is-visible .blueprint-tag-accent { opacity: 1; transform: translateY(0) scale(1); }
+.blueprint-tag-accent-top { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.blueprint-tag-accent .blueprint-icon { width: 32px; height: 32px; color: var(--azul-escuro); flex-shrink: 0; }
+.blueprint-tag-accent-text { display: flex; flex-direction: column; gap: 3px; align-items: center; text-align: center; }
+.blueprint-tag-accent .blueprint-tag-title { color: var(--azul-escuro); font-size: 1.1rem; }
+.blueprint-tag-accent .blueprint-tag-desc { color: rgba(6, 26, 48, 0.75); }
+.blueprint-tag-accent:hover { box-shadow: 0 18px 34px -14px rgba(244, 198, 107, 0.5); }
+
+@media (max-width: 560px) {
+  .blueprint-card-row { flex-direction: column; }
+  .blueprint-divider { display: none; }
+  .blueprint-tag-accent { flex-direction: column; text-align: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blueprint-dot { animation: none; }
+  .blueprint-tag, .blueprint-tag-accent { opacity: 1; transform: none; transition: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blueprint-card::before { animation: none; }
+  .blueprint-tag { opacity: 1; transform: none; transition: none; }
+}
+
 /* ---------- Header: encolhimento suave ao rolar ---------- */
 .header-inner, .brand-logo { transition: height 380ms var(--ease); }
 .site-header.is-scrolled { border-bottom-color: rgba(244, 198, 107, 0.16); }
