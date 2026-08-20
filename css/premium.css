@@ -50,37 +50,37 @@
   .preloader-mark, .preloader-ring { animation: none; }
 }
 
-/* ---------- Hero: fotos dos fundadores ao lado do texto ---------- */
+/* ---------- Hero: fotos dos fundadores ao lado do texto (sem fundo) ---------- */
 .hero-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 28px;
+  gap: 12px;
 }
-.hero-row .hero-inner { max-width: 660px; flex: 1 1 auto; }
+.hero-row .hero-inner { max-width: 620px; flex: 1 1 auto; }
 .hero-people {
   flex-shrink: 0;
   display: flex;
   align-items: flex-end;
-  gap: 18px;
+  gap: -10px;
+  position: relative;
+  height: 500px;
 }
 .hero-person {
   position: relative;
-  width: 190px;
-  aspect-ratio: 4 / 5;
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 1px solid rgba(244, 198, 107, 0.35);
-  box-shadow: 0 28px 54px -22px rgba(2, 10, 22, 0.6);
-  transition: transform 420ms var(--ease), box-shadow 420ms var(--ease);
+  width: 260px;
+  height: 100%;
+  transition: transform 420ms var(--ease);
 }
-.hero-person::after {
+.hero-person::before {
   content: "";
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  pointer-events: none;
+  left: 50%; top: 40%;
+  width: 240px; height: 240px;
+  background: radial-gradient(circle, rgba(244, 198, 107, 0.28) 0%, transparent 72%);
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  filter: blur(4px);
 }
 .hero-person img {
   position: relative;
@@ -88,15 +88,16 @@
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: top center;
+  object-fit: contain;
+  object-position: bottom center;
+  filter: drop-shadow(0 24px 30px rgba(2, 10, 22, 0.5));
 }
-.hero-person-1 { transform: translateY(-16px); }
-.hero-person-2 { transform: translateY(8px); }
-.hero-person-1:hover { transform: translateY(-22px); box-shadow: 0 32px 64px -20px rgba(2, 10, 22, 0.7); }
-.hero-person-2:hover { transform: translateY(2px); box-shadow: 0 32px 64px -20px rgba(2, 10, 22, 0.7); }
+.hero-person-1 { margin-right: -22px; z-index: 2; transform: translateY(0); }
+.hero-person-2 { z-index: 1; transform: translateY(6px); }
+.hero-person-1:hover { transform: translateY(-8px); }
+.hero-person-2:hover { transform: translateY(-2px); }
 
-@media (max-width: 900px) {
+@media (max-width: 980px) {
   .hero-people { display: none; }
 }
 
