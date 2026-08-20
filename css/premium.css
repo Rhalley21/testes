@@ -94,18 +94,18 @@
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 22px;
   box-shadow: 0 40px 70px -30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  padding: 26px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   background-image: none;
 }
 .blueprint-card::before,
 .blueprint-card::after { content: none; }
 
-.blueprint-grid { position: relative; display: flex; flex-direction: column; gap: 20px; }
+.blueprint-grid { position: relative; display: flex; flex-direction: column; gap: 16px; }
 
-.blueprint-card-row { display: flex; gap: 20px; }
+.blueprint-card-row { display: flex; gap: 16px; }
 
 .blueprint-tag {
   flex: 1;
@@ -114,11 +114,11 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 14px;
+  gap: 10px;
   background: rgba(255, 255, 255, 0.028);
   border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 16px;
-  padding: 30px 20px;
+  border-radius: 14px;
+  padding: 20px 14px;
   opacity: 0;
   transform: translateY(16px) scale(0.96);
   transition: transform 480ms var(--ease), border-color 320ms var(--ease), background 320ms var(--ease), box-shadow 320ms var(--ease), opacity 480ms var(--ease);
@@ -133,8 +133,8 @@
 .blueprint-tag::after { display: none; }
 
 .blueprint-icon {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   color: var(--dourado-brilho);
   transition: transform 380ms var(--ease);
 }
@@ -146,12 +146,14 @@
   color: var(--branco);
 }
 .blueprint-tag-desc {
+  display: block;
   font-family: var(--fonte-corpo);
-  font-weight: 400;
+  font-weight: 600;
   font-size: 0.86rem;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.85);
   text-transform: none;
+  margin-bottom: 6px;
 }
 .blueprint-tag:hover {
   transform: translateY(-5px);
@@ -182,6 +184,7 @@
 .blueprint-tag.is-open .blueprint-tag-more p { padding-top: 12px; }
 .blueprint-tag.is-open { border-color: rgba(244, 198, 107, 0.55); background: rgba(244, 198, 107, 0.07); }
 .blueprint-tag-accent .blueprint-tag-more p { color: rgba(6, 26, 48, 0.75); border-top-color: rgba(6, 26, 48, 0.18); }
+.blueprint-tag-accent .blueprint-tag-more .blueprint-tag-desc { color: var(--azul-escuro); }
 .blueprint-tag-accent.is-open { box-shadow: 0 18px 34px -14px rgba(244, 198, 107, 0.5); }
 
 /* Linha divisória com pontos brilhantes entre as duas fileiras */
