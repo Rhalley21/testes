@@ -1,0 +1,240 @@
+/* =========================================================================
+   INETRIS — Camada Premium (somente index.html)
+   Eleva o polimento e as animações mantendo a identidade visual atual
+   (azul-marinho + dourado, tipografia Fraunces/Inter). Arquivo isolado
+   de propósito: portfolio.html e diagnostico.html não o carregam, então
+   nada aqui afeta essas páginas.
+   ========================================================================= */
+
+/* ---------- Preloader de entrada ---------- */
+.preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(120% 120% at 50% 20%, var(--azul-suave) 0%, var(--azul-escuro) 60%, #04101f 100%);
+  transition: opacity 640ms var(--ease), visibility 640ms var(--ease);
+}
+.preloader.is-done { opacity: 0; visibility: hidden; pointer-events: none; }
+.preloader-inner { position: relative; display: flex; align-items: center; justify-content: center; }
+.preloader-mark {
+  width: 74px;
+  height: 74px;
+  animation: preloader-pulse 1.4s var(--ease) infinite;
+}
+.preloader-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px rgba(244, 198, 107, 0.55));
+}
+.preloader-ring {
+  position: absolute;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(244, 198, 107, 0.22);
+  border-top-color: var(--dourado-brilho);
+  animation: preloader-spin 1.1s linear infinite;
+}
+@keyframes preloader-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.9); opacity: 0.82; }
+}
+@keyframes preloader-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .preloader { transition: opacity 200ms linear; }
+  .preloader-mark, .preloader-ring { animation: none; }
+}
+
+/* ---------- Foto da equipe no início do site (Quem Somos) ---------- */
+.team-photo-card {
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--sombra);
+  border: 1px solid rgba(244, 198, 107, 0.22);
+  margin: 0;
+  position: relative;
+  transition: transform 420ms var(--ease), box-shadow 420ms var(--ease);
+}
+.team-photo-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+.team-photo-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.team-photo-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 30px 60px -28px rgba(6, 20, 40, 0.55);
+}
+.blueprint-card-compact {
+  padding: 26px;
+  margin-top: 8px;
+}
+.blueprint-card-compact .blueprint-tag { padding: 18px 10px; font-size: 0.74rem; }
+
+/* ---------- Header: encolhimento suave ao rolar ---------- */
+.header-inner, .brand-logo { transition: height 380ms var(--ease); }
+.site-header.is-scrolled { border-bottom-color: rgba(244, 198, 107, 0.16); }
+.site-header.is-scrolled .header-inner { height: 64px; }
+.site-header.is-scrolled .brand-logo { height: 34px; }
+
+/* ---------- Reveal aprimorado: desfoque + leve escala, além do translateY já existente ---------- */
+.reveal { filter: blur(6px); transform: translateY(26px) scale(0.98); }
+.reveal.is-visible { filter: blur(0); }
+
+/* ---------- Título do Hero: entrada com desfoque que assenta ---------- */
+.hero-title.hero-anim {
+  filter: blur(8px);
+  animation-name: hero-rise-blur;
+}
+@keyframes hero-rise-blur {
+  0% { opacity: 0; transform: translateY(26px); filter: blur(8px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+/* ---------- Botões: resposta de clique mais tátil ---------- */
+.btn:active { transform: scale(0.97) !important; }
+
+/* ---------- Galeria: indicação de zoom + brilho dourado ao passar ---------- */
+.gallery-card { cursor: zoom-in; }
+.gallery-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(150deg, transparent 60%, rgba(244, 198, 107, 0.18) 100%);
+  opacity: 0;
+  transition: opacity 320ms var(--ease);
+  pointer-events: none;
+}
+.gallery-card:hover::after { opacity: 1; }
+
+/* ---------- Lightbox da galeria ---------- */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2400;
+  background: rgba(4, 12, 24, 0.92);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 320ms var(--ease), visibility 320ms var(--ease);
+}
+.lightbox-overlay.is-open { opacity: 1; visibility: visible; }
+.lightbox-figure {
+  max-width: min(920px, 92vw);
+  text-align: center;
+  transform: scale(0.92);
+  transition: transform 380ms var(--ease);
+}
+.lightbox-overlay.is-open .lightbox-figure { transform: scale(1); }
+.lightbox-figure img {
+  max-width: 100%;
+  max-height: 72vh;
+  border-radius: var(--radius);
+  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.7);
+  margin: 0 auto;
+}
+.lightbox-caption { margin-top: 18px; }
+.lightbox-caption h3 { color: var(--dourado-brilho); font-size: 1.15rem; margin-bottom: 6px; }
+.lightbox-caption p { color: rgba(255, 255, 255, 0.68); font-size: 0.92rem; }
+
+.lightbox-close, .lightbox-nav {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--branco);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transicao), transform var(--transicao), border-color var(--transicao);
+}
+.lightbox-close:hover, .lightbox-nav:hover {
+  background: var(--dourado-brilho);
+  color: var(--azul-escuro);
+  border-color: var(--dourado-brilho);
+}
+.lightbox-close { top: 24px; right: 24px; }
+.lightbox-prev { left: 24px; top: 50%; transform: translateY(-50%); }
+.lightbox-next { right: 24px; top: 50%; transform: translateY(-50%); }
+.lightbox-close:hover { transform: scale(1.08); }
+.lightbox-prev:hover { transform: translateY(-50%) scale(1.08); }
+.lightbox-next:hover { transform: translateY(-50%) scale(1.08); }
+
+@media (max-width: 640px) {
+  .lightbox-overlay { padding: 20px; }
+  .lightbox-prev, .lightbox-next { display: none; }
+}
+
+/* ---------- Botão "Voltar ao topo" com anel de progresso ---------- */
+.back-to-top {
+  position: fixed;
+  right: 24px;
+  bottom: 96px;
+  z-index: 900;
+  width: 52px;
+  height: 52px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(12px) scale(0.9);
+  transition: opacity 320ms var(--ease), transform 320ms var(--ease), visibility 320ms var(--ease);
+}
+.back-to-top.is-visible { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
+.back-to-top svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.back-to-top circle.bg { fill: rgba(10, 38, 71, 0.94); stroke: rgba(255, 255, 255, 0.16); stroke-width: 2; transition: fill var(--transicao); }
+.back-to-top circle.progress { fill: none; stroke: var(--dourado-brilho); stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset 120ms linear; }
+.back-to-top:hover circle.bg { fill: var(--azul-brilho); }
+.back-to-top-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--branco);
+  pointer-events: none;
+  transform: rotate(0deg);
+}
+
+@media (max-width: 640px) {
+  .back-to-top { right: 18px; bottom: 82px; width: 46px; height: 46px; }
+}
+
+/* ---------- Bolas douradas das seções creme: movimento bem mais perceptível ---------- */
+/* Redefine a mesma animação (float-bob) usada em style.css com um trajeto maior e mais orgânico */
+@keyframes float-bob {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(38px, -46px); }
+  50%  { transform: translate(-24px, -78px); }
+  75%  { transform: translate(-52px, -18px); }
+  100% { transform: translate(0, 0); }
+}
+.float-dot {
+  animation-duration: 13s;
+  animation-timing-function: ease-in-out;
+}
+.fd1 { animation-duration: 15s; }
+.fd2 { animation-duration: 11.5s; animation-delay: 1s; }
+.fd3 { animation-duration: 17s; animation-delay: 2.2s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { filter: none; }
+  .hero-title.hero-anim { animation: none; filter: none; opacity: 1; transform: none; }
+  .float-dot { animation: none !important; }
+}
