@@ -38,23 +38,6 @@ document.addEventListener("DOMContentLoaded", () => {
     bpObserver.observe(blueprintCard);
   }
 
-  /* ---------- Quem Somos: clique em cada bloco revela uma explicação resumida ---------- */
-  const blueprintItems = document.querySelectorAll(".blueprint-tag, .blueprint-tag-accent");
-  blueprintItems.forEach((item) => {
-    const toggle = () => {
-      const willOpen = !item.classList.contains("is-open");
-      item.classList.toggle("is-open", willOpen);
-      item.setAttribute("aria-expanded", String(willOpen));
-    };
-    item.addEventListener("click", toggle);
-    item.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggle();
-      }
-    });
-  });
-
   /* ---------- Botão "Voltar ao topo" com anel de progresso ---------- */
   const backToTop = document.querySelector(".back-to-top");
   if (backToTop) {
