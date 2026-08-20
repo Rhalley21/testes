@@ -50,38 +50,55 @@
   .preloader-mark, .preloader-ring { animation: none; }
 }
 
-/* ---------- Foto da equipe no início do site (Quem Somos) ---------- */
-.team-photo-card {
+/* ---------- Hero: fotos dos fundadores ao lado do texto ---------- */
+.hero-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+}
+.hero-row .hero-inner { max-width: 660px; flex: 1 1 auto; }
+.hero-people {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+}
+.hero-person {
+  position: relative;
+  width: 190px;
+  aspect-ratio: 4 / 5;
   border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: var(--sombra);
-  border: 1px solid rgba(244, 198, 107, 0.22);
-  margin: 0;
-  position: relative;
+  border: 1px solid rgba(244, 198, 107, 0.35);
+  box-shadow: 0 28px 54px -22px rgba(2, 10, 22, 0.6);
   transition: transform 420ms var(--ease), box-shadow 420ms var(--ease);
 }
-.team-photo-card::after {
+.hero-person::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
   pointer-events: none;
 }
-.team-photo-card img {
+.hero-person img {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
 }
-.team-photo-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 30px 60px -28px rgba(6, 20, 40, 0.55);
+.hero-person-1 { transform: translateY(-16px); }
+.hero-person-2 { transform: translateY(8px); }
+.hero-person-1:hover { transform: translateY(-22px); box-shadow: 0 32px 64px -20px rgba(2, 10, 22, 0.7); }
+.hero-person-2:hover { transform: translateY(2px); box-shadow: 0 32px 64px -20px rgba(2, 10, 22, 0.7); }
+
+@media (max-width: 900px) {
+  .hero-people { display: none; }
 }
-.blueprint-card-compact {
-  padding: 26px;
-  margin-top: 8px;
-}
-.blueprint-card-compact .blueprint-tag { padding: 18px 10px; font-size: 0.74rem; }
 
 /* ---------- Header: encolhimento suave ao rolar ---------- */
 .header-inner, .brand-logo { transition: height 380ms var(--ease); }
