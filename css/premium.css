@@ -50,47 +50,41 @@
   .preloader-mark, .preloader-ring { animation: none; }
 }
 
-/* ---------- Hero: fotos dos fundadores ao lado do texto (sem fundo) ---------- */
-.hero-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+/* ---------- Hero: foto de fundo + card de texto flutuando na frente ---------- */
+.hero-photo { position: relative; }
+.hero-bg {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  background-image: url("../assets/hero-bg-equipe.jpg");
+  background-size: cover;
+  background-position: center 18%;
+  z-index: 0;
 }
-.hero-row .hero-inner { max-width: 680px; flex: 1 1 auto; }
-.hero-people {
-  flex-shrink: 0;
-  display: flex;
-  align-items: flex-end;
-  position: relative;
-  height: 420px;
+.hero-bg-overlay {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 0;
+  background:
+    linear-gradient(90deg, rgba(6, 18, 36, 0.94) 0%, rgba(6, 18, 36, 0.82) 32%, rgba(6, 18, 36, 0.35) 62%, rgba(6, 18, 36, 0.18) 100%),
+    linear-gradient(180deg, rgba(6, 18, 36, 0.55) 0%, rgba(6, 18, 36, 0.15) 22%, rgba(6, 18, 36, 0.35) 78%, rgba(6, 18, 36, 0.8) 100%);
 }
-.hero-person {
-  position: relative;
-  height: 100%;
-  transition: transform 420ms var(--ease);
-}
-.hero-person img {
-  position: relative;
-  z-index: 1;
-  display: block;
-  height: 100%;
-  width: auto;
-  max-width: none;
-  object-fit: contain;
-  filter: drop-shadow(0 24px 30px rgba(2, 10, 22, 0.5));
-}
-.hero-person-1 { margin-right: -22px; z-index: 2; }
-.hero-person-2 { z-index: 1; }
-.hero-person-1:hover { transform: translateY(-8px); }
-.hero-person-2:hover { transform: translateY(-8px); }
-
-@media (max-width: 980px) {
-  .hero-people { display: none; }
+.hero-photo .hero-row { position: relative; z-index: 2; }
+.hero-photo .hero-constellation { display: none; }
+.hero-photo .hero-corner { z-index: 3; }
+.hero-card {
+  background: rgba(8, 20, 40, 0.52);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(244, 198, 107, 0.25);
+  border-radius: var(--radius);
+  padding: 44px 44px 40px;
+  box-shadow: 0 40px 80px -30px rgba(2, 8, 18, 0.65);
+  max-width: 620px;
 }
 
-@media (min-width: 981px) {
-  .hero { padding-bottom: 170px; }
+@media (max-width: 720px) {
+  .hero-card { padding: 30px 26px; }
+  .hero-bg { background-position: center 12%; }
 }
 
 /* ---------- Header: encolhimento suave ao rolar ---------- */
