@@ -90,6 +90,12 @@
     linear-gradient(180deg, rgba(6, 18, 36, 0.25) 0%, rgba(6, 18, 36, 0.02) 22%, rgba(6, 18, 36, 0.08) 78%, rgba(6, 18, 36, 0.55) 100%);
   pointer-events: none;
 }
+.hero-logo-constellation {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 1;
+  pointer-events: none;
+}
 .hero-photo .hero-row { position: relative; z-index: 2; }
 .hero-photo .hero-constellation { display: none; }
 .hero-photo .hero-corner { z-index: 3; }

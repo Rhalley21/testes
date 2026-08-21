@@ -38,6 +38,97 @@ document.addEventListener("DOMContentLoaded", () => {
     bpObserver.observe(blueprintCard);
   }
 
+  /* ---------- Hero: constelação com pequenas logos do INETRIS ---------- */
+  const logoCanvas = document.querySelector(".hero-logo-constellation");
+  if (logoCanvas) {
+    const ctx = logoCanvas.getContext("2d");
+    const logoImg = new Image();
+
+    let width = 0, height = 0, dpr = 1, nodes = [];
+    let rafId = null;
+
+    const resize = () => {
+      const rect = logoCanvas.parentElement.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      logoCanvas.width = Math.round(width * dpr);
+      logoCanvas.height = Math.round(height * dpr);
+      logoCanvas.style.width = width + "px";
+      logoCanvas.style.height = height + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    const initNodes = () => {
+      const count = Math.max(9, Math.min(22, Math.floor((width * height) / 60000)));
+      nodes = Array.from({ length: count }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.12,
+        vy: (Math.random() - 0.5) * 0.12,
+        size: 16 + Math.random() * 14,
+        alpha: 0.35 + Math.random() * 0.3,
+      }));
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, width, height);
+      ctx.lineWidth = 1;
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          const dx = a.x - b.x, dy = a.y - b.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 170) {
+            ctx.strokeStyle = `rgba(244, 198, 107, ${0.16 * (1 - dist / 170)})`;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+      }
+      nodes.forEach((n) => {
+        ctx.globalAlpha = n.alpha;
+        ctx.drawImage(logoImg, n.x - n.size / 2, n.y - n.size / 2, n.size, n.size);
+      });
+      ctx.globalAlpha = 1;
+    };
+
+    const step = () => {
+      nodes.forEach((n) => {
+        n.x += n.vx;
+        n.y += n.vy;
+        if (n.x < -24) n.x = width + 24;
+        if (n.x > width + 24) n.x = -24;
+        if (n.y < -24) n.y = height + 24;
+        if (n.y > height + 24) n.y = -24;
+      });
+      draw();
+      rafId = requestAnimationFrame(step);
+    };
+
+    const start = () => {
+      resize();
+      initNodes();
+      if (reduceMotion) {
+        draw();
+      } else {
+        if (rafId) cancelAnimationFrame(rafId);
+        step();
+      }
+    };
+
+    logoImg.onload = start;
+    logoImg.src = new URL("assets/logo-watermark.png", document.baseURI).href;
+    if (logoImg.complete && logoImg.naturalWidth) start();
+    window.addEventListener("resize", () => {
+      resize();
+      initNodes();
+      draw();
+    });
+  }
+
   /* ---------- Botão "Voltar ao topo" com anel de progresso ---------- */
   const backToTop = document.querySelector(".back-to-top");
   if (backToTop) {
