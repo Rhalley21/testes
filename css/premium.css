@@ -55,18 +55,40 @@
 .hero-bg {
   position: absolute;
   top: 0; right: 0; bottom: 0; left: 0;
-  background-image: url("../assets/hero-bg-equipe.jpg");
-  background-size: cover;
-  background-position: center 0%;
+  background: radial-gradient(120% 100% at 50% 0%, var(--azul-suave) 0%, var(--azul-principal) 55%, var(--azul-escuro) 100%);
   z-index: 0;
+}
+.hero-people-bg {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 3%;
+  pointer-events: none;
+}
+.hero-person-bg {
+  height: 92%;
+  width: auto;
+  max-width: 42%;
+  object-fit: contain;
+  object-position: bottom center;
+}
+.hero-person-bg-1 {
+  filter: brightness(1.14) contrast(1.05) saturate(1.05);
+}
+.hero-person-bg-2 {
+  filter: brightness(0.86) contrast(0.98) saturate(0.94);
+  height: 88%;
 }
 .hero-bg-overlay {
   position: absolute;
   top: 0; right: 0; bottom: 0; left: 0;
-  z-index: 0;
+  z-index: 1;
   background:
-    linear-gradient(90deg, rgba(6, 18, 36, 0.62) 0%, rgba(6, 18, 36, 0.42) 30%, rgba(6, 18, 36, 0.08) 58%, rgba(6, 18, 36, 0.02) 100%),
-    linear-gradient(180deg, rgba(6, 18, 36, 0.3) 0%, rgba(6, 18, 36, 0.02) 24%, rgba(6, 18, 36, 0.1) 78%, rgba(6, 18, 36, 0.5) 100%);
+    linear-gradient(180deg, rgba(6, 18, 36, 0.25) 0%, rgba(6, 18, 36, 0.02) 22%, rgba(6, 18, 36, 0.08) 78%, rgba(6, 18, 36, 0.55) 100%);
+  pointer-events: none;
 }
 .hero-photo .hero-row { position: relative; z-index: 2; }
 .hero-photo .hero-constellation { display: none; }
@@ -85,9 +107,15 @@
 
 @media (max-width: 720px) {
   .hero-card { padding: 30px 26px; }
-  .hero-bg { background-position: center 0%; }
+  .hero-people-bg { padding: 0 1%; }
+  .hero-person-bg { height: 62%; max-width: 46%; }
+  .hero-person-bg-2 { height: 58%; }
 }
 
+@media (max-width: 480px) {
+  .hero-person-bg { height: 48%; }
+  .hero-person-bg-2 { height: 45%; }
+}
 /* ---------- Quem Somos: card de diagnóstico (fiel à referência) ---------- */
 .blueprint-card {
   background: #0d1526;
