@@ -129,6 +129,36 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  /* ---------- Cursor personalizado com a logo, substitui o mouse (desktop) ---------- */
+  if (!reduceMotion && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    document.body.classList.add("has-custom-cursor");
+
+    const cursor = document.createElement("div");
+    cursor.className = "custom-cursor";
+    cursor.innerHTML = '<img src="assets/logo.png" alt="">';
+    document.body.appendChild(cursor);
+
+    let mx = window.innerWidth / 2, my = window.innerHeight / 2, cx = mx, cy = my;
+
+    window.addEventListener("mousemove", (e) => {
+      mx = e.clientX;
+      my = e.clientY;
+    });
+
+    const animateCursor = () => {
+      cx += (mx - cx) * 0.2;
+      cy += (my - cy) * 0.2;
+      cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
+      requestAnimationFrame(animateCursor);
+    };
+    animateCursor();
+
+    document.querySelectorAll("a, button, .gallery-card, .hero-person-bg").forEach((el) => {
+      el.addEventListener("mouseenter", () => cursor.classList.add("is-active"));
+      el.addEventListener("mouseleave", () => cursor.classList.remove("is-active"));
+    });
+  }
+
   /* ---------- Botão "Voltar ao topo" com anel de progresso ---------- */
   const backToTop = document.querySelector(".back-to-top");
   if (backToTop) {
