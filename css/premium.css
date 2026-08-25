@@ -112,15 +112,26 @@
 }
 
 @media (max-width: 720px) {
-  .hero-card { padding: 30px 26px; }
-  .hero-people-bg { padding: 0 1%; }
-  .hero-person-bg { height: 62%; max-width: 46%; }
-  .hero-person-bg-2 { height: 58%; }
+  .hero-photo { padding-bottom: 130px; }
+  .hero-card { padding: 200px 26px 30px; }
+  .hero-people-bg {
+    top: 92px;
+    bottom: auto;
+    height: 210px;
+    padding: 0 1%;
+    align-items: flex-start;
+    justify-content: space-between;
+    z-index: 3;
+  }
+  .hero-person-bg { height: 210px; max-width: 36%; }
+  .hero-person-bg-2 { height: 196px; }
 }
 
 @media (max-width: 480px) {
-  .hero-person-bg { height: 48%; }
-  .hero-person-bg-2 { height: 45%; }
+  .hero-photo { padding-bottom: 110px; }
+  .hero-people-bg { top: 84px; height: 175px; }
+  .hero-person-bg { height: 175px; }
+  .hero-person-bg-2 { height: 163px; }
 }
 /* ---------- Quem Somos: card de diagnóstico (fiel à referência) ---------- */
 .blueprint-card {
