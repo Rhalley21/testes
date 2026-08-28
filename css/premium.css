@@ -350,6 +350,14 @@ body.has-custom-cursor, body.has-custom-cursor a, body.has-custom-cursor button 
 .site-header.is-scrolled .header-inner { height: 64px; }
 .site-header.is-scrolled .brand-logo { height: 34px; }
 
+/* ---------- Nav: espaço reduzido para caber o item extra (Sistema Inetris) sem cortar ---------- */
+.main-nav ul { gap: 18px; }
+.nav-link { font-size: 0.68rem; padding: 4px 1px 12px; }
+.nav-icon { width: 20px; height: 20px; }
+@media (max-width: 1200px) {
+  .main-nav ul { gap: 14px; }
+}
+
 /* ---------- Reveal aprimorado: desfoque + leve escala, além do translateY já existente ---------- */
 .reveal { filter: blur(6px); transform: translateY(26px) scale(0.98); }
 .reveal.is-visible { filter: blur(0); }
