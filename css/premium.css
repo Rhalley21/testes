@@ -469,6 +469,125 @@ body.has-custom-cursor, body.has-custom-cursor a, body.has-custom-cursor button 
   .diagcta-form-row { grid-template-columns: 1fr; }
 }
 
+/* ---------- Sistema Inetris: seção detalhada da plataforma NORTE ---------- */
+.sistema {
+  position: relative;
+  background: linear-gradient(165deg, var(--azul-escuro) 0%, var(--azul-principal) 60%, var(--azul-suave) 100%);
+  overflow: hidden;
+}
+.sistema-bg {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  background-image: radial-gradient(rgba(244, 198, 107, 0.14) 1px, transparent 1px);
+  background-size: 26px 26px;
+  opacity: 0.4;
+  z-index: 0;
+}
+.sistema-inner { position: relative; z-index: 1; }
+.sistema-head { text-align: center; max-width: 720px; margin: 0 auto 50px; }
+.sistema-title {
+  font-family: var(--fonte-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: var(--branco);
+  margin: 12px 0 18px;
+}
+.sistema-sub { color: rgba(255, 255, 255, 0.72); font-size: 1.05rem; line-height: 1.7; }
+
+/* Fluxo de etapas */
+.sistema-flow { margin-bottom: 54px; }
+.sistema-flow-track {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sistema-step {
+  flex: 1 1 180px;
+  max-width: 230px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(244, 198, 107, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 22px 20px;
+  text-align: center;
+  transition: transform 380ms var(--ease), border-color 380ms var(--ease), background 380ms var(--ease);
+}
+.sistema-step:hover { transform: translateY(-5px); border-color: rgba(244, 198, 107, 0.55); background: rgba(244, 198, 107, 0.06); }
+.sistema-step-num { display: block; font-family: var(--fonte-mono); font-size: 1.5rem; font-weight: 700; color: var(--dourado-brilho); margin-bottom: 6px; }
+.sistema-step-label { display: block; font-weight: 700; color: var(--branco); font-size: 1rem; margin-bottom: 4px; }
+.sistema-step-desc { display: block; color: rgba(255, 255, 255, 0.6); font-size: 0.82rem; line-height: 1.4; }
+.sistema-flow-arrow { display: flex; align-items: center; color: rgba(244, 198, 107, 0.6); font-size: 1.4rem; }
+
+/* Grade de recursos */
+.sistema-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 50px;
+}
+.sistema-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  padding: 26px 24px;
+  transition: transform 380ms var(--ease), border-color 380ms var(--ease), background 380ms var(--ease), box-shadow 380ms var(--ease);
+}
+.sistema-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(244, 198, 107, 0.4);
+  background: rgba(255, 255, 255, 0.055);
+  box-shadow: 0 24px 44px -22px rgba(2, 8, 18, 0.7);
+}
+.sistema-card-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(244, 198, 107, 0.2), rgba(233, 150, 16, 0.12));
+  border: 1px solid rgba(244, 198, 107, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  transition: transform 380ms var(--ease);
+}
+.sistema-card:hover .sistema-card-icon { transform: scale(1.08) rotate(-4deg); }
+.sistema-card-icon svg { width: 26px; height: 26px; color: var(--dourado-brilho); }
+.sistema-card h3 { color: var(--branco); font-family: var(--fonte-corpo); font-weight: 700; font-size: 1.05rem; margin-bottom: 10px; }
+.sistema-card p { color: rgba(255, 255, 255, 0.66); font-size: 0.9rem; line-height: 1.6; }
+
+/* Destaques */
+.sistema-highlights {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  padding: 30px;
+  background: rgba(8, 20, 40, 0.4);
+  border: 1px solid rgba(244, 198, 107, 0.16);
+  border-radius: var(--radius);
+  margin-bottom: 44px;
+}
+.sistema-highlight { text-align: center; }
+.sistema-highlight strong { display: block; color: var(--dourado-brilho); font-size: 1.05rem; margin-bottom: 6px; }
+.sistema-highlight span { color: rgba(255, 255, 255, 0.62); font-size: 0.85rem; line-height: 1.5; }
+
+/* CTA */
+.sistema-cta { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+@media (max-width: 1000px) {
+  .sistema-grid { grid-template-columns: repeat(2, 1fr); }
+  .sistema-highlights { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 720px) {
+  .sistema-flow-arrow { display: none; }
+  .sistema-step { max-width: none; }
+}
+@media (max-width: 560px) {
+  .sistema-grid { grid-template-columns: 1fr; }
+  .sistema-highlights { grid-template-columns: 1fr; }
+  .sistema-cta { flex-direction: column; }
+  .sistema-cta .btn { width: 100%; text-align: center; justify-content: center; }
+}
+
 /* ---------- Header: encolhimento suave ao rolar ---------- */
 .header-inner, .brand-logo { transition: height 380ms var(--ease); }
 .site-header.is-scrolled { border-bottom-color: rgba(244, 198, 107, 0.16); }
