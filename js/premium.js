@@ -159,6 +159,70 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  /* ---------- Agende o Diagnóstico: envio do formulário ---------- */
+  const diagCtaForm = document.getElementById("diagcta-form");
+  if (diagCtaForm) {
+    const hint = document.getElementById("diagcta-hint");
+    const submitBtn = diagCtaForm.querySelector(".diagcta-submit");
+    const FORMSPREE_ENDPOINT = "https://formspree.io/f/mojoyvew";
+
+    diagCtaForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = new FormData(diagCtaForm);
+      const nome = (data.get("nome") || "").toString().trim();
+      const whatsapp = (data.get("whatsapp") || "").toString().trim();
+
+      hint.classList.remove("is-error", "is-success");
+
+      if (!nome || whatsapp.replace(/\D/g, "").length < 10) {
+        hint.textContent = !nome
+          ? "Digite seu nome para continuar."
+          : "Digite um WhatsApp válido, com DDD.";
+        hint.classList.add("is-error");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      const originalLabel = submitBtn.textContent;
+      submitBtn.textContent = "Enviando...";
+
+      const payload = {
+        nome,
+        whatsapp,
+        empresa_cidade: (data.get("empresa_cidade") || "").toString().trim(),
+        tamanho_equipe: (data.get("tamanho_equipe") || "").toString().trim(),
+        maior_desafio: (data.get("maior_desafio") || "").toString().trim(),
+        origem: "Site INETRIS — Agendar diagnóstico",
+        data: new Date().toLocaleString("pt-BR"),
+      };
+
+      try {
+        await fetch(FORMSPREE_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (err) {
+        console.warn("Falha ao enviar o formulário de diagnóstico:", err);
+      }
+
+      hint.textContent = "Recebemos seu pedido! Nossa equipe vai te chamar no WhatsApp em breve.";
+      hint.classList.add("is-success");
+      submitBtn.textContent = "Enviado ✓";
+      diagCtaForm.reset();
+
+      const waDigits = whatsapp.replace(/\D/g, "");
+      const waMessage = encodeURIComponent(
+        `Olá! Sou ${nome} e quero agendar o diagnóstico da minha empresa.`
+      );
+      setTimeout(() => {
+        window.open(`https://wa.me/5589988075328?text=${waMessage}`, "_blank", "noopener");
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalLabel;
+      }, 900);
+    });
+  }
+
   /* ---------- Botão "Voltar ao topo" com anel de progresso ---------- */
   const backToTop = document.querySelector(".back-to-top");
   if (backToTop) {

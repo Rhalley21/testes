@@ -344,6 +344,131 @@ body.has-custom-cursor, body.has-custom-cursor a, body.has-custom-cursor button 
   body.has-custom-cursor, body.has-custom-cursor a, body.has-custom-cursor button { cursor: auto; }
 }
 
+/* ---------- Agende o Diagnóstico: nova seção antes de Fale Conosco ---------- */
+.diagcta {
+  position: relative;
+  background: linear-gradient(165deg, var(--azul-escuro) 0%, var(--azul-principal) 60%, var(--azul-suave) 100%);
+  padding: 90px 0;
+  overflow: hidden;
+}
+.diagcta::before {
+  content: "";
+  position: absolute;
+  top: -20px; right: -20px; bottom: -20px; left: -20px;
+  background-image: url("../assets/hero-bg-equipe.jpg");
+  background-size: cover;
+  background-position: center 20%;
+  filter: blur(6px) saturate(0.9);
+  opacity: 0.22;
+  z-index: 0;
+}
+.diagcta::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  background: linear-gradient(165deg, rgba(6, 20, 40, 0.92) 0%, rgba(10, 38, 71, 0.88) 60%, rgba(26, 66, 115, 0.85) 100%);
+  z-index: 0;
+}
+.diagcta-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 0.92fr;
+  gap: 56px;
+  align-items: center;
+}
+.diagcta-info { display: flex; gap: 22px; }
+.diagcta-rail {
+  position: relative;
+  width: 2px;
+  background: rgba(244, 198, 107, 0.22);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+.diagcta-dot {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--dourado-brilho);
+  box-shadow: 0 0 14px 3px rgba(244, 198, 107, 0.55);
+  transform: translate(-50%, -50%);
+}
+.diagcta-info-inner { flex: 1; min-width: 0; }
+.diagcta .eyebrow { color: var(--dourado-brilho); }
+.diagcta-title {
+  font-family: var(--fonte-corpo);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: clamp(1.9rem, 3.4vw, 2.7rem);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--branco);
+  margin: 14px 0 20px;
+}
+.diagcta-desc {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  line-height: 1.7;
+  max-width: 46ch;
+  margin-bottom: 30px;
+}
+.diagcta-features { list-style: none; margin: 0; padding: 0; }
+.diagcta-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.diagcta-features li:last-child { padding-bottom: 0; }
+.diagcta-feature-icon { width: 22px; height: 22px; flex-shrink: 0; color: var(--dourado-brilho); margin-top: 1px; }
+
+.diagcta-card {
+  background: var(--branco);
+  border-radius: var(--radius);
+  box-shadow: 0 40px 80px -30px rgba(2, 8, 18, 0.5);
+  padding: 40px;
+}
+.diagcta-form { display: flex; flex-direction: column; gap: 20px; }
+.diagcta-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.diagcta-field { display: flex; flex-direction: column; gap: 8px; }
+.diagcta-field span { font-size: 0.86rem; font-weight: 600; color: var(--cinza-titulo); }
+.diagcta-field input, .diagcta-field select {
+  font-family: var(--fonte-corpo);
+  font-size: 0.95rem;
+  padding: 13px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(10, 38, 71, 0.14);
+  background: rgba(10, 38, 71, 0.02);
+  color: var(--azul-escuro);
+  transition: border-color var(--transicao), box-shadow var(--transicao);
+}
+.diagcta-field input::placeholder { color: rgba(10, 38, 71, 0.35); }
+.diagcta-field input:focus, .diagcta-field select:focus {
+  outline: none;
+  border-color: var(--dourado-brilho);
+  box-shadow: 0 0 0 3px rgba(244, 198, 107, 0.2);
+}
+.diagcta-field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230a2647' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; background-size: 16px; cursor: pointer; }
+.diagcta-submit { width: 100%; justify-content: center; padding: 15px; font-size: 1rem; }
+.diagcta-hint { text-align: center; font-size: 0.82rem; color: rgba(10, 38, 71, 0.5); margin: 0; transition: color 220ms var(--ease); }
+.diagcta-hint.is-error { color: #c0392b; }
+.diagcta-hint.is-success { color: #1f8a4c; font-weight: 600; }
+
+@media (max-width: 900px) {
+  .diagcta-grid { grid-template-columns: 1fr; gap: 44px; }
+  .diagcta-card { padding: 30px 24px; }
+}
+@media (max-width: 560px) {
+  .diagcta-form-row { grid-template-columns: 1fr; }
+}
+
 /* ---------- Header: encolhimento suave ao rolar ---------- */
 .header-inner, .brand-logo { transition: height 380ms var(--ease); }
 .site-header.is-scrolled { border-bottom-color: rgba(244, 198, 107, 0.16); }
