@@ -1,138 +1,117 @@
-# Site Institucional — INETRIS
+# NORTE — Instituto INETRIS
 
-Site público do **INETRIS Instituto**, desenvolvido em HTML, CSS e JavaScript puro (sem frameworks, sem build), pronto para publicação no GitHub Pages e preparado para receber novos módulos no futuro.
+Sistema de gestão de desempenho baseado na Metodologia NORTE.
 
-## 📁 Estrutura do projeto
+## Estrutura do projeto
 
 ```
-inetris-site/
-├── index.html          → estrutura e conteúdo de todas as seções
+norte-organizado/
+├── index.html              → só a estrutura da página (praticamente vazio de propósito)
 ├── css/
-│   └── style.css        → todo o visual do site (cores, tipografia, layout, responsivo)
-├── js/
-│   └── script.js         → menu mobile, animações de scroll, contadores
-├── assets/
-│   ├── logo.png          → logotipo do INETRIS (substitua pelo arquivo oficial)
-│   └── mentorias/         → pasta reservada para fotos reais das mentorias
-└── README.md
+│   └── style.css           → todo o visual do sistema (cores, tipografia, layout)
+├── js/                      → a lógica, dividida por responsabilidade
+│   ├── 00-logo-asset.js            → logo do Instituto INETRIS (em base64)
+│   ├── 01-supabase-client.js       → conexão com o banco de dados (Supabase)
+│   ├── 02-core-helpers.js          → funções utilitárias e o "estado" inicial do sistema
+│   ├── 03-data-banco-inteligencia.js → biblioteca de competências/indicadores por família
+│   ├── 04-data-cbo.js              → biblioteca de cargos (Base CBO)
+│   ├── 05-navigation.js            → menu lateral, roteamento entre telas
+│   ├── 06-page-usuarios.js         → tela "Usuários & Acesso" (convites)
+│   ├── 07-router-dashboard.js      → roteador de páginas + Dashboard
+│   ├── 08-page-empresa.js          → tela "Cadastro da Empresa"
+│   ├── 09-page-estrutura.js        → tela "Estrutura Organizacional"
+│   ├── 10-page-cultura.js          → tela "Cultura Organizacional"
+│   ├── 11-page-cargos.js           → tela "Base de Cargos (CBO)"
+│   ├── 12-page-desenho.js          → tela "Desenho de Cargo"
+│   ├── 13-page-colaboradores.js    → tela "Colaboradores"
+│   ├── 14-permissions.js           → regras de quem pode ver/editar o quê
+│   ├── 15-page-ciclos-avaliacao.js → o fluxo completo de avaliação (maior arquivo)
+│   ├── 16-page-diagnostico.js      → tela "Diagnóstico & PDI"
+│   ├── 17-page-inteligencia.js     → tela "Banco de Inteligência"
+│   ├── 18-persistence.js          → salvar/carregar dados do Supabase
+│   ├── 19-auth.js                  → login, cadastro, sessão
+│   ├── 20-page-relatorios.js       → tela "Relatórios" (inclui o PDF semanal de Ponto)
+│   └── 29-page-ponto.js            → tela "Ponto" — bater ponto online (fala com a Edge Function "ponto", não com um banco direto)
+│   └── 30-page-totem-ponto.js      → tela "Totem de ponto" — exibe o QR do local que se renova (só RH/Admin)
+├── supabase/functions/
+│   ├── enviar-email/               → Edge Function que manda e-mails via Resend
+│   └── ponto/                      → Edge Function que faz a ponte com o banco de ponto SEPARADO (ver sql-ponto-db/)
+├── sql-ponto-db/            → schema de um projeto Supabase À PARTE, só para o ponto (não roda no banco principal)
+│   └── 01-schema.sql
+└── sql/                     → scripts para rodar no SQL Editor do Supabase, NESSA ORDEM
+    ├── 01-schema.sql              → cria as tabelas principais
+    ├── 02-auth-trigger.sql        → cadastro cria empresa + perfil automaticamente
+    ├── 03-dados-sistema.sql       → tabela onde os dados do sistema ficam salvos
+    └── 04-perfis-acesso.sql       → tabela de convites + permissão de ver colegas
+    (rode também sql/21-ponto-por-empresa.sql para o liga/desliga de Ponto por Empresa)
+    (rode também sql/22-ponto-seguranca.sql para a segurança do Ponto — QR + selfie)
 ```
 
-## ✏️ Como editar o conteúdo
+## Como rodar
 
-Todo o texto do site fica direto no `index.html`, organizado em seções comentadas (`<!-- ===== NOME DA SEÇÃO ===== -->`). Para editar:
+Como agora são vários arquivos (não mais um só), **não dá pra abrir clicando duas vezes**
+no `index.html` — precisa de um servidor local, do mesmo jeito que já fizemos antes:
 
-1. Abra `index.html` em qualquer editor de texto.
-2. Localize a seção pelo comentário ou pelo `id` (ex.: `id="quem-somos"`).
-3. Edite o texto entre as tags HTML — não é necessário mexer no CSS ou no JS para trocar textos.
-
-### Seções e onde encontrá-las
-
-| Seção                  | `id` no HTML     |
-|-------------------------|------------------|
-| Início / Hero            | `#topo`          |
-| Quem Somos                | `#quem-somos`    |
-| Problemas que resolvemos    | `#problemas`     |
-| Nossas Soluções            | `#solucoes`      |
-| Formação de Líderes         | `#formacao`      |
-| Mentoria Empresarial         | `#mentoria`      |
-| Consultoria de Gestão        | `#consultoria`   |
-| Resultados / Autoridade      | `#resultados`    |
-| Galeria / Mentorias           | `#galeria`       |
-| Fale Conosco                  | `#contato`       |
-
-### Logo e marca d'água
-
-A pasta `assets/` já contém a logo oficial do INETRIS, extraída com fundo transparente:
-
-- `assets/logo.png` — logo principal (símbolo branco e dourado, fundo transparente). Usada no cabeçalho e no rodapé.
-- `assets/logo-watermark.png` — versão da logo em branco com opacidade bem baixa, pensada para uso como marca d'água sobre fundos azuis (usada no Hero e no rodapé).
-- `assets/logo-watermark-navy.png` — versão da logo em azul com opacidade bem baixa, pensada para uso como marca d'água sobre fundos claros (usada nas seções "Quem Somos" e "Fale Conosco").
-
-Para trocar a logo no futuro, basta substituir `assets/logo.png` por um arquivo com fundo transparente e gerar novamente as versões de marca d'água (qualquer editor de imagem serve: duplique a camada, pinte de branco ou azul e reduza a opacidade para cerca de 10-15%).
-
-Para ajustar o tamanho ou a posição da marca d'água em cada seção, procure por `logo-watermark` no `css/style.css` — as propriedades `background-size` e `background-position` controlam isso.
-
-### Trocar os números de Resultados/Autoridade
-
-No `index.html`, dentro da seção `#resultados`, cada número fica em:
-
-```html
-<span class="stat-number" data-count="120">0</span>
+```
+npx serve .
 ```
 
-Basta alterar o valor de `data-count` para o número desejado. O site anima a contagem automaticamente.
+E abrir o endereço que aparecer (ex: `http://localhost:3000`).
 
-### Trocar as fotos da Galeria
+## Por que essa divisão
 
-Na seção `#galeria`, cada item da galeria é um bloco `.gallery-card`. A galeria já está com 6 fotos reais das mentorias/formações do INETRIS, salvas em `assets/mentorias/`. Para trocar ou adicionar novas fotos:
+- **`index.html`** fica só com a estrutura, sem lógica nem estilo misturado.
+- **`css/style.css`** você mexe quando quiser ajustar cores, espaçamento, fontes — sem
+  precisar procurar em meio a código JavaScript.
+- **Cada arquivo em `js/`** corresponde a uma tela ou responsabilidade específica do
+  sistema. Se quiser mudar algo em "Colaboradores", por exemplo, é só abrir
+  `13-page-colaboradores.js` — não precisa abrir um arquivo de 1900 linhas pra achar o
+  trecho certo.
+- A ordem dos números no nome dos arquivos JS é a ordem que eles são carregados na
+  página — mantenha essa ordem se for adicionar algo novo no `index.html`.
 
-1. Coloque o novo arquivo de foto dentro de `assets/mentorias/` (ex.: `assets/mentorias/mentoria-07.jpg`).
-2. No HTML, troque a URL da foto antiga pelo caminho do novo arquivo, por exemplo:
+## CI (integração contínua) — v0.24.0
 
-```html
-<div class="gallery-img" style="background-image:url('assets/mentorias/mentoria-07.jpg')"></div>
+Desde a v0.24.0, todo `push` e Pull Request pra branch `main` roda
+automaticamente 3 verificações (arquivo `.github/workflows/ci.yml`):
+
+1. **Sintaxe** — confirma que todo arquivo `.js` está sintaticamente válido.
+2. **ESLint** — pega erros reais de código (variável/função duplicada,
+   chave duplicada num objeto, etc.) — já pegou pelo menos um bug real
+   escondido em produção (`js/08-page-empresa.js`, variável `e` que não
+   existia, quebrando o salvamento do Cadastro da Empresa).
+3. **Prettier** — confirma que o código está formatado de um jeito
+   consistente (não formata sozinho no CI, só avisa se estiver fora do
+   padrão).
+
+Você vê o resultado direto na aba **"Actions"** do repositório no GitHub,
+ou como um ✅/❌ ao lado de cada commit/Pull Request.
+
+### Rodando localmente, antes de subir
+
+```bash
+npm install        # só precisa rodar uma vez (ou quando adicionar dependência nova)
+npm run check:sintaxe
+npm run lint
+npm run format:check   # ou "npm run format" pra já corrigir automaticamente
 ```
 
-3. Atualize também o título, a descrição e o tipo/data em `<figcaption>`.
+### Importante: isso hoje só AVISA, não BLOQUEIA
 
-Cada `.gallery-img` pode receber um `background-position` próprio (ex.: `center 20%`) para controlar qual parte da foto fica visível no card, já que o recorte é automático (`background-size: cover`). Isso é útil quando a foto é vertical (retrato) e o card é horizontal — ajuste a porcentagem para manter o rosto ou o ponto principal da foto visível.
+Por padrão, o GitHub só mostra o resultado (✅/❌) — não impede ninguém de
+dar merge numa `main` com o CI vermelho. Pra transformar isso numa
+trava de verdade (ninguém consegue mergear com CI falhando), é preciso
+ativar manualmente, uma vez, nas configurações do repositório:
 
-A estrutura já está pronta para qualquer quantidade de itens — basta copiar um bloco `<figure class="gallery-card">...</figure>` inteiro para adicionar mais fotos.
+1. No GitHub, vai em **Settings** → **Branches** (ou **Rules** → **Rulesets**,
+   dependendo da versão da interface).
+2. Adiciona uma regra de proteção pra branch `main`.
+3. Ativa **"Require status checks to pass before merging"**.
+4. Marca o check **"Sintaxe, Lint e Formatação"** (o nome do job definido
+   em `ci.yml`) como obrigatório.
+5. Salva.
 
-### Trocar links de contato
-
-Os links de WhatsApp, Instagram, YouTube e e-mail aparecem em três lugares: no cabeçalho, na seção **Fale Conosco** e no rodapé. Procure por `https://w.app/...`, `instagram.com`, `youtube.com` e `mailto:` no `index.html` e substitua pelos links corretos.
-
-## 🎨 Personalizar cores e estilo
-
-Todas as cores e principais variáveis visuais ficam centralizadas no topo do arquivo `css/style.css`, dentro de `:root`:
-
-```css
-:root {
-  --azul-principal: #0a2647;
-  --laranja: #e99610;
-  --branco: #ffffff;
-  --cinza-claro: #f5f7fa;
-  ...
-}
-```
-
-Alterar uma variável aqui muda a cor em todo o site automaticamente.
-
-## 📱 Responsividade
-
-O site é totalmente responsivo, com pontos de quebra para desktop, tablet (`≤1024px`) e celular (`≤860px` e `≤640px`), incluindo um menu de navegação que vira um menu hambúrguer em telas pequenas.
-
-## 🚀 Publicar no GitHub Pages
-
-1. Suba os arquivos deste projeto para a raiz do repositório (ou para a branch/pasta usada pelo GitHub Pages).
-2. Em **Settings → Pages**, selecione a branch e a pasta corretas.
-3. O site ficará disponível em `https://<usuario>.github.io/<repositorio>/`.
-
----
-
-## 🧩 Próximos módulos (preparação para o futuro)
-
-Este projeto foi propositalmente construído **apenas como site público institucional**, mas já com a estrutura pensada para ser a base do ecossistema digital completo do INETRIS. Nenhum dos itens abaixo está implementado nesta etapa — ficam apenas reservados/comentados no código para facilitar a expansão futura:
-
-- **CRM interno** (`/crm`) — gestão de leads, mentorias e clientes.
-- **Sistema de RH** (`/sistema-rh`) — gestão de colaboradores e processos internos.
-- **Galeria completa de mentorias** (`/galeria`) — versão expandida da seção atual, com filtros e paginação.
-- **Área de login / painel administrativo** (`/login`) — acesso restrito para a equipe interna.
-- **Integração com Supabase** — banco de dados para alimentar CRM, RH, login e galeria dinamicamente.
-
-### Onde estão os pontos de extensão no código
-
-- No `<head>` de `index.html`, um bloco de comentário documenta as rotas futuras (`/crm`, `/sistema-rh`, `/galeria`, `/login`).
-- No menu principal (`<nav class="main-nav">`), há um link de **Entrar** comentado, pronto para ser ativado quando o módulo de login existir.
-- No rodapé (`<footer>`), há uma coluna **Área Interna** comentada, pronta para os links de CRM e RH.
-- Na seção de Galeria, há um botão **Ver galeria completa** comentado, apontando para `/galeria`.
-
-### Como ativar um módulo futuro (passo a passo geral)
-
-1. Crie a página/aplicação correspondente (ex.: `crm/index.html` ou uma aplicação separada).
-2. No `index.html` do site público, remova os comentários (`<!-- -->`) ao redor do link correspondente.
-3. Ajuste o `href` para o caminho real da nova página/aplicação.
-4. Se o módulo precisar de dados dinâmicos (CRM, RH, login), conecte-o a um banco de dados (ex.: Supabase) separadamente — o site público continuará funcionando de forma independente, como um site estático.
-
-Essa separação garante que o site institucional continue leve, rápido e estável, mesmo depois que os módulos internos forem adicionados.
+Sem esse passo manual (que só quem tem acesso de administrador do
+repositório consegue fazer), o CI roda e avisa, mas não impede
+tecnicamente um código quebrado de ir pra `main` — é só esse último passo
+que fecha essa porta de vez.

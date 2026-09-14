@@ -1,0 +1,1025 @@
+/* =========================================================
+   MÓDULO RELATÓRIOS (4.13)
+   -----------------------------------------------------------
+   Exportação de avaliações individuais e PDI em PDF, e
+   relatórios consolidados / comparativos históricos em Excel.
+
+   Nota de transparência técnica: aqui a geração roda no próprio
+   navegador (client-side). Para o volume descrito no PRD como
+   "sugestão técnica" (relatório anual com milhares de
+   colaboradores, processado de forma assíncrona com fila e
+   notificação), seria necessário um backend com fila de
+   processamento — o que este projeto, hoje, não tem. Para o
+   volume de uma empresa cliente individual isso funciona bem;
+   é um ponto de evolução caso o volume cresça muito.
+   ========================================================= */
+
+let _tipoRelatorio = 'avaliacao';
+
+// BUG CORRIGIDO: a seção "Identidade visual em relatórios exportados"
+// (Configurações) salvava o logotipo, mas nenhum PDF gerado aqui de fato
+// usava a imagem — só as cores (corPrimaria/corSecundaria) eram aplicadas.
+// Esta função tenta desenhar o logotipo no topo do PDF, no canto superior
+// direito, ao lado do título.
+/* =========================================================
+   GRÁFICOS DENTRO DO PDF — v0.28.0
+   -----------------------------------------------------------
+   jsPDF não sabe desenhar um <canvas> do Chart.js diretamente — ele só
+   aceita imagens (PNG/JPEG). Por isso: cria um canvas temporário (nunca
+   aparece na tela), desenha o gráfico nele com animation:false (pra
+   garantir que o desenho fica pronto de uma vez, sem depender da
+   animação terminar), tira uma "foto" (toBase64Image) e destrói o
+   gráfico — sobra só a imagem, pronta pra colar no PDF com
+   doc.addImage().
+   ========================================================= */
+function gerarImagemGrafico(config, largura, altura) {
+  const canvas = document.createElement('canvas');
+  canvas.width = largura;
+  canvas.height = altura;
+  const chart = new Chart(canvas, {
+    ...config,
+    options: { ...config.options, responsive: false, animation: false },
+  });
+  const imagem = chart.toBase64Image('image/png', 1);
+  chart.destroy();
+  return imagem;
+}
+function gerarImagemDimensoes(d) {
+  const cores = { Resultado: '#16a34a', Comportamento: '#f59e0b', Potencial: '#ef4444' };
+  const labels = Object.keys(d.dimensaoMedia).filter((k) => d.dimensaoMedia[k] !== null);
+  return gerarImagemGrafico(
+    {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            data: labels.map((l) => Number(d.dimensaoMedia[l].toFixed(2))),
+            backgroundColor: labels.map((l) => cores[l]),
+            borderRadius: 4,
+          },
+        ],
+      },
+      options: {
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: { y: { min: 0, max: 1, ticks: { stepSize: 0.25 } } },
+      },
+    },
+    500,
+    260
+  );
+}
+function gerarImagemPilares(d) {
+  const labels = ['N', 'O', 'R', 'T', 'E'].filter((p) => d.pilarMedia[p] !== null);
+  return gerarImagemGrafico(
+    {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { data: labels.map((p) => Number(d.pilarMedia[p].toFixed(2))), backgroundColor: '#2a78d6', borderRadius: 4 },
+        ],
+      },
+      options: {
+        indexAxis: 'y',
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: { x: { min: 0, max: 1, ticks: { stepSize: 0.25 } } },
+      },
+    },
+    500,
+    220
+  );
+}
+
+function desenharLogoNoPDF(doc, x, y, larguraMax, alturaMax) {
+  const logo = state.configuracoes?.identidadeVisual?.logoUrl || state.empresa?.logotipo || '';
+  if (!logo) return;
+  const m = /^data:image\/(png|jpe?g);base64,/i.exec(logo);
+  if (!m) {
+    // Logotipo veio de um link (URL) externo, não de upload/colagem — o
+    // jsPDF não consegue embutir uma URL remota de forma síncrona (o mesmo
+    // tipo de limitação de CORS que já existia na extração de cor). Nesse
+    // caso, o PDF sai sem o logotipo em vez de quebrar a exportação inteira.
+    return;
+  }
+  const formato = m[1].toLowerCase().startsWith('jp') ? 'JPEG' : 'PNG';
+  try {
+    doc.addImage(logo, formato, x, y, larguraMax, alturaMax);
+  } catch (e) {
+    // Imagem corrompida/formato inesperado — não deixa a exportação inteira falhar por causa do logotipo.
+  }
+}
+
+function pageRelatorios() {
+  const ciclosComDiagnostico = state.ciclos.filter((c) => c.diagnostico && cicloVisivelParaMim(c));
+  const unidades = state.estrutura.filter((n) => n.tipo === 'unidade');
+  const setores = state.estrutura.filter((n) => n.tipo === 'setor' || n.tipo === 'equipe' || n.tipo === 'departamento');
+
+  return `
+    <div class="page-head">
+      <div class="eyebrow">Base do sistema</div>
+      <h1>Relatórios</h1>
+      <p class="page-desc">Exportação de avaliações individuais e PDI (PDF), e relatórios consolidados / comparativos históricos (Excel).</p>
+    </div>
+
+    <div class="card">
+      <h3>Tipo de relatório</h3>
+      <div class="filtro-categorias">
+        ${[
+          ['avaliacao', 'Avaliação individual (PDF)'],
+          ['pdi', 'PDI individual (PDF)'],
+          ['dossie', 'Dossiê completo — Desenho + Avaliação + PDI (PDF)'],
+          ['institucional', 'Relatório Institucional Consolidado — raio-x da empresa (PDF)'],
+          ['ponto_semanal', 'Ponto — consolidado semanal (PDF)'],
+          ['consolidado', 'Consolidado por Unidade/Setor (Excel)'],
+          ['comparativo', 'Comparativo histórico do colaborador (Excel)'],
+        ]
+          .map(
+            ([v, l]) =>
+              `<button class="filtro-pill ${_tipoRelatorio === v ? 'active' : ''}" onclick="_tipoRelatorio='${v}'; render();">${l}</button>`
+          )
+          .join('')}
+      </div>
+    </div>
+
+    ${
+      _tipoRelatorio === 'avaliacao' || _tipoRelatorio === 'pdi' || _tipoRelatorio === 'dossie'
+        ? `
+      <div class="card">
+        <h3>${_tipoRelatorio === 'avaliacao' ? 'Avaliação individual' : _tipoRelatorio === 'pdi' ? 'PDI individual' : 'Dossiê completo do Colaborador'}</h3>
+        ${_tipoRelatorio === 'dossie' ? '<p class="page-desc">Um único PDF com Desenho de Cargo, Avaliação e PDI — pronto para arquivo formal e reuniões de feedback.</p>' : ''}
+        ${
+          ciclosComDiagnostico.length
+            ? `
+          <div class="field"><label>Ciclo (colaborador)</label>
+            <select id="rel_ciclo">
+              ${ciclosComDiagnostico
+                .map((c) => {
+                  const p = state.colaboradores.find((x) => x.id === c.colaboradorId);
+                  return `<option value="${c.id}">${p ? p.nome : '—'} — ${c.dataAbertura} (${c.estado})</option>`;
+                })
+                .join('')}
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="${_tipoRelatorio === 'avaliacao' ? 'exportarAvaliacaoPDF' : _tipoRelatorio === 'pdi' ? 'exportarPDIPDF' : 'exportarDossiePDF'}(document.getElementById('rel_ciclo').value)">Exportar PDF</button>
+        `
+            : '<div class="empty">Nenhum ciclo com diagnóstico gerado ainda.</div>'
+        }
+      </div>
+    `
+        : ''
+    }
+
+    ${
+      _tipoRelatorio === 'institucional'
+        ? `
+      <div class="card">
+        <h3>Relatório Institucional Consolidado</h3>
+        <p class="page-desc">Um PDF único com o panorama da empresa toda — pensado pra apresentar à diretoria: resumo executivo, distribuição por classificação, evolução entre ciclos, comparação por Unidade/Setor, adoção de PDI e alertas de acompanhamento.</p>
+        ${
+          ciclosComDiagnostico.length
+            ? `
+          <button class="btn btn-primary" onclick="exportarRelatorioInstitucionalPDF()">Exportar PDF</button>
+        `
+            : '<div class="empty">Nenhum ciclo com diagnóstico gerado ainda — o relatório institucional precisa de pelo menos um.</div>'
+        }
+      </div>
+    `
+        : ''
+    }
+
+    ${
+      _tipoRelatorio === 'ponto_semanal'
+        ? `
+      <div class="card">
+        <h3>Ponto — consolidado semanal</h3>
+        <p class="page-desc">Um PDF com todas as batidas de ponto da empresa na semana escolhida, agrupadas por colaborador, com o total de horas de cada um — pronto para o RH conferir e arquivar.</p>
+        <div class="field" style="max-width:220px;">
+          <label>Segunda-feira da semana</label>
+          <input type="date" id="rel_ponto_inicio" value="${segundaFeiraDaSemanaAtual()}">
+        </div>
+        <button class="btn btn-primary" onclick="exportarPontoSemanalPDF(document.getElementById('rel_ponto_inicio').value)">Exportar PDF</button>
+      </div>
+    `
+        : ''
+    }
+
+    ${
+      _tipoRelatorio === 'consolidado'
+        ? `
+      <div class="card">
+        <h3>Consolidado por Unidade/Setor</h3>
+        <div class="grid2">
+          <div class="field"><label>Unidade <small>(opcional)</small></label>
+            <select id="rel_unidade"><option value="">— todas —</option>${unidades.map((n) => `<option value="${n.id}">${escaparHtml(n.nome)}</option>`).join('')}</select>
+          </div>
+          <div class="field"><label>Setor/Equipe <small>(opcional)</small></label>
+            <select id="rel_setor"><option value="">— todos —</option>${setores.map((n) => `<option value="${n.id}">${escaparHtml(n.nome)}</option>`).join('')}</select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="exportarConsolidadoExcel()">Exportar Excel</button>
+      </div>
+    `
+        : ''
+    }
+
+    ${
+      _tipoRelatorio === 'comparativo'
+        ? `
+      <div class="card">
+        <h3>Comparativo histórico entre ciclos</h3>
+        ${
+          state.colaboradores.length
+            ? `
+          <div class="field"><label>Colaborador</label>
+            <select id="rel_colab">${state.colaboradores.map((p) => `<option value="${p.id}">${escaparHtml(p.nome)}</option>`).join('')}</select>
+          </div>
+          <button class="btn btn-primary" onclick="exportarComparativoExcel(document.getElementById('rel_colab').value)">Exportar Excel</button>
+        `
+            : '<div class="empty">Nenhum colaborador cadastrado ainda.</div>'
+        }
+      </div>
+    `
+        : ''
+    }
+
+    <div class="notice">Processamento roda no navegador — para relatórios muito grandes (milhares de colaboradores), o ideal seria uma fila assíncrona no servidor com notificação de conclusão (ponto de evolução, ainda não construído).</div>
+  `;
+}
+
+// Segunda-feira da semana atual, no formato aceito por <input type="date"> (AAAA-MM-DD)
+function segundaFeiraDaSemanaAtual() {
+  const hoje = new Date();
+  const diaSemana = hoje.getDay(); // 0=domingo .. 6=sábado
+  const deslocamento = diaSemana === 0 ? -6 : 1 - diaSemana; // volta até a segunda-feira
+  const segunda = new Date(hoje);
+  segunda.setDate(hoje.getDate() + deslocamento);
+  return segunda.toISOString().slice(0, 10);
+}
+
+async function exportarPontoSemanalPDF(dataInicioISO) {
+  if (!dataInicioISO) {
+    showToast('Escolha a segunda-feira da semana desejada.');
+    return;
+  }
+  await garantirJsPDF();
+
+  const inicio = new Date(`${dataInicioISO}T00:00:00`);
+  const fim = new Date(inicio);
+  fim.setDate(fim.getDate() + 7); // exclusivo: cobre segunda 00:00 até a segunda seguinte 00:00 (a semana inteira)
+
+  const { data, error } = await sb.functions.invoke('ponto', {
+    body: { action: 'semana', inicioISO: inicio.toISOString(), fimISO: fim.toISOString() },
+  });
+
+  if (error || data?.error) {
+    console.error('Falha ao carregar registros de ponto', error || data?.error);
+    showToast('Não foi possível carregar os registros de ponto.');
+    return;
+  }
+  const registros = data.registros;
+  if (!registros || registros.length === 0) {
+    showToast('Nenhuma batida de ponto registrada nessa semana.');
+    return;
+  }
+
+  // Monta a grade semanal: uma linha por pessoa, uma coluna por dia
+  // (Seg..Dom) com as horas trabalhadas, e no fim Total, Atrasos e Extras da
+  // semana. A lógica de horas/almoço/atraso/extra é a mesma da tela de Ponto.
+  const porPessoa = {};
+  registros.forEach((r) => {
+    const nome = r.nome || 'Conta removida';
+    if (!porPessoa[nome]) porPessoa[nome] = [];
+    porPessoa[nome].push(r);
+  });
+
+  // Chaves e rótulos dos 7 dias da semana, a partir da segunda-feira.
+  const rotulosDias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  const chavesDias = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(inicio);
+    d.setDate(d.getDate() + i);
+    chavesDias.push(d.toISOString().slice(0, 10));
+  }
+
+  const linhasTabela = [];
+  // Acumuladores gerais da empresa (para o bloco "Resumo da empresa").
+  let geralTotal = 0;
+  let geralAtraso = 0;
+  let geralExtra = 0;
+  Object.keys(porPessoa)
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((nome) => {
+      const eventos = porPessoa[nome];
+      // Jornada prevista da pessoa — casada pelo perfil_id que veio nas
+      // batidas. Quem não tem cadastro em Colaboradores (ex: uma conta de
+      // Administrador que bate ponto) simplesmente não tem jornada, e as
+      // colunas de atraso/extra ficam como "s/ jornada" pra ela.
+      const perfilId = eventos[0].perfil_id;
+      const colaborador = state.colaboradores.find((c) => c.perfilId === perfilId);
+      const jornada = colaborador?.jornada || null;
+
+      const porDia = {};
+      eventos.forEach((r) => {
+        const dia = r.registrado_em.slice(0, 10);
+        (porDia[dia] = porDia[dia] || []).push(r);
+      });
+
+      let totalMin = 0;
+      let totalAtraso = 0;
+      let totalExtra = 0;
+      const celulasDias = chavesDias.map((ch) => {
+        const doDia = porDia[ch];
+        if (!doDia || !doDia.length) return '·'; // dia sem batida
+        const minutosDia = minutosLiquidosDia(doDia, jornada);
+        totalMin += minutosDia;
+        const analise = analisarDiaVsJornada(doDia, jornada);
+        if (analise) {
+          totalAtraso += analise.atrasoMin;
+          totalExtra += analise.extraMin;
+        }
+        return formatarMinutos(minutosDia);
+      });
+
+      geralTotal += totalMin;
+      geralAtraso += totalAtraso;
+      geralExtra += totalExtra;
+
+      linhasTabela.push([
+        nome,
+        ...celulasDias,
+        formatarMinutos(Math.round(totalMin)),
+        jornada ? formatarMinutos(Math.round(totalAtraso)) : 's/ jorn.',
+        jornada ? formatarMinutos(Math.round(totalExtra)) : '—',
+      ]);
+    });
+
+  const { jsPDF } = window.jspdf;
+  // Paisagem: são 7 dias + 3 colunas de total, precisa de largura.
+  const doc = new jsPDF({ orientation: 'landscape' });
+
+  doc.setFontSize(16);
+  doc.text('Ponto — Consolidado Semanal', 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text(state.empresa?.nomeFantasia || '', 14, 24);
+  doc.setTextColor(0);
+  desenharLogoNoPDF(doc, 250, 10, 30, 18);
+
+  const fimExibicao = new Date(fim);
+  fimExibicao.setDate(fimExibicao.getDate() - 1);
+  doc.setFontSize(11);
+  doc.text(`Semana de ${inicio.toLocaleDateString('pt-BR')} a ${fimExibicao.toLocaleDateString('pt-BR')}`, 14, 32);
+  doc.setFontSize(8);
+  doc.setTextColor(120);
+  doc.text('Horas trabalhadas por dia (com almoço descontado). "·" = sem batida.', 14, 37);
+  doc.setTextColor(0);
+
+  const cabecalhoDias = rotulosDias.map((r, i) => {
+    const d = new Date(inicio);
+    d.setDate(d.getDate() + i);
+    return `${r}\n${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  doc.autoTable({
+    startY: 41,
+    head: [['Colaborador', ...cabecalhoDias, 'Total', 'Atrasos', 'Extras']],
+    body: linhasTabela,
+    styles: { fontSize: 8.5, halign: 'center', valign: 'middle', cellPadding: 2.5 },
+    columnStyles: {
+      0: { halign: 'left', fontStyle: 'bold' },
+      8: { fontStyle: 'bold' }, // Total
+      9: { textColor: [181, 72, 47] }, // Atrasos (vermelho)
+      10: { textColor: [63, 107, 78] }, // Extras (verde)
+    },
+    headStyles: { fillColor: hexParaRgb(state.configuracoes?.identidadeVisual?.corPrimaria), halign: 'center' },
+  });
+
+  // Bloco separado embaixo: resumo consolidado da empresa inteira na semana.
+  const yResumo = doc.lastAutoTable.finalY + 12;
+  doc.setFontSize(12);
+  doc.text('Resumo da empresa na semana', 14, yResumo);
+  doc.autoTable({
+    startY: yResumo + 4,
+    head: [['Total de horas trabalhadas', 'Total de atrasos', 'Total de horas extras']],
+    body: [
+      [
+        formatarMinutos(Math.round(geralTotal)),
+        formatarMinutos(Math.round(geralAtraso)),
+        formatarMinutos(Math.round(geralExtra)),
+      ],
+    ],
+    styles: { fontSize: 12, halign: 'center', cellPadding: 6, fontStyle: 'bold' },
+    headStyles: {
+      fillColor: hexParaRgb(state.configuracoes?.identidadeVisual?.corPrimaria),
+      halign: 'center',
+      fontSize: 9,
+    },
+    columnStyles: { 1: { textColor: [181, 72, 47] }, 2: { textColor: [63, 107, 78] } },
+    tableWidth: 200,
+  });
+
+  doc.save(`ponto_semanal_${dataInicioISO}.pdf`);
+  registrarAuditoria('relatorio.exportado', { tipo: 'ponto_semanal', semanaInicio: dataInicioISO });
+  showToast('PDF do ponto semanal exportado.');
+}
+
+async function exportarAvaliacaoPDF(cicloId) {
+  await garantirJsPDF();
+  await garantirChart();
+  const ciclo = state.ciclos.find((c) => c.id === cicloId);
+  const p = state.colaboradores.find((x) => x.id === ciclo.colaboradorId);
+  const cargo = state.cargos.find((c) => c.id === ciclo.cargoId);
+  const d = ciclo.diagnostico;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(16);
+  doc.text('Avaliação de Desempenho — Metodologia NORTE', 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text(state.empresa?.nomeFantasia || '', 14, 24);
+  doc.setTextColor(0);
+  doc.setFontSize(11);
+  desenharLogoNoPDF(doc, 165, 10, 30, 18);
+  doc.text(`Colaborador: ${p.nome}`, 14, 34);
+  doc.text(`Cargo: ${cargo.nome} (versão ${p.versaoCargoVinculada || ciclo.cargoId})`, 14, 40);
+  doc.text(`Ciclo aberto em: ${ciclo.dataAbertura}    Estado: ${ciclo.estado}`, 14, 46);
+  doc.text(
+    `Classificação geral: ${pillLabel(d.geral)} (${d.geralMedia !== null ? d.geralMedia.toFixed(2) : '—'} / 1,00)`,
+    14,
+    52
+  );
+
+  doc.setFontSize(11);
+  doc.text('Resumo executivo', 14, 62);
+  doc.setFontSize(9.5);
+  const linhasResumo = doc.splitTextToSize(d.resumoExecutivo, 180);
+  doc.text(linhasResumo, 14, 68);
+
+  let y0 = 68 + linhasResumo.length * 5 + 8;
+
+  doc.setFontSize(11);
+  doc.text('As 3 Dimensões', 14, y0);
+  doc.addImage(gerarImagemDimensoes(d), 'PNG', 14, y0 + 4, 85, 44);
+  doc.text('Médias por pilar (N·O·R·T·E)', 108, y0);
+  doc.addImage(gerarImagemPilares(d), 'PNG', 108, y0 + 4, 88, 39);
+  y0 += 4 + 48;
+
+  doc.autoTable({
+    startY: y0,
+    head: [['Indicador', 'Pilar', 'Nota', 'Classificação']],
+    body: Object.values(d.porIndicador).map((i) => [
+      i.nome,
+      i.pilar,
+      i.media !== null ? i.media.toFixed(2) : '—',
+      i.sigla ? pillLabel(i.sigla) : '—',
+    ]),
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: hexParaRgb(state.configuracoes?.identidadeVisual?.corPrimaria) },
+  });
+
+  doc.save(`avaliacao_${p.nome.replace(/\s+/g, '_')}_${ciclo.dataAbertura}.pdf`);
+  registrarAuditoria('relatorio.exportado', { tipo: 'avaliacao_individual', cicloId });
+  showToast('PDF da avaliação exportado.');
+}
+
+async function exportarPDIPDF(cicloId) {
+  await garantirJsPDF();
+  const ciclo = state.ciclos.find((c) => c.id === cicloId);
+  const p = state.colaboradores.find((x) => x.id === ciclo.colaboradorId);
+  const cargo = state.cargos.find((c) => c.id === ciclo.cargoId);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(16);
+  doc.text('Plano de Desenvolvimento Individual (PDI)', 14, 18);
+  doc.setFontSize(11);
+  desenharLogoNoPDF(doc, 165, 8, 30, 18);
+  doc.text(`Colaborador: ${p.nome}    Cargo: ${cargo.nome}`, 14, 28);
+  doc.text(`Ciclo: ${ciclo.dataAbertura} — ${ciclo.estado}`, 14, 34);
+
+  doc.setFontSize(12);
+  doc.text('PDI de Desenvolvimento', 14, 46);
+  if (ciclo.pdiDesenvolvimento && ciclo.pdiDesenvolvimento.length) {
+    doc.autoTable({
+      startY: 50,
+      head: [['Indicador', 'Ação sugerida', 'Evidência esperada', 'Prazo', 'Status']],
+      body: ciclo.pdiDesenvolvimento.map((i) => [i.indicador, i.acaoSugerida, i.evidenciaSugerida, i.prazo, i.status]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: hexParaRgb(state.configuracoes?.identidadeVisual?.corPrimaria) },
+    });
+  } else {
+    doc.setFontSize(10);
+    doc.text('Todos os indicadores em Alavancar — nenhuma ação necessária.', 14, 54);
+  }
+
+  let y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 60) + 12;
+  doc.setFontSize(12);
+  doc.text('PDI de Mentalidade', 14, y);
+  y += 6;
+  if (ciclo.pdiMentalidade) {
+    doc.autoTable({
+      startY: y,
+      head: [['Eixo', 'Onde estou hoje', 'Onde quero chegar', 'O que vou fazer', 'Prazo']],
+      body: ['Conhecimento', 'Ambiente', 'Relacoes'].map((eixo) => {
+        const v = ciclo.pdiMentalidade[eixo];
+        return [
+          eixo === 'Relacoes' ? 'Relações' : eixo,
+          v.ondeEstou || '—',
+          v.ondeQueroChegar || '—',
+          v.oQueVouFazer || '—',
+          v.prazo || '—',
+        ];
+      }),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: hexParaRgb(state.configuracoes?.identidadeVisual?.corSecundaria) },
+    });
+  }
+
+  doc.save(`pdi_${p.nome.replace(/\s+/g, '_')}_${ciclo.dataAbertura}.pdf`);
+  registrarAuditoria('relatorio.exportado', { tipo: 'pdi_individual', cicloId });
+  showToast('PDF do PDI exportado.');
+}
+
+async function exportarRelatorioInstitucionalPDF() {
+  await garantirJsPDF();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const corPrimaria = hexParaRgb(state.configuracoes?.identidadeVisual?.corPrimaria);
+  const corSecundaria = hexParaRgb(state.configuracoes?.identidadeVisual?.corSecundaria);
+  function tituloSecao(texto, y) {
+    doc.setFontSize(13);
+    doc.setTextColor(...corPrimaria);
+    doc.text(texto, 14, y);
+    doc.setTextColor(0);
+    return y + 6;
+  }
+
+  const ciclosComDiag = state.ciclos.filter((c) => c.diagnostico);
+  const colaboradoresAtivos = state.colaboradores.filter((c) => !c.inativo);
+
+  // Capa
+  doc.setFontSize(18);
+  doc.text('Relatório Institucional Consolidado', 14, 20);
+  doc.setFontSize(11);
+  doc.setTextColor(120);
+  doc.text(state.empresa?.nomeFantasia || '', 14, 28);
+  doc.setTextColor(0);
+  desenharLogoNoPDF(doc, 160, 8, 35, 22);
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} — Metodologia NORTE · Instituto INETRIS`, 14, 34);
+  doc.setTextColor(0);
+
+  // 1) Resumo executivo
+  let y = tituloSecao('1. Resumo Executivo', 46);
+  doc.setFontSize(10);
+  doc.text(`Colaboradores ativos: ${colaboradoresAtivos.length}`, 14, y);
+  y += 6;
+  doc.text(`Ciclos com diagnóstico gerado: ${ciclosComDiag.length}`, 14, y);
+  y += 6;
+  doc.text(`Ciclos em andamento: ${state.ciclos.filter((c) => c.estado !== 'Encerrado').length}`, 14, y);
+  y += 6;
+  doc.text(`Ciclos encerrados: ${state.ciclos.filter((c) => c.estado === 'Encerrado').length}`, 14, y);
+  y += 10;
+
+  // 2) Distribuição por classificação
+  y = tituloSecao('2. Distribuição por Classificação (IDA)', y);
+  let cI = 0,
+    cD = 0,
+    cA = 0;
+  ciclosComDiag.forEach((c) => {
+    const g = c.diagnostico.geral;
+    if (g === 'I') cI++;
+    else if (g === 'D') cD++;
+    else if (g === 'A') cA++;
+  });
+  const totalClass = cI + cD + cA;
+  doc.autoTable({
+    startY: y,
+    head: [['Classificação', 'Quantidade', '%']],
+    body: [
+      ['Iniciar', cI, totalClass ? Math.round((cI / totalClass) * 100) + '%' : '—'],
+      ['Desenvolver', cD, totalClass ? Math.round((cD / totalClass) * 100) + '%' : '—'],
+      ['Alavancar', cA, totalClass ? Math.round((cA / totalClass) * 100) + '%' : '—'],
+    ],
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: corPrimaria },
+  });
+  y = doc.lastAutoTable.finalY + 10;
+
+  // 3) Adoção de PDI
+  if (y > 240) {
+    doc.addPage();
+    y = 20;
+  }
+  y = tituloSecao('3. Adoção de PDI', y);
+  const ciclosComPDIAtivo = ciclosComDiag.filter((c) => (c.pdiDesenvolvimento || []).length || c.pdiMentalidade);
+  const pdisAprovados = ciclosComDiag.filter((c) => c.pdiAprovado).length;
+  doc.setFontSize(10);
+  doc.text(
+    `Ciclos com PDI ativo: ${ciclosComPDIAtivo.length} de ${ciclosComDiag.length} (${ciclosComDiag.length ? Math.round((ciclosComPDIAtivo.length / ciclosComDiag.length) * 100) : 0}%)`,
+    14,
+    y
+  );
+  y += 6;
+  doc.text(`PDIs já aprovados: ${pdisAprovados}`, 14, y);
+  y += 10;
+
+  // 4) Comparação por Unidade/Setor
+  if (y > 220) {
+    doc.addPage();
+    y = 20;
+  }
+  y = tituloSecao('4. Comparação por Unidade/Setor', y);
+  const porSetor = {};
+  colaboradoresAtivos.forEach((p) => {
+    const setor = state.estrutura.find((n) => n.id === p.setorId);
+    const nomeSetor = setor?.nome || 'Sem setor definido';
+    porSetor[nomeSetor] = porSetor[nomeSetor] || { total: 0, comDiagnostico: 0, somaGeral: 0 };
+    porSetor[nomeSetor].total++;
+    const ultimoCiclo = state.ciclos
+      .filter((c) => c.colaboradorId === p.id && c.diagnostico)
+      .sort((a, b) => b.dataAbertura.localeCompare(a.dataAbertura))[0];
+    if (ultimoCiclo) {
+      porSetor[nomeSetor].comDiagnostico++;
+      porSetor[nomeSetor].somaGeral += IDA_VAL[ultimoCiclo.diagnostico.geral];
+    }
+  });
+  doc.autoTable({
+    startY: y,
+    head: [['Setor', 'Colaboradores', 'Com diagnóstico', 'Média geral']],
+    body: Object.entries(porSetor).map(([nome, d]) => [
+      nome,
+      d.total,
+      d.comDiagnostico,
+      d.comDiagnostico ? (d.somaGeral / d.comDiagnostico).toFixed(2) : '—',
+    ]),
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: corSecundaria },
+  });
+  y = doc.lastAutoTable.finalY + 10;
+
+  // 5) Alertas de acompanhamento
+  if (y > 220) {
+    doc.addPage();
+    y = 20;
+  }
+  y = tituloSecao('5. Alertas de Acompanhamento', y);
+  const semCicloAberto = colaboradoresAtivos.filter(
+    (p) => !state.ciclos.some((c) => c.colaboradorId === p.id && c.estado !== 'Encerrado')
+  ).length;
+  doc.setFontSize(10);
+  doc.text(`Colaboradores elegíveis sem ciclo aberto no momento: ${semCicloAberto}`, 14, y);
+
+  doc.save(
+    `relatorio_institucional_${(state.empresa?.nomeFantasia || 'empresa').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`
+  );
+  registrarAuditoria('relatorio.exportado', { tipo: 'institucional_consolidado' });
+  showToast('Relatório Institucional Consolidado exportado.');
+}
+
+// PDF só do Desenho de Cargo (um cargo específico) — para imprimir ou salvar
+// direto da tela do desenho. Reaproveita a mesma montagem do dossiê, mas sem
+// avaliação/PDI. Usado pelo botão "Imprimir / PDF" em js/12-page-desenho.js.
+async function exportarDesenhoCargoPDF(cargoId) {
+  await garantirJsPDF();
+  const cargo = state.cargos.find((c) => c.id === cargoId);
+  if (!cargo) {
+    showToast('Cargo não encontrado.');
+    return;
+  }
+  const d = cargo.desenho || {};
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const corPrimaria = hexParaRgb(state.configuracoes?.identidadeVisual?.corPrimaria);
+
+  doc.setFontSize(16);
+  doc.text('Desenho de Cargo', 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text(state.empresa?.nomeFantasia || '', 14, 24);
+  doc.setTextColor(0);
+  desenharLogoNoPDF(doc, 165, 8, 32, 18);
+
+  doc.setFontSize(13);
+  doc.text(`${cargo.nome} (${cargo.natureza})`, 14, 34);
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text(
+    `Versão ${d.versao || 1}${d.aprovado ? ' — publicado' : ' — rascunho'}${cargo.cbo ? '    CBO: ' + cargo.cbo : ''}`,
+    14,
+    40
+  );
+  doc.setTextColor(0);
+
+  let y = 50;
+  function bloco(titulo, texto) {
+    if (y > 265) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFontSize(11);
+    doc.setTextColor(...corPrimaria);
+    doc.text(titulo, 14, y);
+    doc.setTextColor(0);
+    y += 6;
+    doc.setFontSize(9.5);
+    const linhas = doc.splitTextToSize(texto || '—', 182);
+    doc.text(linhas, 14, y);
+    y += linhas.length * 5 + 6;
+  }
+  function tabela(titulo, itens) {
+    if (!itens || !itens.length) return;
+    if (y > 245) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.autoTable({
+      startY: y,
+      head: [[titulo]],
+      body: itens.map((i) => [i]),
+      styles: { fontSize: 8.5 },
+      headStyles: { fillColor: corPrimaria },
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  bloco(
+    '1. Identificação',
+    `Área: ${d.area || '—'}\nNível hierárquico: ${d.nivelHierarquico || '—'}\nRegime: ${d.regimeTrabalho || '—'}\nLocal: ${d.localTrabalho || '—'}\nReporta-se a: ${d.subordinacao || '—'}\nSubordinados diretos: ${d.subordinadosDiretos || '—'}`
+  );
+  bloco('2. Missão do Cargo', d.missao);
+  tabela('3. Responsabilidades e Atribuições', d.responsabilidades);
+  bloco('Cultura e Postura Institucional (RN030)', d.culturaPostura);
+  bloco(
+    '4. Requisitos',
+    `Formação acadêmica: ${d.formacaoAcademica || '—'}\nExperiência: ${d.experienciaProfissional || '—'}\nConhecimentos técnicos: ${d.conhecimentosTecnicos || '—'}\nIdiomas: ${d.idiomas || '—'}`
+  );
+  tabela('5. Competências Comportamentais', d.competenciasComportamentais);
+  tabela('6. Ferramentas e Sistemas', d.ferramentasSistemas);
+  tabela('7. Indicadores de Desempenho (KPIs do Cargo)', d.kpis);
+  bloco('8. Condições de Trabalho', d.condicoesTrabalho);
+  tabela('9. Perspectivas de Carreira', d.perspectivasCarreira);
+
+  doc.save(`desenho-cargo-${cargo.nome.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.pdf`);
+  registrarAuditoria('desenho.exportado_pdf', { cargoId, cargo: cargo.nome });
+}
+
+async function exportarDossiePDF(cicloId) {
+  await garantirJsPDF();
+  const ciclo = state.ciclos.find((c) => c.id === cicloId);
+  const p = state.colaboradores.find((x) => x.id === ciclo.colaboradorId);
+  const cargo = state.cargos.find((c) => c.id === ciclo.cargoId);
+  const d = ciclo.diagnostico;
+  const desenho = cargo.desenho;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const corPrimaria = hexParaRgb(state.configuracoes?.identidadeVisual?.corPrimaria);
+  const corSecundaria = hexParaRgb(state.configuracoes?.identidadeVisual?.corSecundaria);
+
+  function tituloSecao(texto, y) {
+    doc.setFontSize(13);
+    doc.setTextColor(...corPrimaria);
+    doc.text(texto, 14, y);
+    doc.setTextColor(0);
+    return y + 6;
+  }
+
+  // Capa
+  doc.setFontSize(17);
+  doc.text('Dossiê do Colaborador — Metodologia NORTE', 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text(state.empresa?.nomeFantasia || '', 14, 24);
+  doc.setTextColor(0);
+  doc.setFontSize(11);
+  desenharLogoNoPDF(doc, 160, 8, 35, 20);
+  doc.text(`Colaborador: ${p.nome}`, 14, 34);
+  doc.text(`Cargo: ${cargo.nome} (${cargo.natureza})`, 14, 40);
+  doc.text(`Ciclo aberto em: ${ciclo.dataAbertura}    Estado: ${ciclo.estado}`, 14, 46);
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text(
+    'Este documento reúne Desenho de Cargo, Avaliação de Desempenho e PDI — arquivo formal para reuniões de feedback.',
+    14,
+    52
+  );
+  doc.setTextColor(0);
+
+  // 1) Desenho de Cargo
+  let y = tituloSecao(
+    '1. Desenho de Cargo (versão ' + (desenho.versao || 1) + (desenho.aprovado ? ', aprovado' : ', rascunho') + ')',
+    62
+  );
+  doc.setFontSize(9.5);
+  doc.text(
+    `Área: ${desenho.area || '—'}    Nível: ${desenho.nivelHierarquico || '—'}    Regime: ${desenho.regimeTrabalho || '—'}`,
+    14,
+    y
+  );
+  y += 6;
+  doc.text(`Reporta-se a: ${desenho.subordinacao || '—'}    Local: ${desenho.localTrabalho || '—'}`, 14, y);
+  y += 8;
+  const linhasMissao = doc.splitTextToSize(`Missão do cargo: ${desenho.missao || '—'}`, 180);
+  doc.text(linhasMissao, 14, y);
+  y += linhasMissao.length * 5 + 4;
+  const linhasCultura = doc.splitTextToSize(`Cultura e Postura Institucional: ${desenho.culturaPostura || '—'}`, 180);
+  doc.text(linhasCultura, 14, y);
+  y += linhasCultura.length * 5 + 4;
+  const linhasFormacao = doc.splitTextToSize(
+    `Formação/Experiência: ${desenho.formacaoAcademica || '—'} ${desenho.experienciaProfissional || ''}`,
+    180
+  );
+  doc.text(linhasFormacao, 14, y);
+  y += linhasFormacao.length * 5 + 6;
+  if ((desenho.responsabilidades || []).length) {
+    doc.autoTable({
+      startY: y,
+      head: [['Responsabilidades e Atribuições']],
+      body: desenho.responsabilidades.map((a) => [a]),
+      styles: { fontSize: 8.5 },
+      headStyles: { fillColor: corPrimaria },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
+  if ((desenho.kpis || []).length) {
+    if (y > 250) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.autoTable({
+      startY: y,
+      head: [['Indicadores de Desempenho (KPIs do Cargo)']],
+      body: desenho.kpis.map((a) => [a]),
+      styles: { fontSize: 8.5 },
+      headStyles: { fillColor: corPrimaria },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
+
+  // 2) Avaliação / Diagnóstico
+  if (y > 250) {
+    doc.addPage();
+    y = 20;
+  }
+  y = tituloSecao('2. Avaliação de Desempenho — Diagnóstico', y);
+  doc.setFontSize(10);
+  doc.text(
+    `Classificação geral: ${pillLabel(d.geral)} (${d.geralMedia !== null ? d.geralMedia.toFixed(2) : '—'} / 1,00)`,
+    14,
+    y
+  );
+  y += 6;
+  if (d.dimensaoSigla) {
+    doc.text(
+      `Resultado: ${d.dimensaoSigla.Resultado ? `${pillLabel(d.dimensaoSigla.Resultado)} (${d.dimensaoMedia.Resultado.toFixed(2)})` : '—'}   Comportamento: ${d.dimensaoSigla.Comportamento ? `${pillLabel(d.dimensaoSigla.Comportamento)} (${d.dimensaoMedia.Comportamento.toFixed(2)})` : '—'}   Potencial: ${d.dimensaoSigla.Potencial ? `${pillLabel(d.dimensaoSigla.Potencial)} (${d.dimensaoMedia.Potencial.toFixed(2)})` : '—'}`,
+      14,
+      y
+    );
+    y += 8;
+  }
+  doc.autoTable({
+    startY: y,
+    head: [['Indicador', 'Pilar', 'Nota', 'Classificação']],
+    body: Object.values(d.porIndicador).map((i) => [
+      i.nome,
+      i.pilar,
+      i.media !== null ? i.media.toFixed(2) : '—',
+      i.sigla ? pillLabel(i.sigla) : '—',
+    ]),
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: corPrimaria },
+  });
+  y = doc.lastAutoTable.finalY + 10;
+
+  // 3) PDI de Desenvolvimento
+  if (y > 240) {
+    doc.addPage();
+    y = 20;
+  }
+  y = tituloSecao('3. PDI de Desenvolvimento', y);
+  if (ciclo.pdiDesenvolvimento && ciclo.pdiDesenvolvimento.length) {
+    doc.autoTable({
+      startY: y,
+      head: [['Indicador', 'Ação sugerida', 'Evidência esperada', 'Prazo', 'Status']],
+      body: ciclo.pdiDesenvolvimento.map((i) => [i.indicador, i.acaoSugerida, i.evidenciaSugerida, i.prazo, i.status]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: corPrimaria },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  } else {
+    doc.setFontSize(10);
+    doc.text('Todos os indicadores em Alavancar — nenhuma ação necessária.', 14, y);
+    y += 10;
+  }
+
+  // 4) PDI de Mentalidade
+  if (y > 240) {
+    doc.addPage();
+    y = 20;
+  }
+  y = tituloSecao('4. PDI de Mentalidade', y);
+  if (ciclo.pdiMentalidade) {
+    doc.autoTable({
+      startY: y,
+      head: [['Eixo', 'Onde estou hoje', 'Onde quero chegar', 'O que vou fazer', 'Prazo']],
+      body: ['Conhecimento', 'Ambiente', 'Relacoes'].map((eixo) => {
+        const v = ciclo.pdiMentalidade[eixo];
+        return [
+          eixo === 'Relacoes' ? 'Relações' : eixo,
+          v.ondeEstou || '—',
+          v.ondeQueroChegar || '—',
+          v.oQueVouFazer || '—',
+          v.prazo || '—',
+        ];
+      }),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: corSecundaria },
+    });
+  }
+
+  doc.save(`dossie_${p.nome.replace(/\s+/g, '_')}_${ciclo.dataAbertura}.pdf`);
+  registrarAuditoria('relatorio.exportado', { tipo: 'dossie_completo', cicloId });
+  showToast('Dossiê completo (Desenho + Avaliação + PDI) exportado em PDF.');
+}
+
+async function exportarConsolidadoExcel() {
+  await garantirXLSX();
+  const unidadeId = document.getElementById('rel_unidade').value;
+  const setorId = document.getElementById('rel_setor').value;
+  let lista = state.colaboradores;
+  if (unidadeId) lista = lista.filter((p) => p.unidadeId === unidadeId);
+  if (setorId) lista = lista.filter((p) => p.setorId === setorId);
+
+  const linhas = lista.map((p) => {
+    const cargo = state.cargos.find((c) => c.id === p.cargoId);
+    const ciclosDoColab = state.ciclos.filter((c) => c.colaboradorId === p.id);
+    const ultimo = ciclosDoColab
+      .slice()
+      .sort((a, b) => a.dataAbertura.localeCompare(b.dataAbertura))
+      .pop();
+    return {
+      Colaborador: p.nome,
+      Cargo: cargo ? cargo.nome : '—',
+      Unidade: nomeEstruturaPara(p.unidadeId),
+      Setor: nomeEstruturaPara(p.setorId),
+      'Gestor direto': _perfisEmpresa.find((pf) => pf.id === p.gestorPerfilId)?.nome || '—',
+      'Último ciclo': ultimo ? ultimo.dataAbertura : '—',
+      'Estado do último ciclo': ultimo ? ultimo.estado : '—',
+      'Classificação geral': ultimo && ultimo.diagnostico ? pillLabel(ultimo.diagnostico.geral) : '—',
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
+  XLSX.writeFile(wb, `consolidado_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  registrarAuditoria('relatorio.exportado', { tipo: 'consolidado_unidade_setor', unidadeId, setorId });
+  showToast('Relatório consolidado exportado em Excel.');
+}
+
+async function exportarComparativoExcel(colabId) {
+  await garantirXLSX();
+  const p = state.colaboradores.find((x) => x.id === colabId);
+  const ciclosDoColab = state.ciclos
+    .filter((c) => c.colaboradorId === colabId && c.diagnostico)
+    .slice()
+    .sort((a, b) => a.dataAbertura.localeCompare(b.dataAbertura));
+
+  const linhas = ciclosDoColab.map((c) => {
+    const cargo = state.cargos.find((x) => x.id === c.cargoId);
+    return {
+      'Data de abertura': c.dataAbertura,
+      'Cargo na época': cargo ? cargo.nome : '—',
+      Estado: c.estado,
+      'Classificação geral': pillLabel(c.diagnostico.geral),
+      N: c.diagnostico.pilarSigla.N ? pillLabel(c.diagnostico.pilarSigla.N) : '—',
+      O: c.diagnostico.pilarSigla.O ? pillLabel(c.diagnostico.pilarSigla.O) : '—',
+      R: c.diagnostico.pilarSigla.R ? pillLabel(c.diagnostico.pilarSigla.R) : '—',
+      T: c.diagnostico.pilarSigla.T ? pillLabel(c.diagnostico.pilarSigla.T) : '—',
+      E: c.diagnostico.pilarSigla.E ? pillLabel(c.diagnostico.pilarSigla.E) : '—',
+    };
+  });
+
+  if (!linhas.length) {
+    showToast('Este colaborador ainda não tem nenhum ciclo com diagnóstico gerado.');
+    return;
+  }
+
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Histórico');
+  XLSX.writeFile(wb, `historico_${p.nome.replace(/\s+/g, '_')}.xlsx`);
+  registrarAuditoria('relatorio.exportado', { tipo: 'comparativo_historico', colaboradorId: colabId });
+  showToast('Comparativo histórico exportado em Excel.');
+}
+
+function nomeEstruturaPara(id) {
+  return state.estrutura.find((n) => n.id === id)?.nome || '—';
+}
+function hexParaRgb(hex) {
+  const h = (hex || '#2563eb').replace('#', '');
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}

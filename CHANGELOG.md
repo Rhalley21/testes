@@ -1,0 +1,2496 @@
+# Changelog — Plataforma NORTE
+
+Registro de versões da própria plataforma (não confundir com o versionamento
+de Desenho de Cargo, que é por cargo/empresa — ver RN024).
+
+## v0.71.1 — Tela de entrada comercial desativada (temporário)
+A landing comercial (planos + teste grátis) foi desativada por ora — o
+sistema volta a abrir direto no login, como antes. O código da landing
+continua no projeto (js/35-tela-entrada.js); para religar, basta trocar
+renderLogin() por renderTelaAuth() na inicialização (js/19-auth.js). Nada
+foi apagado.
+
+## v0.71.0 — Dashboard do Admin reorganizado
+Substituições no dashboard do Administrador conforme pedido:
+- "Desempenho por dimensão" (tabela) → **gráfico de desempenho por setor**
+  (nota média de cada setor, barras coloridas por nível).
+- "Oportunidades de desenvolvimento" → **ranking dos melhores colaboradores**
+  (tabela com posição, nome, cargo e nota).
+- Novo card **"PDIs — quem está fazendo"**: lista de colaboradores com o
+  progresso (X/Y ações) e status (Concluído / Em andamento / Não iniciado).
+- Novo card **"Avaliações — quem fez e quem falta"**: lista de colaboradores
+  com o status da avaliação (Feita / Pendente / Não iniciada), com os
+  pendentes no topo para facilitar a cobrança.
+
+## v0.70.0 — "Meu Desenvolvimento": colaborador acompanha o próprio PDI
+Nova tela "Meu Desenvolvimento" no menu do colaborador (e do gestor),
+reunindo: o PDI (plano de desenvolvimento com as ações, prazos e status), a
+situação da autoavaliação, e o resultado da avaliação. Regra importante de
+RH: o resultado/nota só é liberado ao colaborador DEPOIS que o gestor realiza
+a reunião de feedback — antes disso, mostra um aviso de que os números virão
+acompanhados da conversa. Junto com a tela "Meu Cargo" (já existente), o
+colaborador passa a ter transparência total sobre função e desenvolvimento.
+Sem mudança de banco.
+
+## v0.69.0 — Dashboard: ranking de colaboradores e cores corrigidas
+- Novo card "Melhores e piores colaboradores" no dashboard do Administrador:
+  ranking por nota do último diagnóstico de cada pessoa, com os 3 melhores
+  desempenhos (verde) e os 3 que precisam de atenção (vermelho), lado a lado.
+- Correção das cores em "Desempenho por dimensão": a coluna agora mostra o
+  Nível (Baixo/Médio/Alto) seguindo o desempenho — baixo em vermelho, médio
+  em laranja, alto em verde. Antes a coluna "Impacto" invertia os rótulos e
+  causava a impressão de "baixo aparecendo verde".
+
+## v0.68.1 — Importação por planilha mais fácil (nomes reais + tolerância)
+O "não encontrado" na importação de colaboradores acontecia porque os nomes
+de Unidade, Setor e Gestor na planilha precisavam bater exatamente com o
+cadastro. Duas melhorias:
+- O modelo de colaboradores agora vem com os dados REAIS da empresa: a linha
+  de exemplo usa nomes que existem, e uma aba "Nomes válidos" lista todos os
+  cargos publicados, unidades, setores e gestores para copiar sem errar.
+- A validação passou a ignorar acentos, maiúsculas/minúsculas e espaços
+  extras — "unidade central " agora bate com "Unidade Central". A natureza do
+  cargo na importação de cargos também ficou tolerante a acento.
+
+## v0.68.0 — Teste grátis de 7 dias (entrada comercial + aprovação + bloqueio)
+Funcionalidade completa de teste grátis:
+- **Tela de entrada comercial** antes do login: hero, os três planos com
+  destaque nos preços (Gestão em evidência) e um formulário "Solicitar teste
+  grátis de 7 dias". Quem já é cliente clica em "Entrar" e vai ao login normal.
+- **Solicitação**: grava em `solicitacoes_teste` e envia e-mail de aviso ao
+  INETRIS (via Resend).
+- **Aprovação no painel do Super Admin**: nova seção lista as solicitações;
+  ao aprovar, o sistema gera um código de licença de teste (7 dias) e envia
+  e-mail com o código para o solicitante. A empresa nasce com a data de
+  expiração calculada (trigger).
+- **Durante o teste**: banner no dashboard mostrando os dias restantes e
+  atalho para os planos.
+- **No dia 8**: o login é bloqueado automaticamente (dados preservados), com
+  mensagem para assinar.
+- **Exclusão manual e segura**: empresas com teste expirado ganham um botão
+  "Apagar dados" no painel do Super Admin, com dupla confirmação (digitar o
+  nome). Nada é apagado automaticamente. Usa uma função SQL restrita a Super
+  Admin. Coluna "Teste" mostra a situação de cada empresa (Teste · Xd,
+  Expirado, Pagante).
+
+Requer rodar sql/24-teste-gratis.sql no projeto principal.
+
+## v0.67.0 — Planos reais e limite de colaboradores
+Os planos foram atualizados para os valores reais: Essencial (até 10 · R$
+297,00/mês), Gestão (11 a 30 · R$ 597,00/mês) e Estratégico (31 a 60 · R$
+997,00/mês) — exibindo o preço de cliente novo. O limite de colaboradores de
+cada plano passou a valer de verdade: o cadastro de colaborador é bloqueado
+ao atingir o teto do plano, com mensagem clara pedindo upgrade (fale com o
+INETRIS). A importação em lote respeita o mesmo teto (importa só até
+preencher as vagas). A tela de Colaboradores mostra um indicador "Plano X: N
+de LIMITE colaboradores (restam Y)". Empresa sem plano definido usa Essencial
+(até 10) como padrão. Os nomes de plano no cadastro da empresa foram
+atualizados (Essencial/Gestão/Estratégico).
+
+## v0.66.0 — "Meu Cargo": colaborador vê o descritivo da própria função
+Nova tela "Meu Cargo" no menu do colaborador (e do gestor), mostrando o
+desenho completo do próprio cargo em modo leitura: missão, responsabilidades,
+cultura e postura, requisitos, competências, ferramentas, KPIs, condições e
+carreira — com botão para baixar o PDF. Dá transparência sobre o que se
+espera da função, reduzindo o "isso não é minha obrigação". Só exibe o
+conteúdo se o desenho estiver publicado; se ainda for rascunho ou não houver
+cargo atribuído, mostra um aviso claro. Sem mudança de banco.
+
+## v0.65.0 — Card de Ponto no dashboard do Admin
+O dashboard do Administrador (e do RH) ganhou um card de Ponto com os
+últimos 30 dias: atraso médio e hora extra média por colaborador, mais
+quantos colaboradores tiveram atraso e quantos fizeram hora extra. Considera
+só quem tem jornada cadastrada. O card carrega em segundo plano — aparece
+com "carregando…" e se atualiza sozinho quando os dados chegam, sem deixar a
+abertura do dashboard mais lenta. Só aparece se o módulo de Ponto estiver
+habilitado para a empresa. Reaproveita a Edge Function existente (sem
+redeploy) e as funções de cálculo da tela de Ponto.
+
+## v0.64.0 — Desenho de cargo: imprimir/PDF e importar por planilha
+Duas novidades na Base de Cargos e no Desenho:
+- Botão "Imprimir / PDF" na tela do Desenho de Cargo: gera um PDF completo
+  só daquele cargo (identificação, missão, responsabilidades, cultura e
+  postura, requisitos, competências, ferramentas, KPIs, condições e
+  carreira) — pronto pra salvar ou imprimir.
+- Importação de cargos por planilha (Excel/CSV): um card novo na Base de
+  Cargos com "Baixar modelo" e seleção de arquivo. Preenche-se um cargo por
+  linha (campos de lista separados por ";"), o sistema mostra um preview
+  validado e importa os cargos como rascunho para revisão/publicação do
+  Desenho. Mesmo padrão da importação de colaboradores. Word não é importado
+  direto (formato livre, frágil) — o caminho é converter o Word em planilha
+  antes e usar o modelo.
+
+## v0.63.1 — Novo subtítulo do sistema
+O subtítulo passou de "Sistema de Avaliação e Desempenho" para "Sistema de
+Gestão de Pessoas", mantendo o título "INETRIS". Atualizado no menu lateral,
+tela de login, cabeçalho dos e-mails e título da aba do navegador. As
+expressões "Metodologia NORTE" e "Ciclo NORTE" seguem inalteradas.
+
+## v0.63.0 — Abertura mais rápida (consultas em paralelo no login)
+O sistema demorava 5-10s para abrir porque, ao entrar, fazia seis consultas
+ao servidor em fila — cada uma esperando a anterior. Agora, depois de buscar
+o perfil (que as demais precisam), as consultas independentes (checagem da
+empresa, super admin, dados do sistema e usuários) rodam todas em paralelo
+com Promise.all, e as notificações carregam em segundo plano sem travar a
+tela. O tempo de abertura passa a ser o da consulta mais lenta, não a soma de
+todas. A verificação de empresa suspensa continua acontecendo antes de exibir
+qualquer tela, então a segurança não muda. Observação: o plano Pro do Supabase
+não afetaria isso — o gargalo era a sequência de consultas, não o banco.
+
+## v0.62.0 — PDI de Mentalidade (perguntas novas) e avaliação estruturada pelo NORTE
+Duas frentes:
+
+PDI de Mentalidade — os textos de orientação dos três pilares (Conhecimento,
+Ambiente, Relacionamento) foram atualizados com as perguntas reflexivas mais
+diretas ("Como avalio meu conhecimento atual para o desempenho da minha
+função?", etc.), incluindo Prazo estimado e Responsável. Continua opcional.
+
+Avaliação por cargo — os itens de avaliação deixaram de ser cópia crua das
+atividades e passam a ser perguntas avaliativas bem formuladas, alinhadas ao
+pilar NORTE de cada nível: N (Nível Técnico) "Com que domínio técnico o
+colaborador...?", O (Operação) "Com que consistência e organização...?", R
+(Resultado/comportamental) "Em que medida o colaborador demonstra a
+competência...?". Os verbos das atividades (que a CBO traz no infinitivo) são
+conjugados para a 3ª pessoa, deixando as perguntas naturais. Tudo continua
+editável e respeitando os ciclos já abertos (RN024).
+
+## v0.61.2 — Correção: competências apareciam como "[object Object]"
+As competências comportamentais geradas do CBO estavam sendo criadas como
+objetos, mas o campo do desenho espera uma competência por linha (texto).
+Por isso apareciam como "[object Object]". Corrigido: agora vêm como texto
+limpo. Também blindei o gerador de indicadores para nunca mais produzir
+"[object Object]", aceitando tanto texto quanto objeto.
+
+## v0.61.1 — CBO: rascunho automático dos campos que faltavam
+Ao usar um cargo do CBO, o Desenho agora também vem com rascunho gerado nos
+campos que a CBO não fornece: Missão, Formação Acadêmica, Experiência
+Profissional, Conhecimentos Técnicos, Condições de Trabalho e Perspectivas
+de Carreira — textos genéricos de ponto de partida, montados a partir do
+título, família e áreas de atividade, que a empresa revisa e ajusta.
+Idiomas, Ferramentas/Sistemas e KPIs continuam em branco de propósito
+(são específicos da empresa — gerar isso seria inventar). Somado ao que já
+vinha (responsabilidades por área e competências comportamentais reais),
+agora quase todo o desenho já vem preenchido ao escolher o cargo.
+
+## v0.61.0 — CBO: áreas de atividade e mais campos preenchidos
+A base do CBO passou a incluir as "áreas de atividade" (o agrupamento
+temático das atividades). Com isso, ao usar um cargo do CBO, o Desenho de
+Cargo vem com muito mais coisa preenchida automaticamente:
+- Responsabilidades organizadas por área (cada área vira um marcador em
+  maiúsculas, com suas atividades embaixo), em vez de uma lista solta.
+- Competências comportamentais preenchidas a partir da área "Competências
+  pessoais" da CBO.
+- Área/família ocupacional preenchida no campo de identificação.
+- Um bloco visível "Vínculo oficial da CBO" no topo do desenho, mostrando
+  código, título oficial, família, sinônimos e áreas — deixando claro o
+  vínculo oficial e a diferença para o nome interno do cargo.
+
+Continua valendo o aviso honesto: formação, experiência e condições de
+trabalho NÃO vêm nos arquivos de download da CBO (só no site/PDF), então
+esses campos seguem em branco para a empresa preencher.
+
+## v0.60.1 — Correção: base do CBO travando em "Carregando"
+O carregador da base oficial do CBO podia ficar preso em "Carregando… (só na
+primeira vez)" para sempre quando o download falhava ou não era reconhecido,
+porque não havia timeout nem tratamento de falha no modo de espera. Agora o
+carregamento tem timeout de 45s, confirma que os dados foram realmente
+reconhecidos após o download, remove tentativas anteriores presas, e em caso
+de erro destrava a tela e mostra uma mensagem clara em vez de girar sem fim.
+
+## v0.60.0 — Avaliação gerada automaticamente a partir do cargo
+A empresa não precisa mais cadastrar perguntas/indicadores de avaliação à
+mão. Ao criar um cargo, o sistema monta a avaliação sozinho — 5 indicadores
+por nível (N, O, R): N (Conhecimento) a partir dos conhecimentos técnicos /
+atividades técnicas da CBO; O (Organização) a partir das responsabilidades /
+atividades; R (Relações) a partir das competências comportamentais. Usa a
+base oficial da CBO quando o cargo veio dela; senão, usa o desenho do cargo.
+
+A geração acontece ao criar o cargo pela CBO e ao publicar o desenho (quando
+ainda não há indicadores). Na tela de Desenho, a seção de indicadores passou
+a explicar que é automática e ganhou o botão "Gerar automaticamente do
+cargo" — os itens continuam totalmente editáveis (ajustar, remover,
+acrescentar). Nada muda nos ciclos já abertos, que seguem seu retrato
+congelado (RN024).
+
+## v0.59.0 — PDI de Mentalidade: opcional e com orientação completa
+O PDI de Mentalidade deixou de ser obrigatório (a antiga regra RN020): os
+avisos de "pendente/obrigatório" foram removidos do dashboard, do
+diagnóstico e do relatório, e nada mais é bloqueado por causa dele. O
+módulo continua disponível em todo ciclo, agora rotulado como opcional.
+
+Cada um dos três pilares ganhou o texto de significado e as orientações de
+preenchimento fornecidas pela metodologia (como texto de apoio e como
+placeholder de cada campo — "Onde estou hoje?", "Onde preciso chegar?", "O
+que vou fazer?"), o que resolve o conteúdo que estava raso. O terceiro
+pilar passou a ser exibido como "Relacionamento" (o campo interno segue
+sendo o mesmo, para não afetar dados já salvos).
+
+## v0.58.0 — Integração com a base oficial da CBO (2.725 ocupações)
+Incorporada a base oficial da Classificação Brasileira de Ocupações (CBO2002,
+arquivos do Ministério do Trabalho): 2.725 ocupações com código, título
+oficial, família ocupacional, sinônimos (outras denominações) e atividades.
+Na tela de Cargos, uma seção nova "Consultar a base oficial da CBO" permite
+pesquisar por nome, código ou denominação alternativa. Ao escolher uma
+ocupação, o sistema cria um cargo já vinculado: guarda código, título oficial
+e família em cargo.cboOficial (o nome interno começa igual ao oficial, mas é
+editável), e traz as atividades da CBO como responsabilidades iniciais do
+desenho — que a empresa personaliza normalmente.
+
+Por questão de peso (a base tem ~8 MB), o arquivo de dados NÃO é carregado
+junto com o sistema: ele é baixado sob demanda na primeira busca da tela de
+Cargos e fica em cache do navegador, mantendo a home leve. Os 42 cargos-modelo
+detalhados que já existiam continuam disponíveis como material rico para
+importar; a base oficial é um complemento para busca e vínculo.
+
+## v0.57.2 — Marca d'água calibrada para ultrawide
+Ajuste fino da marca d'água para o monitor ultrawide 2560x1080 (21:9): agora
+ela é dimensionada pela altura da tela, com um ajuste específico para telas
+muito largas, ficando na posição e proporção do print de referência tanto no
+ultrawide quanto em telas 16:9.
+
+## v0.57.1 — Marca d'água consistente entre telas
+A marca d'água (a rede de moléculas ao fundo) era posicionada com valores
+fixos em pixels, então só ficava bonita numa resolução específica — em
+telas maiores ou menores aparecia deslocada ou cortada. Agora ela é ancorada
+à direita e escala com a largura da tela, ficando igual ao layout de
+referência em qualquer monitor, e mais discreta no celular.
+
+## v0.57.0 — Conferência de Ponto (RH vê as fotos)
+Nova tela "Conferência de Ponto" (menu Pessoas, só RH/Admin): uma tabela
+com as batidas do período mostrando o nome da conta de login, data e hora,
+tipo (entrada/saída), se foi validada por QR, e a foto (selfie) de cada
+batida. Dá pra filtrar por período, agrupar por colaborador e clicar na
+foto pra ampliar. Antes as selfies só eram acessíveis baixando pastas no
+Storage do Supabase; agora o RH confere tudo dentro do sistema. As imagens
+vêm por URL assinada temporária (o bucket continua privado — a foto não
+fica exposta publicamente). A Edge Function ganhou a ação "conferencia" e
+precisa de redeploy.
+
+## v0.56.1 — Estrutura: botão "Adicionar estrutura" no topo
+Acrescentado o botão azul "Adicionar estrutura" no canto superior direito da
+tela (como na referência), ao lado do título. Ele abre/fecha o formulário de
+novo nível hierárquico, que antes ficava sempre visível como um card. O
+botão "Expandir tudo" (com ícone) foi mantido junto da árvore.
+
+## v0.56.0 — Estrutura com cards de resumo e novo nome do sistema
+A tela de Estrutura Organizacional ganhou quatro cards de resumo no topo
+(Unidades, Departamentos, Setores, Colaboradores) e um botão "Expandir
+tudo / Recolher tudo" ao lado da árvore, no estilo da referência enviada.
+A árvore hierárquica (com avatares e responsáveis) foi mantida.
+
+O nome principal do sistema passou de "NORTE" para "INETRIS — Sistema de
+Avaliação e Desempenho" no menu lateral, na tela de login, no cabeçalho dos
+e-mails e no título da aba. As expressões "Metodologia NORTE" e "Ciclo
+NORTE" foram mantidas onde apareciam, conforme solicitado.
+
+## v0.55.0 — Super Admin edita o link de pagamento das empresas
+Agora o link de pagamento de cada empresa é editável direto no painel do
+Super Admin (seção "Cobrança por WhatsApp"): um campo por empresa com botão
+"Salvar link". Assim você controla os links de todas as empresas de um lugar
+só, sem precisar entrar no cadastro de cada uma. O WhatsApp continua sendo
+o dono da empresa quem preenche. Para não abrir um buraco de segurança
+(dar escrita ampla ao Super Admin), a gravação passa por uma função SQL
+(super_admin_definir_link_pagamento) que altera SÓ esse campo e só roda pra
+Super Admin. Requer rodar sql/23-super-admin-link-pagamento.sql no projeto
+principal.
+
+## v0.54.1 — Correção: WhatsApp/link não apareciam no Super Admin
+Na seção "Cobrança por WhatsApp", as empresas apareciam como "sem WhatsApp"
+e "sem link" mesmo com os dados preenchidos. Causa: os dados da empresa
+ficam aninhados em `payload.empresa` dentro do blob salvo, e o painel os
+lia da raiz do payload. Corrigido para ler de `payload.empresa` (tanto na
+tabela quanto no botão de cobrança).
+
+## v0.54.0 — Cobrança por WhatsApp no painel do Super Admin
+Novo campo "WhatsApp de cobrança" no Cadastro da Empresa. E no painel do
+Super Admin, uma seção "Cobrança por WhatsApp": lista todas as empresas com
+seu WhatsApp, status de pagamento e se têm link configurado, com um botão
+"Cobrar via WhatsApp" por empresa. O botão monta a mensagem com o link de
+pagamento da InfinitePay já pronto e abre o WhatsApp (wa.me) para você
+conferir e enviar — semi-automático, sem API paga e sem risco de banimento.
+Empresas sem WhatsApp ou sem link aparecem com o botão desabilitado. O
+Super Admin já lia o payload de todas as empresas (métricas), então não foi
+preciso mexer em permissões de banco.
+
+## v0.53.0 — Pagamento (Fase 1): planos e link da InfinitePay
+Primeira fase do pagamento dentro da plataforma. No Cadastro da Empresa, um
+campo novo guarda o link de pagamento da InfinitePay daquela empresa. E uma
+tela nova "Pagamento" (menu Base, só o Administrador da empresa) mostra os
+planos (Essencial, Profissional, Enterprise), destaca o plano contratado,
+exibe valor e status, e traz o botão "Pagar mensalidade" que abre o link da
+InfinitePay. Por enquanto a confirmação do pagamento é manual (o status vem
+de faturamento.statusPagamento); a automação por webhook fica para a Fase 2,
+quando a documentação do webhook da InfinitePay estiver disponível. Nenhuma
+mudança de banco — tudo mora no faturamento que já existia no state.
+
+## v0.52.2 — Relatório de ponto: resumo da empresa em bloco separado
+O total geral da empresa saiu da linha de rodapé e virou um bloco próprio
+embaixo da grade ("Resumo da empresa na semana"), com os números em
+destaque: total de horas trabalhadas, total de atrasos e total de horas
+extras da equipe. Fica igual à estrutura de dois blocos (detalhe em cima,
+consolidado embaixo) do restante dos relatórios do sistema.
+
+## v0.52.1 — Relatório de ponto: linha de TOTAL GERAL
+Adicionada uma linha "TOTAL GERAL" no rodapé da grade semanal, somando toda
+a empresa: total de horas por dia, total de horas da semana, total de
+atrasos e total de horas extras da equipe inteira. Assim o RH vê o
+individual (cada linha) e o consolidado da empresa num relatório só.
+
+## v0.52.0 — Relatório de ponto em grade semanal
+O PDF do consolidado semanal foi reformatado: em vez de uma linha por dia
+com as batidas, agora é uma grade com uma linha por colaborador e uma
+coluna por dia (Seg a Dom) mostrando as horas trabalhadas naquele dia (com
+almoço já descontado; "·" nos dias sem batida). No fim de cada linha, três
+colunas fecham a semana: Total de horas, Atrasos (em vermelho) e Extras (em
+verde). O PDF passou a sair em paisagem para caber os sete dias com folga.
+Fica muito mais fácil bater o olho e ver quem trabalhou em quais dias.
+
+## v0.51.1 — Correção do menu lateral (grupos travados)
+Corrigido o bug em que um grupo do menu "não respondia ao comando": quando
+o grupo continha a tela aberta no momento, ele ficava forçado a permanecer
+aberto — tentar fechá-lo pelo cabeçalho não fazia nada, porque a lógica o
+reabria na hora. Agora um clique explícito no cabeçalho do grupo tem
+prioridade: fecha mesmo que contenha a tela atual, e reabre normalmente.
+Ao navegar para um item, o grupo dele volta a aparecer aberto como esperado.
+
+## v0.51.0 — Totem: só o Administrador
+A tela "Totem de ponto" (que exibe o QR Code do local) passou a ser
+exclusiva do Administrador (owner) da empresa — o RH deixou de vê-la no
+menu. A restrição vale também no servidor: a ação `qr_atual` da Edge
+Function agora só gera o código para o owner, então nem forçando a URL um
+RH consegue exibir o QR. Ligar/desligar a segurança em Configurações
+continua acessível a RH e Admin (só a exibição do totem foi restrita).
+Requer redeploy da Edge Function "ponto".
+
+## v0.50.1 — Ponto: mensagens claras quando a câmera não abre
+O painel de escanear passava a impressão de estar "vazio" quando a câmera
+falhava, porque o erro era engolido. Agora ele mostra na própria tela o
+motivo — permissão negada, nenhuma câmera no aparelho (caso de PC sem
+webcam), câmera em uso por outro app, ou biblioteca de leitura não
+carregada — para o usuário saber o que fazer.
+
+## v0.50.0 — Organização geral para celular
+Passada ampla de responsividade, tratando os problemas na raiz em vez de
+tela por tela: tabelas largas (colaboradores, relatórios, licenças) agora
+rolam só na própria tabela sem espremer o card; todos os grids de 2/3/4
+colunas (KPIs, jornada, papéis do totem, módulos) empilham em 1 no celular;
+as barras de ação e a busca do topo ocupam a largura toda e empilham;
+campos de formulário viram 100% de largura com fonte 16px (evita o zoom
+automático do iOS ao focar); botões ganham alvo de toque de no mínimo 44px;
+relógio do ponto, KPIs e o QR do totem foram redimensionados para caber bem.
+Inclui um ajuste extra para telas bem estreitas (≤ 380px).
+
+## v0.49.1 — Correção: QR do totem não aparecia
+A biblioteca de geração de QR escolhida na 0.49.0 (pacote `qrcode`) é feita
+para uso com empacotador e não expunha o `QRCode` global quando carregada
+direto no navegador — por isso o totem não desenhava o código. Troquei pela
+`qrcodejs` (feita para rodar direto no browser) e ajustei a chamada para a
+API dela. Testado: gera o QR com o token do servidor corretamente.
+
+## v0.49.0 — Ponto seguro: QR do local + selfie
+Novo: a empresa pode exigir que o ponto só seja batido presencialmente,
+escaneando um QR Code exibido na entrada, e/ou com uma selfie na hora.
+
+- **Totem** (nova tela, só RH/Admin): exibe um QR Code que se renova sozinho
+  a cada poucos segundos. É pra deixar aberto num tablet/monitor na entrada.
+- **Bater ponto**: quando o QR é exigido, o colaborador abre a câmera, lê o
+  código do totem e (se exigido) tira uma selfie; só então a batida é
+  registrada. Quem tenta de fora não consegue — o código do momento só
+  existe na tela da empresa.
+- **Configurações → Segurança do Ponto**: chaves liga/desliga para "exigir
+  QR" e "exigir selfie".
+- **Segurança de verdade, no servidor**: o QR é um token assinado por tempo
+  (HMAC) com um segredo por empresa que o navegador nunca vê — mora numa
+  tabela sem acesso do cliente (sql/22-ponto-seguranca.sql), lida só pela
+  Edge Function. A validação acontece no servidor, não dá pra burlar pelo
+  front. As selfies vão para um bucket de Storage privado no banco de ponto.
+
+Requer, uma vez: rodar sql/22-ponto-seguranca.sql no projeto principal;
+rodar sql-ponto-db/02-seguranca-batida.sql e criar o bucket "selfies-ponto"
+no projeto de ponto; e reimplantar a Edge Function "ponto". Também passa a
+carregar duas bibliotecas (geração e leitura de QR) via CDN no index.html.
+
+Observação honesta: nenhuma trava só-software é infalível (o print do QR
+compartilhado em tempo real é o furo possível) — a selfie existe justamente
+para cobrir esse caso. Para valor jurídico pleno, o caminho é um REP
+homologado (hardware).
+
+## v0.48.1 — Jornada: horários digitáveis
+Os campos de horário da jornada (entrada, saída e almoço) deixaram de ser o
+seletor de relógio do navegador e viraram campos de texto, pra digitar
+direto. Aceita vários formatos e arruma sozinho ao salvar: "8" vira 08:00,
+"830" vira 08:30, "1300" vira 13:00, "8h30" vira 08:30. Valor inválido
+(ex: 25:00) é descartado. Vale no cadastro e no editor "Jornada".
+
+## v0.48.0 — Jornada agora tem intervalo de almoço
+A jornada do colaborador ganhou dois campos novos: início e fim do almoço
+(ex: 12:00 às 13:00), preenchíveis no cadastro e no editor "Jornada" da
+lista de colaboradores. Deixar os campos vazios significa "sem almoço".
+
+O almoço é descontado automaticamente das horas trabalhadas: como a pessoa
+não bate ponto no intervalo, o sistema desconta a parte do almoço previsto
+que cai dentro do período trabalhado. A regra é robusta — se um dia a
+pessoa bater ponto na saída/volta do almoço, o intervalo não é descontado
+em dobro; e uma saída no meio do horário de almoço desconta só a parte
+sobreposta. Vale na tela de Ponto (total do dia, gráfico dos 7 dias) e no
+PDF semanal do RH. Nenhuma mudança de banco — jornada é config no state.
+
+## v0.47.0 — Ponto liga/desliga por Empresa (na geração da licença)
+Antes o módulo de Ponto aparecia pra toda Empresa, sempre. Agora é uma
+chave por Empresa, decidida pelo Super Admin na hora de gerar o código de
+licença: a tela "Super Admin — Empresas" ganhou um campo sim/não
+("Habilitar o módulo de Ponto para esta empresa"), e a lista de códigos
+disponíveis passou a mostrar uma coluna Ponto (Sim/Não).
+
+A escolha viaja com o código: quando a Empresa-cliente usa o código no
+cadastro, a trigger de criação copia a flag pra Empresa nova. No login, o
+sistema lê `empresas.ponto_habilitado` e só mostra o menu "Ponto" (e libera
+a rota) se estiver ligado. Requer rodar sql/21-ponto-por-empresa.sql no
+projeto principal — ele adiciona as colunas, atualiza a trigger e, para não
+quebrar quem já usava, marca todas as Empresas EXISTENTES como
+ponto_habilitado = true (só as novas nascem desligadas por padrão).
+
+## v0.46.0 — Ponto ligado à jornada do colaborador
+Cada colaborador agora tem uma jornada prevista (entrada, saída e tolerância
+em minutos), editável na tela de Colaboradores — no cadastro e num botão
+"Jornada" por linha da lista. É dado de configuração, então fica no
+cadastro dentro do state (banco principal), não no banco de ponto.
+
+Com isso, o ponto passa a comparar a batida real com o previsto:
+- Na tela "Ponto", um card novo mostra a entrada e a saída de hoje com um
+  selo de "No horário", "X de atraso", "+X extra" ou "X antes", já
+  descontada a tolerância. Quem ainda não tem jornada cadastrada vê um
+  aviso pedindo pro RH definir.
+- No PDF semanal do RH, a tabela ganhou colunas de Atraso e Extra por dia,
+  e o resumo por pessoa passou a mostrar total de atrasos e de horas extras
+  na semana. Quem bate ponto sem ter cadastro/jornada aparece como
+  "s/ jornada" nessas colunas, sem quebrar o relatório.
+
+## v0.45.2 — Ponto: relógio agora anda em tempo real
+Correção: o relógio da tela de Ponto estava "congelado" na hora em que a
+tela abria — só mostrava a hora certa se a pessoa saísse e voltasse (era um
+texto desenhado uma vez, sem nada atualizando). Agora ele anda a cada
+segundo (passou a mostrar também os segundos), atualizando só o próprio
+texto, sem redesenhar a página. O timer se desliga sozinho quando a pessoa
+sai do Ponto (quando o elemento some do DOM), então não fica rodando à toa
+nas outras telas. De quebra, ao sair e voltar pro Ponto os dados são
+recarregados — útil se a pessoa bateu ponto em outro dispositivo.
+
+## v0.45.1 — Ponto: layout reorganizado
+Tela "Ponto" redesenhada, seguindo os mesmos componentes visuais já usados
+no resto do sistema (`.kpi-card-inetris`, ícones em SVG no estilo Feather,
+paleta e tipografia da identidade INETRIS) — sem inventar um estilo novo:
+- Card principal com relógio maior, e o botão "Bater ponto" como o único
+  elemento em destaque da tela (assinatura visual da página).
+- Três KPIs ao lado do relógio: horas trabalhadas hoje, última batida, e
+  total dos últimos 7 dias.
+- Gráfico de barras dos últimos 7 dias (novo — a Edge Function "ponto"
+  ganhou a ação `periodo`, que busca um intervalo livre de datas da
+  própria pessoa, generalizando a ação `hoje`).
+- Histórico de hoje virou uma linha do tempo com ícones de entrada/saída,
+  em vez da tabela simples de antes.
+
+## v0.45.0 — Ponto passa a viver num banco de dados separado
+Reversão de arquitetura da v0.44.0: os registros de ponto (`registros_ponto`)
+saem do projeto Supabase principal e passam a viver num **projeto Supabase
+totalmente separado**, criado só para isso (ver sql-ponto-db/01-schema.sql)
+— o motivo direto foi o banco principal já estar pesado, e ponto ser
+justamente o tipo de dado que mais cresce (2+ linhas por pessoa, todo dia).
+
+Como o navegador só tem sessão de login do projeto principal (nunca deve
+ter chave do banco de ponto), a ligação entre os dois passa a ser feita
+por uma Edge Function nova, `supabase/functions/ponto/index.ts`: ela
+confere a sessão da pessoa no projeto principal (quem é, qual empresa,
+qual papel) e só então lê/grava no projeto de ponto, usando a
+service_role key dele — guardada como secret da função, nunca exposta no
+front-end. `js/29-page-ponto.js` (bater ponto) e `exportarPontoSemanalPDF`
+em `js/20-page-relatorios.js` (PDF do RH) passaram a chamar essa função
+em vez de acessar `registros_ponto` direto — o `sql/20-registros-ponto.sql`
+da v0.44.0 foi removido, não roda mais no banco principal.
+
+## v0.44.0 — Novo módulo: Ponto
+Nova tela **Ponto** (grupo "Pessoas", visível pra todo mundo, qualquer
+papel) — cada pessoa bate a própria entrada/saída, com relógio e total do
+dia. Diferente do resto do sistema, os registros NÃO ficam dentro do JSON
+de `dados_sistema`: é uma tabela própria (`registros_ponto`,
+sql/20-registros-ponto.sql), pelo mesmo motivo já registrado no
+ALERTA-ESCALABILIDADE.md — é um evento de alto volume, todo dia, pra todo
+mundo, e inflaria o blob rapidamente. A tabela é append-only (mesmo
+princípio da tabela `auditoria`): ninguém, nem o Administrador, pode
+alterar ou apagar uma batida já registrada pelo próprio banco (sem
+política de UPDATE/DELETE) — só RLS de SELECT (a própria pessoa, ou
+RH/Administrador vendo a empresa toda) e INSERT (só em nome de si mesmo).
+
+Em Relatórios, novo tipo **"Ponto — consolidado semanal (PDF)"**: RH ou
+Administrador escolhe a segunda-feira da semana e baixa um PDF com todas
+as batidas da empresa naquela semana, agrupadas por colaborador, com o
+total de horas de cada um — mesmo padrão client-side (jsPDF + autotable)
+já usado nos outros relatórios em PDF do sistema, sem infraestrutura nova.
+
+## v0.43.8 — Marca d'água mais pra esquerda
+Deslocada mais pra esquerda — mostra bem mais da estrutura da logo do
+que antes. Confirmei visualmente antes de fechar.
+
+## v0.43.7 — Marca d'água recalibrada pra bater com a referência
+Comparando com a referência enviada, entendi o efeito certo: a logo é
+gigante o bastante pra o CENTRO dela ficar fora da tela, à direita — só
+uma fatia esparsa da borda esquerda aparece, com folgas (a própria logo
+tem espaços vazios na estrutura dela). Renderizei várias combinações de
+tamanho/posição lado a lado com a referência (mesma largura de tela,
+1456px) até chegar numa versão bem mais próxima do efeito esparso.
+
+Como isso foi calibrado visualmente a partir de um print (não de um
+valor exato), pode não bater 100% ainda — se precisar de mais ajuste
+fino (mais alto/baixo, mais fatia visível ou menos), é só apontar a
+direção que eu corrijo.
+
+## v0.43.6 — Marca d'água mais pra direita e maior (1700px)
+Empurrada mais pra direita (menos sobreposta com os cartões) e aumentada
+de 1300px pra 1700px. Confirmei visualmente antes de fechar.
+
+## v0.43.5 — Marca d'água bem maior (1300px)
+Aumentada de 620px pra 1300px, ocupando bem mais do espaço vazio à
+direita. Regenerei a imagem de origem na resolução original (1254px, a
+imagem enviada) em vez de reaproveitar a versão de 900px de antes, pra
+não borrar com esse tamanho maior — mesma técnica de compressão de
+paleta reduzida, ficou em 33KB mesmo nessa resolução total.
+
+Nesse tamanho, a marca d'água pode se estender além da parte visível da
+tela em monitores mais baixos — isso é esperado nesse tamanho grande (a
+parte que mais aparece, perto dos cartões do topo, é a que mais
+importa). Confirmei visualmente antes de fechar.
+
+## v0.43.4 — Bug corrigido: marca d'água cortada (só 2 bolinhas apareciam)
+Reportado com print real: só 2 bolinhas douradas apareciam no topo, em
+vez da logo inteira. Causa: a marca d'água (1100px) estava centralizada
+verticalmente (`center`) num espaço que só existe de verdade em telas
+bem altas — em monitores mais baixos/widescreen (como o do print), a
+imagem ficava maior que a altura da tela, cortada por cima e por baixo,
+sobrando só um pedacinho visível.
+
+Corrigido: tamanho reduzido pra 620px (cabe em qualquer tela comum,
+mesmo mais baixa) e posição fixada a partir do topo, em vez de
+centralizada — garante que a logo inteira sempre aparece, independente
+da altura da tela de quem está usando.
+
+Testei renderizando na mesma proporção larga e baixa do monitor do
+print antes de fechar, pra confirmar que não corta mais.
+
+## v0.43.3 — Marca d'água maior (1100px)
+Aumentada de 760px pra 1100px. Como a imagem de origem tinha sido salva
+num tamanho menor pra economizar espaço, aumentar só no CSS deixaria
+borrado — regenerei a imagem de origem em resolução mais alta antes de
+aumentar. No processo, comprimi com paleta reduzida (a logo só usa
+navy/dourado/branco/transparente, então 32 cores é mais que suficiente)
+— o arquivo caiu de ~310KB pra ~24KB nesse tamanho maior, sem perda
+visível de nitidez.
+
+Confirmei visualmente antes de fechar.
+
+## v0.43.2 — Marca d'água: logo navy/dourado, maior, no lado direito
+Trocada a marca d'água pra usar a mesma logo navy/dourado da barra
+lateral (fundo tornado transparente), em vez da versão cinza clara
+anterior. Aumentada (760px) e reposicionada — antes ficava só no canto
+superior direito, agora fica centralizada verticalmente no lado direito,
+no espaço mais vazio da tela.
+
+Confirmei visualmente o resultado antes de fechar.
+
+## v0.43.1 — Marca d'água simplificada: só uma logo grande
+Ajuste direto: em vez de 4 cópias em tamanhos diferentes espalhadas, agora
+é só uma logo grande (640px), uma única vez, no canto superior direito.
+Confirmei visualmente antes de fechar.
+
+## v0.43.0 — Marca d'água implementada
+Logo em tons claros (já com fundo transparente) conectada como marca
+d'água — várias cópias em tamanhos diferentes, espalhadas no canto
+superior direito da área de conteúdo, em baixa opacidade, atrás de todo
+o resto. Nunca aparece na barra lateral (o fundo branco sólido dela
+cobre por cima) nem atrapalha a leitura dos cartões (que também têm
+fundo branco sólido — a marca d'água só aparece nos espaços vazios entre
+eles).
+
+Detalhe técnico: como JavaScript não consegue manipular pseudo-elementos
+(`::before`) diretamente, a imagem foi conectada através de variáveis
+CSS (`--marca-dagua-1` a `--marca-dagua-4`), definidas uma vez na
+inicialização — não em toda tela nova, só quando o sistema abre.
+
+Renderizei o resultado real (barra lateral + conteúdo) num navegador
+antes de fechar, ajustando a opacidade pra ficar discreta o bastante
+pra não competir com o conteúdo.
+
+## v0.42.2 — Logo trocada (a antiga tinha ficado invisível)
+Confirmado o motivo: a logo anterior tinha sido feita pra aparecer bem
+num fundo escuro — quando o sistema passou pro tema claro (v0.35.0), a
+barra lateral virou branca e a logo ficou praticamente invisível (fundo
+claro em cima de fundo claro).
+
+Logo nova conectada, já pronta pra fundo branco. Processamento aplicado
+antes de conectar: fundo quase-branco da imagem original convertido pra
+transparente de verdade (em vez de deixar um quadrado branco sólido por
+trás), garantindo que funcione bem mesmo se o fundo ao redor não for
+100% branco puro — confirmado pixel a pixel antes de fechar.
+
+Ainda falta a versão da logo pra marca d'água, que a empresa vai mandar
+separado.
+
+## v0.42.1 — Bug corrigido: trocar "Ver como" parecia não fazer nada
+Reportado: escolher outro papel no "Ver como (pré-visualização)" não
+mudava nada na tela, a não ser que a pessoa clicasse manualmente em
+"Dashboard" depois. Causa: `setRole()` só trocava o papel guardado, sem
+levar pro Dashboard — em qualquer outra tela que não muda de aparência
+conforme o papel, parecia que a troca não tinha funcionado (mesmo tendo
+funcionado por baixo dos panos).
+
+Corrigido: trocar o papel agora já leva direto pro Dashboard daquele
+papel, sem precisar clicar em mais nada. Testei a lógica isoladamente
+antes de fechar.
+
+## v0.42.0 — Menu lateral em acordeão + busca de verdade
+Dois ajustes pedidos direto:
+
+**1) Menu lateral menos poluído.** Os grupos (Fundação, Cargos, Pessoas,
+Ciclo NORTE, Base) agora aparecem só pelo nome — clicar num grupo expande
+e mostra as opções dele, clicar de novo recolhe. O grupo que contém a
+tela em que você está aberto automaticamente, pra não se perder ao
+navegar — os outros ficam fechados até você clicar.
+
+**2) Busca do cabeçalho agora funciona.** Antes estava propositalmente
+desativada (nenhuma busca tinha sido implementada ainda). Agora: digita
+o nome de um colaborador e aperta Enter — leva pra tela de Colaboradores
+já filtrada por esse nome, com um aviso mostrando o filtro ativo e um
+botão pra limpar. Funciona tanto pra quem vê todos os colaboradores
+(Admin/RH) quanto pra quem só vê a própria equipe (Gestor/Líder) — cada
+um filtra dentro do que já tem acesso.
+
+A busca só aparece pra quem tem acesso à tela de Colaboradores — um
+Colaborador comum não veria o campo, porque pra ele buscar outra pessoa
+resultaria só num erro de acesso, sem utilidade real.
+
+Testei a lógica do filtro isoladamente (busca com correspondência,
+busca vazia, busca sem resultado) e confirmei visualmente o menu
+recolhido/expandido e a busca habilitada antes de fechar.
+
+## v0.41.1 — Menu lateral menos poluído: "Ver como" em dropdown
+O seletor "Ver como (pré-visualização)" — visível só pro Administrador,
+usado para testar a visão de RH/Gestor/Colaborador — ocupava 4 linhas
+inteiras no topo do menu lateral, com o mesmo peso visual da navegação
+real embaixo. Trocado por um dropdown compacto (uma linha só, mesma
+função) — o menu de navegação agora aparece bem mais rápido e menos
+poluído visualmente.
+
+Confirmei o resultado renderizando o CSS real antes de fechar (antes:
+4 linhas cheias · depois: 1 linha).
+
+## v0.41.0 — Valores exatos do documento identidade-visual-inetris.html
+Diferente das vezes anteriores (print e prompt de texto), esse era um
+documento HTML de verdade — com CSS extraível, não só interpretável.
+Corrigidas as diferenças que ainda restavam, agora com precisão exata:
+
+- **Cor de borda** (`--line`): #E3E6EB (era #E5E7EB — bem próximo, mas
+  não idêntico).
+- **Sombra dos cartões**: adicionada a sombra exata do documento
+  (`0 1px 2px rgba(13,27,51,.04), 0 8px 24px rgba(13,27,51,.06)`) —
+  antes os cartões não tinham nenhuma sombra.
+- **Cantos dos cartões**: 16px (era 12px) — o documento usa 3 níveis de
+  raio (6/10/16px) e os cartões externos usam o maior.
+- **Painéis internos** (dentro de um cartão, ex.: os gráficos do
+  dashboard): corrigido pra fundo branco com borda — estavam com fundo
+  cinza claro sem borda.
+- **Cores do gráfico de 5 dimensões**: valores exatos da seção "Telas de
+  referência" do documento (a versão real de tela, não a decorativa) —
+  Nível Técnico #2563EB · Operacional #0EA5E9 · Resultado #16A34A · Time
+  #7C3AED · Evolução #65A30D. A linha que conecta os pontos voltou a ser
+  azul com preenchimento azul claro (documento usa isso na tela real,
+  diferente do cinza neutro que eu tinha usado antes).
+
+Confirmei que o mecanismo de cor personalizada por empresa (white-label)
+continua funcionando normalmente — os valores fixos agora são só o
+padrão de fábrica, sobrescrito automaticamente quando uma empresa
+escolhe suas próprias cores.
+
+Renderizei o resultado final (sombra + cores do radar) com o CSS e o
+Chart.js reais antes de fechar.
+
+## v0.40.0 — Detalhes pixel a pixel da referência (sem mudar a metodologia)
+Pedido explícito: copiar a referência sem alterações. Importante: a
+referência é um guia de estilo, e o próprio manual diz que não deve ser
+replicado pixel a pixel — a escala de 0 a 5 com 5 níveis
+(Excelente/Bom/Regular/Atenção/Crítico) e os nomes de exemplo (Ana
+Martins, Carlos Souza) são ilustrativos, não a metodologia real. Copiar
+isso literalmente mudaria a metodologia NORTE (0 a 1, 3 níveis:
+Iniciar/Desenvolver/Alavancar) e mostraria dados fictícios em vez dos
+reais.
+
+O que dava pra copiar pixel a pixel — e não tinha sido feito ainda —
+foi implementado agora:
+
+- **Sparkline** no card "Resultado geral", com a evolução dos últimos
+  meses.
+- **Barra de progresso com meta** no card "Colaboradores avaliados"
+  ("Meta: 90%").
+- **PDIs em andamento** com duas linhas de nota ("Em progresso" +
+  "Total de ativos: N"), igual à referência.
+- **Ícone de informação** ao lado de "Desempenho por dimensão", com
+  explicação ao passar o mouse.
+- **Links "Ver todas..."** no rodapé das 3 tabelas (Dimensões,
+  Oportunidades, Avaliações), levando pra tela correspondente.
+- **Avatar com iniciais + menu de três pontos** em cada linha da tabela
+  "Avaliações Recentes".
+
+No caminho, encontrei e corrigi um erro que eu mesmo teria introduzido:
+os links "Ver todas as dimensões"/"Ver todas as oportunidades" apontavam
+pra rotas que não existem no sistema (`diagnosticos`, `pdis`, no plural)
+— a rota certa é `diagnostico` (singular, tela combinada de
+Diagnóstico & PDI). Corrigido antes de fechar.
+
+Renderizei o resultado final com o Chart.js de verdade antes de entregar.
+
+## v0.39.1 — Gráfico de rosca mais elegante
+Refinamento visual nos 3 gráficos de "Classificação geral" (Admin, RH e
+Gestor) — Iniciar/Desenvolver/Alavancar:
+
+- Espaçamento entre as fatias (antes ficavam coladas).
+- Pontas arredondadas em cada fatia, em vez de retas.
+- Efeito sutil ao passar o mouse (a fatia "respira" um pouco).
+- Texto central em duas linhas — o número em destaque, com um rótulo
+  pequeno embaixo ("avaliados", "colaboradores", "na equipe", conforme o
+  dashboard) — antes era só o número solto.
+
+Confirmei o resultado renderizando o Chart.js de verdade antes de fechar.
+
+## v0.39.0 — Ajustes finos conforme o Manual de Marca INETRIS
+Revisão ponto a ponto contra o Manual de Marca completo (o prompt de
+identidade visual), corrigindo diferenças reais que ainda restavam:
+
+- **Cantos**: cartões agora 12px (estavam 10px), botões e campos de
+  formulário agora 10px (estavam 8px e 7px) — valores exatos do manual.
+- **Gráfico de 5 dimensões, cor por dimensão**: o manual pede uma cor
+  própria pra cada uma das 5 dimensões (Nível Técnico: azul · Operação:
+  azul petróleo · Resultado: verde · Time: roxo suave · Evolução: verde
+  claro) — antes o radar inteiro era só azul. Agora cada ponto do radar
+  tem a cor certa, e a linha que conecta os pontos passou pra um cinza
+  neutro, pra não competir visualmente com as cores dos pontos.
+- **Ícone de estrela**: estava preenchido (sólido) — o manual pede ícones
+  de traço fino (outline), então corrigido pra contorno.
+- **Cabeçalho**: o manual especifica que deve conter busca, notificações,
+  empresa, usuário e avatar — faltava o nome da empresa, adicionado.
+
+Testei a lógica de cor por dimensão isoladamente (incluindo o caso de
+uma dimensão sem dado) e renderizei o radar com as cores reais antes de
+fechar, confirmando visualmente.
+
+## v0.38.0 — Dashboard mais fiel à referência: cabeçalho, tabelas e colunas exatas
+Ajustes finos pra aproximar ainda mais da imagem de referência enviada:
+
+- **Cabeçalho de topo novo** (só na tela de Dashboard) — título, subtítulo,
+  campo de busca, sino de notificações (reaproveitando o que já existia)
+  e avatar com as iniciais de quem está logado.
+- **"Desempenho por Dimensão" e "Oportunidades de desenvolvimento"**
+  viraram duas tabelas lado a lado, com as colunas exatas da referência
+  (Dimensão/Resultado/Impacto e Dimensão/Oportunidade/Prioridade) — antes
+  eram duas tabelas com estrutura diferente uma da outra.
+- **"Avaliações Recentes"** ganhou as colunas "Área" (setor do
+  colaborador) e "Dimensão" (a dimensão com pior resultado naquele ciclo
+  — Resultado, Comportamento ou Potencial) — antes só tinha
+  Colaborador/Cargo/Avaliador/Nota/Status/Data.
+
+Testei a lógica de "pior dimensão" isoladamente (incluindo o caso de uma
+dimensão sem dado ainda) e renderizei o cabeçalho + tabelas com o CSS
+real antes de fechar.
+
+## v0.37.0 — Dashboards do RH e do Gestor também reconstruídos
+A v0.36.0 só tinha reconstruído o Dashboard do Administrador na estrutura
+da referência — RH e Gestor continuavam com o layout antigo (cartões de
+KPI simples, sem ícone, sem o gráfico de 5 dimensões). Essa versão aplica
+o mesmo tratamento nos outros dois:
+
+- **RH**: cartões de KPI com ícone (Avaliações em andamento, Pendências
+  de avaliador, PDIs ativos, Colaboradores sem risco), gráfico de 5
+  dimensões (empresa toda) ao lado da Classificação Geral, e
+  "Competências críticas" virou tabela (antes era gráfico de barra, que
+  cortava nomes longos).
+- **Gestor**: mesmo padrão, com o gráfico de 5 dimensões calculado só com
+  a própria equipe (não a empresa toda) — o ranking de Potencial e a
+  tabela de evolução da equipe continuam como estavam, sem mudança.
+
+Cores dos gráficos de rosca (Iniciar/Desenvolver/Alavancar) dos dois
+dashboards também corrigidas — ainda usavam os tons antigos (antes da
+v0.35.0), mesmo depois da troca de identidade.
+
+## v0.36.0 — Dashboard do Administrador reconstruído no layout da referência
+A v0.35.0 trocou as cores, mas o layout continuava o antigo. Essa versão
+reconstrói o Dashboard do Administrador seguindo a estrutura exata da
+referência que a empresa mandou (imagem do guia visual INETRIS), com
+dados reais do NORTE:
+
+- **3 cartões de KPI com ícone** — Resultado Geral (média da empresa,
+  0 a 1, com a classificação IDA embaixo), Colaboradores Avaliados (%),
+  PDIs em Andamento.
+- **Gráfico de 5 dimensões (N·O·R·T·E) como elemento principal** — agora
+  em nível consolidado da empresa inteira (antes só existia por ciclo
+  individual, na tela de Diagnóstico).
+- **Distribuição das Avaliações** — rosca com total no centro, mesma
+  posição da referência.
+- **Tabela "Desempenho por Pilar"** — média e classificação de cada um
+  dos 5 pilares.
+- **Tabela "Oportunidades de desenvolvimento"** — cargos com maior
+  concentração de "Iniciar" (reaproveita o indicador 7.5 que já existia).
+- **Tabela "Avaliações Recentes"** — colaborador, cargo, avaliador, nota,
+  status e data dos últimos ciclos consolidados.
+
+Os gráficos antigos que não faziam parte da referência (comparação por
+trimestre, evolução mensal, gauge de PDI, ranking de cargos em gráfico)
+foram removidos dessa tela — as informações mais importantes continuam
+disponíveis nas tabelas novas.
+
+Usei ícones SVG embutidos no código (não uma fonte de ícones externa) —
+adicionar uma fonte de ícones inteira só pra 3 ícones seria o mesmo tipo
+de problema de performance que já corrigimos na v0.30.0 (bibliotecas
+pesadas carregando sem necessidade).
+
+Testei os cálculos (média geral da empresa, média por pilar) isoladamente,
+e renderizei o resultado final com o Chart.js de verdade antes de fechar.
+
+## v0.35.0 — Nova identidade visual INETRIS
+Implementação da identidade visual documentada no Manual do Sistema
+INETRIS (Seções 7 a 10) — mudança grande, de tema escuro pra um tema
+claro, com azul só como destaque pontual (princípio central do manual:
+"o sistema não deve ser azul — azul é assinatura e interação, não massa
+visual").
+
+- **Paleta de cores** — fundo agora branco/cinza muito claro, cartões
+  brancos com borda cinza suave, azul (#2563EB) usado só em botões,
+  menu selecionado, links e números-chave. Cores funcionais realinhadas:
+  Vermelho #EF4444 (Iniciar), Âmbar #F59E0B (Desenvolver), Verde #16A34A
+  (Alavancar) — direto do manual.
+- **Tipografia** — Inter agora cobre também os títulos (antes usava
+  Space Grotesk pra isso).
+- **Logo** — atualizado pro logo oficial do Instituto INETRIS.
+- **Gráfico das 5 dimensões (N·O·R·T·E)** — o elemento visual "assinatura"
+  do manual, implementado na tela de Diagnóstico (resultado individual),
+  reaproveitando os dados já calculados (`pilarMedia`) — mantém a
+  escala real do NORTE (0 a 1, IDA de 3 níveis), sem trocar pela escala
+  de 0 a 5 do manual, já que isso mudaria a metodologia em si, não só a
+  aparência.
+
+**Dois bugs reais corrigidos no processo:**
+1. Um mecanismo de contraste que eu tinha construído antes (v0.29.0)
+   assumia que a barra lateral seria sempre escura, e clareava cores
+   escolhidas pela empresa que fossem escuras demais. Com o fundo agora
+   branco, a lógica precisava ser o oposto — corrigida e renomeada
+   (`--gold-on-dark` → `--gold-on-light`), testada com os casos
+   extremos (branco puro, por exemplo).
+2. O item selecionado do menu lateral não batia com o manual (usava
+   cinza claro com texto escuro, em vez de azul claro com texto azul) —
+   corrigido, confirmado visualmente.
+
+Além disso, corrigidas ~15 cores fixas espalhadas pelo CSS e por 3
+arquivos JS (gráficos, e-mails, tags de pilar) que tinham tons claros
+demais, pensados só pra funcionar num fundo escuro — ficariam
+ilegíveis no fundo branco novo.
+
+**Validação**: renderizei o CSS e os componentes reais (não só teoricamente)
+num navegador headless antes de fechar, incluindo o menu lateral, os
+cartões de diagnóstico, o gráfico de 5 dimensões e os avisos — confirmando
+contraste e legibilidade em cada um.
+
+## v0.34.0 — Líder, RH e Administrador também podem ser avaliados
+Até aqui, só quem tinha papel de sistema "Colaborador" podia ter um ciclo
+de avaliação — Líder, RH e Administrador existiam só como contas de
+acesso, sem vínculo a cargo/unidade/setor/gestor. Combinado o desenho
+com você: quando um Líder é avaliado, quem faz o papel de "Líder" (peso
+50%) é o gestor dele (outro Líder ou o Administrador); RH e
+Administrador se avaliam mutuamente nesse mesmo papel.
+
+**O que mudou:**
+- **Vínculo de conta** (`js/13-page-colaboradores.js`): agora qualquer
+  conta (não só papel "Colaborador") pode ser vinculada a um registro de
+  colaborador — inclusive Líder, RH e Administrador. O rótulo do campo
+  foi atualizado, mostrando o papel de cada conta na lista.
+- **Trava de integridade**: impedido cadastrar (ou mover) alguém como
+  gestor de si mesmo — isso anularia a avaliação por 3 pessoas (RN003),
+  já que a mesma pessoa preencheria tanto a própria etapa quanto a do
+  "Líder".
+- **Permissões reescritas** (`js/14-permissions.js`): a lógica de quem
+  pode preencher/ver cada etapa dependia do papel de sistema ser
+  exatamente "colaborador"/"lider" — o que bloqueava completamente um
+  Líder/RH/Admin de preencher a própria avaliação, mesmo depois de ter o
+  vínculo. Agora depende da relação real com aquele ciclo específico (é
+  a própria pessoa sendo avaliada? é o gestor cadastrado dela?), não do
+  papel de sistema. Corrigido em 4 funções + uma dupla de funções
+  duplicada/desatualizada encontrada em `js/15-page-ciclos-avaliacao.js`
+  (usada pra registrar/validar evidência do PDI), com o mesmo problema.
+- **Dashboard**: como Líder/RH/Admin não veem o dashboard de
+  "Colaborador" (veem o próprio, de gestor/RH/admin), adicionado um
+  aviso "Você também está sendo avaliado(a) neste ciclo" nesses
+  dashboards quando aplicável — sem isso, a pessoa nunca ficaria sabendo
+  que precisa agir, mesmo já podendo.
+
+Testei isoladamente: autoavaliação de um Líder, gestor preenchendo a
+etapa dele, e o bloqueio de auto-gestão — nos três casos, comportamento
+esperado. CI completo (sintaxe, ESLint, Prettier) passando limpo.
+
+## v0.33.0 — Explicação da escala IDA na tela de avaliação
+Antes de lançar as notas (Iniciar/Desenvolver/Alavancar), a tela agora
+mostra um aviso explicando o que cada letra significa — pra quem nunca
+usou o sistema (ou esqueceu) entender antes de começar a avaliar, em vez
+de precisar adivinhar ou perguntar pra alguém.
+
+Adicionado nos dois modelos de avaliação (Assíncrono e Ao Vivo), como uma
+função reutilizável (`explicacaoEscalaIDA()`) — se o texto precisar
+mudar no futuro, é um lugar só pra ajustar, não dois.
+
+## v0.32.1 — Bug corrigido: nomes longos cortados nos gráficos de barra
+Reportado com print real do dashboard do RH: nomes de competência
+("Colaboração e trabalho em equipe", "Ética nas relações de trabalho"
+etc.) apareciam cortados no meio do texto — o espaço da coluna do
+gráfico não é largo o suficiente pra caber o nome inteiro, e o Chart.js
+desenhava só o que cabia, sem nenhum aviso visual de que faltava parte
+do nome. Esse era um bug diferente do da v0.31.1 (aquele era sobre
+altura, esse é sobre largura).
+
+Corrigido nos 3 gráficos de barra horizontal que podem ter nomes longos
+(Competências críticas do RH, Cargos em risco do Admin, Potencial da
+equipe do Gestor): o texto agora é encurtado de forma controlada, sempre
+com "…" no final quando não cabe tudo — nunca mais corta no meio de uma
+palavra sem aviso. **O nome completo continua aparecendo ao passar o
+mouse** sobre a barra (o tooltip usa o texto original, não o encurtado).
+
+Testei a lógica de truncamento isoladamente com os nomes reais do print,
+e depois renderizei o Chart.js de verdade na mesma largura de cartão
+usada no sistema, pra confirmar visualmente antes de fechar.
+
+## v0.32.0 — Árvore organizacional: navegação progressiva (só Unidade de cara)
+Ajuste na árvore, refinando a v0.31.0: agora, ao abrir a tela, **só as
+Unidades aparecem** — Departamento, Setor e Equipe ficam escondidos até
+alguém clicar pra expandir. Antes, a árvore inteira já vinha toda aberta
+de uma vez, o que ficava poluído em empresas com muitos níveis.
+
+- Clicar numa **Unidade** revela o que tem dentro dela (Departamento,
+  Setor, Equipe) — mas não mostra colaboradores direto nesse nível, já
+  que Unidade é só o local físico (reforçado na v0.31.0).
+- Clicar num **Departamento, Setor ou Equipe** revela os colaboradores
+  vinculados ali (e, se tiver, os níveis ainda mais internos).
+
+O contador de colaboradores no cabeçalho de cada nó continua aparecendo
+sempre, mesmo fechado — só a lista detalhada é que fica escondida até
+expandir.
+
+Confirmei visualmente o comportamento (estado inicial só com Unidades, e
+o passo a passo de expansão) renderizando o HTML/CSS de verdade num
+navegador antes de fechar.
+
+## v0.31.1 — Bug corrigido: gráfico de barras cortando informação
+No dashboard do RH, "Competências críticas mais recorrentes" (e também,
+pelo mesmo motivo, "Cargos com mais Iniciar" no Admin e "Potencial da
+equipe" no Gestor) usava uma altura fixa de 150px pro gráfico, pensada
+pra poucos itens — mas esses gráficos podem mostrar até 6 barras, com
+nomes de competência que costumam ser frases longas. Resultado: barras
+espremidas e informação cortada.
+
+Corrigido: a altura do gráfico agora é calculada de acordo com a
+quantidade real de itens (mínimo de 110px, crescendo conforme mais
+barras aparecem), em vez de um valor fixo pra todo caso. Renderizei o
+Chart.js de verdade, comparando lado a lado a versão antiga (fixa) com a
+nova (dinâmica), usando nomes de competência realistas, pra confirmar a
+diferença antes de fechar.
+
+## v0.31.0 — Árvore organizacional: clique pra ver colaboradores + clareza sobre "Unidade"
+Dois ajustes na Estrutura Organizacional, a partir de um print real do
+sistema em uso:
+
+**1) Clicar em qualquer nó agora mostra os colaboradores dele.** Cada
+nível (Unidade, Departamento, Setor, Equipe) ganhou um contador
+("· 3 colaboradores") e expande a lista com nome, iniciais e cargo ao
+clicar. Como colaboradores só se vinculam diretamente a Unidade e Setor
+(Departamento e Equipe são níveis puramente estruturais), clicar num
+Departamento ou Equipe junta automaticamente todos os colaboradores dos
+Setores dentro dele — não precisa entrar setor por setor pra ver o
+time completo. Testei essa lógica isoladamente nos 4 tipos de nível
+antes de fechar, incluindo o caso de colaboradores inativos (não contam)
+e Equipe sem Setor descendente (mostra vazio, comportamento esperado
+dado como o vínculo funciona hoje).
+
+**2) "Unidade" deixou de sugerir nome confuso.** O campo de nome agora
+muda o texto de exemplo dependendo do tipo escolhido — pra Unidade,
+sugere um local físico de verdade (ex: "Matriz São Paulo") em vez do
+antigo "Unidade Rio de Janeiro", que incentivava repetir a palavra
+"Unidade" dentro do próprio nome (a origem da confusão vista no print).
+A descrição da página também reforça: Unidade é o local físico onde a
+empresa funciona — os demais níveis organizam quem trabalha dentro dela.
+
+Isso não renomeia nada que já existe — cargos/nomes já cadastrados
+continuam como estão até alguém editar manualmente.
+
+## v0.30.0 — Correção de performance: sistema demorando pra abrir
+Relato: o NORTE começou a demorar mais pra abrir. Causa raiz encontrada:
+4 bibliotecas externas pesadas (XLSX, jsPDF, jsPDF-autotable, Chart.js)
+eram baixadas em **todo carregamento da página, pra todo mundo** — mesmo
+um Colaborador que só ia responder uma autoavaliação e nunca exportaria
+Excel/PDF nem veria um gráfico naquela sessão.
+
+Corrigido: essas 4 bibliotecas agora carregam **sob demanda**, só no
+momento em que a funcionalidade correspondente é realmente usada:
+- Exportar Excel (Consolidado, Comparativo, importação em lote de
+  colaboradores) → carrega XLSX nesse momento.
+- Gerar qualquer PDF (Avaliação, PDI, Institucional, Dossiê) → carrega
+  jsPDF nesse momento.
+- Entrar num dashboard com gráfico (Admin, RH, Gestor, Colaborador) →
+  carrega Chart.js nesse momento — o resto da tela já aparece normal,
+  só os gráficos surgem com uma pequena espera na primeira vez daquela
+  sessão (depois fica em cache do navegador, sem baixar de novo).
+
+O Supabase continua carregando sempre, sem essa otimização — login e
+dados básicos dependem dele em toda tela, então não faria sentido
+adiar.
+
+Implementado com `carregarScript()` (cria a tag `<script>` só quando
+chamado, e guarda em cache pra nunca baixar a mesma biblioteca duas
+vezes, mesmo se duas funções pedirem ao mesmo tempo — testei essa parte
+isoladamente) + 3 funções de conveniência (`garantirXLSX`,
+`garantirJsPDF`, `garantirChart`).
+
+## v0.29.0 — Árvore Organizacional redesenhada
+A árvore em Estrutura Organizacional era só uma lista de caixas simples,
+com indentação e linha pontilhada. Redesenhada com visual de organograma
+de verdade:
+
+- **Ícone colorido por nível** (U/D/S/E) — cada tipo (Unidade,
+  Departamento, Setor, Equipe) tem sua própria cor, com legenda no topo.
+- **Conectores visuais** — linha vertical guia + "cotovelo" horizontal
+  ligando cada nó ao pai, como um organograma de verdade, não só
+  indentação com borda pontilhada.
+- **Responsável com avatar** — iniciais num círculo, em vez de só texto.
+- **Cartões com hover** — feedback visual mais claro de qual nível está
+  sendo olhado.
+
+**Testei visualmente antes de fechar** — renderizei o CSS de verdade num
+navegador headless (Puppeteer) com dados de exemplo, em telas desktop e
+mobile, pra confirmar que os conectores alinham certinho e nada quebra
+em tela estreita.
+
+Nesse processo, encontrei e corrigi um problema de acessibilidade que eu
+mesmo ia introduzir: a primeira versão escondia o botão "Mover" até
+passar o mouse por cima (hover) — funciona bem no computador, mas
+**não existe hover em celular/tablet**, o que deixaria esse botão
+impossível de encontrar em quem usa o sistema pelo celular. Corrigido
+antes de fechar: o botão agora fica sempre visível.
+
+## v0.28.1 — Nota numérica (0 a 1) agora aparece junto da classificação
+Até agora, ao terminar uma avaliação, só a classificação (Iniciar /
+Desenvolver / Alavancar) aparecia na tela e nos PDFs — a nota numérica de
+0 a 1 já era calculada internamente pra decidir essa classificação, mas
+nunca era mostrada pra ninguém.
+
+Corrigido em 4 lugares, todos lendo o mesmo valor que já era calculado
+(nenhum cálculo novo foi criado):
+- **Tela de resultado do ciclo** (`diagnosticoSummaryHTML`) — geral, as 3
+  Dimensões e os 5 pilares agora mostram a nota ao lado da classificação.
+  Essa mesma função também é usada no dashboard do Colaborador, então o
+  ajuste vale nos dois lugares.
+- **PDF de Avaliação individual** — classificação geral com a nota, e
+  nova coluna "Nota" na tabela de indicadores.
+- **PDF do Dossiê completo** — mesmo ajuste, nas 3 Dimensões e na tabela
+  de indicadores.
+
+Quando um indicador não tem nota aplicável (ex.: ausência formal do
+avaliador sem substituto), continua mostrando "—" em vez de um número
+que não existe de fato — testei esse caso isoladamente antes de fechar.
+
+## v0.28.0 — Relatório de avaliação em PDF agora com gráficos
+O PDF de "Avaliação de Desempenho" (exportado depois de consolidar um
+ciclo) só tinha texto e tabela. Agora inclui 2 gráficos, gerados a partir
+do mesmo diagnóstico:
+
+- **As 3 Dimensões** — barras com Resultado, Comportamento e Potencial.
+- **Médias por pilar (N·O·R·T·E)** — ranking horizontal.
+
+Como o jsPDF não sabe desenhar um gráfico do Chart.js diretamente (só
+aceita imagens), a solução foi: desenhar o gráfico num `<canvas>`
+temporário que nunca aparece na tela, "fotografar" esse desenho como PNG,
+e colar essa imagem no PDF — o gráfico nunca existe de fato na interface,
+só dentro do arquivo final.
+
+Se algum pilar ou Dimensão não tiver indicador aplicável naquele cargo
+(ex.: um cargo sem nenhum indicador do pilar E), ele simplesmente não
+aparece no gráfico — em vez de mostrar uma barra zerada, que pareceria
+uma nota ruim quando na real é "não se aplica". Testei esse cenário
+isoladamente antes de fechar.
+
+## v0.27.0 — Gráficos em todos os dashboards (RH, Gestor e Colaborador)
+O painel visual com gráficos da v0.26.0 era só do Administrador. Agora
+todo papel tem sua própria versão, com dados relevantes pro que cada um
+precisa decidir — e cada dashboard ganhou pelo menos um gráfico novo que
+não existia nem como tabela antes.
+
+- **RH**: rosca de classificação geral, medidor de "% colaboradores sem
+  risco" (novo — antes só existia a lista, sem visão consolidada), e
+  ranking das competências críticas mais recorrentes (antes só tabela).
+- **Gestor**: rosca de classificação da própria equipe (nova visão — antes
+  só existia a tabela linha a linha), e ranking da equipe por Potencial
+  (novo — reaproveita o mesmo cálculo que já alimenta o Mapa de Sucessão,
+  agora também visível aqui).
+- **Colaborador**: medidor mostrando quantas ações do próprio PDI de
+  Desenvolvimento já foram concluídas no ciclo atual (novo).
+
+Na implementação, encontrei um campo (`status` no PDI de Desenvolvimento)
+que parecia ser o jeito certo de checar conclusão, mas na real nunca é
+usado em lugar nenhum do sistema — a conclusão de verdade é marcada por
+`validadoEm` (a data em que o Gestor/RH valida a evidência). Usei o campo
+certo; o `status`/`atualizarStatusPDI()` parecem ser código morto de uma
+versão anterior — não removi agora, mas vale uma limpeza futura.
+
+Todos os gráficos novos passam pela mesma função central
+(`inicializarGraficosDashboard`) — ela já verifica sozinha quais telas
+estão na tela antes de montar cada gráfico, então não há conflito entre
+os 4 dashboards.
+
+Testei os cálculos de ranking (Gestor) e percentual de conclusão
+(Colaborador) isoladamente antes de fechar.
+
+## v0.26.0 — Dashboard do Administrador com gráficos de verdade
+O dashboard do Administrador, que antes só mostrava tabelas, agora tem uma
+seção visual com 6 gráficos — baseado num modelo de referência (estilo
+"painel de controle" escuro, com medidor semicircular, rosca com total no
+centro, ranking horizontal), adaptado com a identidade visual do próprio
+NORTE (mesmo azul marinho e dourado já usados no sistema).
+
+- **Classificação geral** — rosca com o total de colaboradores no centro,
+  dividida por Iniciar/Desenvolver/Alavancar.
+- **Ciclos: trimestre atual vs anterior** — barras comparando volume.
+- **Evolução da média geral** — linha com os últimos 6 meses com
+  diagnóstico.
+- **Cargos com mais "Iniciar"** — ranking horizontal (indicador 7.5).
+- **PDIs aprovados** — medidor semicircular com o percentual.
+- **Cobertura por Unidade** — barras de progresso, % já avaliado.
+
+Adicionado o **Chart.js** ao sistema (`index.html`) — nenhuma biblioteca
+de gráficos existia até agora. Como gráficos precisam de código
+JavaScript executado depois que o HTML já está na tela (diferente de
+texto/tabela, que só precisa existir no HTML), foi criada uma função
+(`inicializarGraficosDashboard`) chamada automaticamente pelo próprio
+`render()` — sem isso, os `<canvas>` apareceriam vazios.
+
+Nenhum cálculo foi refeito do zero — todos os números continuam vindo da
+mesma lógica que já existia (distribuição IDA, cargos em risco, evolução
+mensal), só reorganizados visualmente. As tabelas antigas equivalentes
+foram substituídas pelos gráficos correspondentes.
+
+**Sobre o PDI de Mentalidade no modelo Ao Vivo**: já corrigido na v0.25.2
+(RH ganhou permissão de escrever, não só aprovar) — incluído nesta mesma
+entrega. Se ainda aparecer bloqueado depois de atualizar pra esta versão,
+é um problema novo, não o mesmo de antes — nesse caso, avise com um print
+de qual campo especificamente.
+
+## v0.25.2 — Bug corrigido: PDI de Mentalidade bloqueado no modelo Ao Vivo
+No modelo assíncrono, quem escreve o PDI (Desenvolvimento e Mentalidade) é
+o Colaborador e o Líder — o RH só aprova depois. A função que decide quem
+pode editar (`podeConstruirPDI`) nunca incluía o RH, porque isso nunca
+tinha sido necessário. No modelo Ao Vivo, porém, não existe essa fase
+separada — os 3 decidem juntos na sessão presencial, e é o RH quem
+registra tudo no sistema (a mesma pessoa que já lança a nota combinada).
+Resultado: os campos do PDI de Mentalidade apareciam bloqueados pro RH,
+sem ninguém conseguir preencher.
+
+Corrigido em `js/15-page-ciclos-avaliacao.js`: RH também pode construir e
+aprovar o PDI (Desenvolvimento e Mentalidade) quando o ciclo é do modelo
+Ao Vivo — no modelo assíncrono, nada muda, continua exatamente como
+antes. Testei os 4 cenários relevantes (RH em Ao Vivo, RH em Assíncrono,
+Líder em Assíncrono, e PDI já aprovado bloqueando todo mundo) antes de
+fechar.
+
+## v0.25.1 — Revisão de código: 4 bugs reais encontrados e corrigidos
+Pedido de revisão geral em cima da v0.25.0 (modelo "Ao Vivo"). Usei o CI
+(sintaxe + ESLint) como primeira passada, depois revisão manual dos
+pontos de maior risco — telas e funções que assumiam o fluxo de 3 etapas
+do modelo assíncrono, sem considerar o modelo novo.
+
+1. **Ciclo extraordinário (RN016) e dados de teste** desatualizados — o
+   ciclo agendado automaticamente após uma promoção, e o gerador de dados
+   de teste, ainda criavam o objeto de ciclo no formato antigo (sem
+   `tipoAvaliacao` e sem `notas.consolidado`). Não quebrava nada na hora,
+   mas deixava esses ciclos inconsistentes com o resto do sistema.
+
+2. **Tela de "Pendência de Avaliador" com mensagem errada pra Ao Vivo** —
+   quando o prazo de um ciclo Ao Vivo vencia, a tela mostrava a mensagem
+   do modelo assíncrono ("etapa X não concluiu"), e oferecia "registrar
+   ausência formal com redistribuição de peso" — um conceito que não
+   existe no Ao Vivo (a sessão precisa dos 3 presentes, não tem como
+   redistribuir peso de quem faltou). Agora mostra mensagem própria, só
+   com a opção de estender o prazo e reagendar.
+
+3. **RH nunca via ciclos Ao Vivo como pendência no Dashboard** — o
+   cartão de "suas pendências" do RH filtrava por `etapa === 'rh'`, mas
+   um ciclo Ao Vivo nunca muda de etapa (esse conceito não existe nesse
+   modelo) — então o RH podia ter ciclos Ao Vivo esperando a nota
+   combinada há dias, sem nenhum aviso no Dashboard.
+
+4. **Colaborador via um botão sem saída em ciclo Ao Vivo** — o Dashboard
+   do Colaborador mostrava "Sua autoavaliação está aguardando você" com
+   um botão "Responder" também para ciclos Ao Vivo — mas ao clicar, a
+   tela não deixa o Colaborador editar nada (só o RH registra a nota
+   combinada nesse modelo). Removido esse aviso enganoso para Ao Vivo.
+
+De brinde, corrigidos 2 campos de texto livre que tinham passado sem
+escape na varredura de segurança da v0.23.0 (nome de colaborador na
+lista de ciclos, e motivo de ausência formal).
+
+Testei cada correção isoladamente (filtros de pendência com cenários
+mistos dos dois modelos, incluindo retrocompatibilidade com ciclos
+antigos sem `tipoAvaliacao` definido) antes de fechar. CI completo
+(sintaxe + ESLint + Prettier) passando limpo.
+
+## v0.25.0 — Novo modelo de avaliação: "Ao Vivo"
+Até agora só existia um jeito de avaliar: 3 etapas separadas (Colaborador
+→ Líder → RH), cada uma em um momento diferente, com média ponderada
+25/50/25 (RN003). Agora existe um segundo modelo, escolhido na hora de
+abrir cada ciclo — os dois convivem no sistema, empresa por empresa,
+ciclo por ciclo.
+
+**Modelo "Ao Vivo"**: os mesmos indicadores e a mesma escala IDA de
+sempre, mas numa sessão presencial — Colaborador, Líder e RH se reúnem,
+discutem cada indicador juntos, e chegam numa nota já combinada. Só o RH
+(ou Administrador) registra essa nota no sistema — não existem 3 notas
+separadas nem cálculo de peso aqui, é uma nota só, já acordada pelos 3.
+
+- **Abrir novo ciclo**: novo campo "Modelo de avaliação" (Assíncrono ou
+  Ao Vivo).
+- **Tela Ao Vivo**: registro simples da sessão (data + confirmação de
+  presença dos 3, não vinculante — só apoio de auditoria) antes de liberar
+  a consolidação, e o lançamento da nota combinada por indicador.
+- **Cálculo do diagnóstico**: para ciclos Ao Vivo, usa a nota combinada
+  diretamente — o cálculo de peso 25/50/25 (RN003) não se aplica a esse
+  modelo, por desenho, não é uma variação dele.
+- **Lista de ciclos**: nova coluna "Modelo", mostrando Assíncrono ou Ao
+  Vivo em cada linha.
+- De brinde, corrigido um nome de colaborador que não estava escapado
+  nessa mesma lista (risco de XSS que passou despercebido na varredura da
+  v0.23.0).
+
+Testei a lógica de cálculo isolada nos dois modelos (incluindo o caso de
+um ciclo Ao Vivo ainda sem nenhuma nota lançada) — nenhum comportamento
+antigo do modelo Assíncrono foi alterado.
+
+## v0.24.1 — Natureza do cargo agora é editável no Desenho de Cargo
+Lacuna encontrada: o campo "Natureza" (Operacional / Apoio / Estratégica)
+só era definido na hora de importar um cargo da Base CBO ou criar do
+zero — depois disso, não existia nenhum jeito de mudar, mesmo sendo
+exibido na tela de Desenho de Cargo. Isso impedia, por exemplo, promover
+um cargo pra "Estratégica" depois de já criado — necessário pra ele
+aparecer no Mapa de Sucessão (v0.21.0), que só considera posições-chave
+com essa natureza.
+
+Adicionado um campo de seleção editável na seção "1. Identificação do
+Cargo", salvo tanto ao gravar rascunho quanto ao publicar uma nova versão.
+
+## v0.24.0 — CI: sintaxe, lint e formatação em todo push/PR
+Até agora, nada impedia um código quebrado de ir pra `main` — cada
+verificação dependia de eu (ou você) lembrar de testar manualmente antes
+de subir. Agora existe um pipeline de CI (`.github/workflows/ci.yml`) que
+roda automaticamente em todo `push` e Pull Request pra `main`, com 3
+checagens: sintaxe de todo arquivo `.js`, ESLint (erros reais de código) e
+Prettier (formatação consistente).
+
+- **Bug real encontrado pelo ESLint**: `js/08-page-empresa.js` tinha uma
+  variável (`e`) que não existia — quebraria o salvamento do Cadastro da
+  Empresa toda vez que alguém salvasse, desde a v0.18.3. Corrigido pra
+  usar `empresaAnterior` (o valor correto, já capturado antes na mesma
+  função). Ninguém tinha notado ainda porque `node --check` (o que eu
+  vinha fazendo manualmente) só pega erro de sintaxe, não esse tipo de
+  referência a variável inexistente.
+- **`package.json`, `.eslintrc.json`, `.prettierrc.json`**: configuração
+  do projeto. O ESLint foi ajustado especificamente pra esse tipo de
+  projeto (~29 arquivos JS sem sistema de módulos, compartilhando
+  propositalmente o mesmo escopo global) — a lista de mais de 300
+  funções/variáveis compartilhadas foi extraída automaticamente do
+  próprio código, pra não dar falso positivo em cada uso legítimo entre
+  arquivos.
+- **Todo o código foi formatado pelo Prettier por padrão, uma única vez**,
+  já que era a primeira vez que uma ferramenta de formatação entrava no
+  projeto — confirmei que nenhuma correção de segurança (v0.23.0) foi
+  alterada nesse processo, comparando antes/depois.
+- **`README.md`**: nova seção explicando como rodar essas checagens
+  localmente, e — importante — **como ativar a proteção de branch no
+  GitHub** (passo manual, só quem tem acesso de administrador do
+  repositório consegue fazer, que transforma isso de "só avisa" pra
+  "impede o merge de verdade").
+
+## v0.23.0 — Correções de segurança: XSS armazenado e tokens fracos
+A partir de uma revisão de segurança externa, dois problemas de alto risco
+foram identificados e corrigidos.
+
+**1) XSS armazenado (stored XSS)** — quase toda a interface montava HTML
+via interpolação direta de texto vindo de campos livres (nome de
+colaborador, comentário, título, URL etc.), sem nenhum escape. Alguém
+mal-intencionado podia colocar algo como `<img src=x onerror="...">` num
+campo de texto livre, e esse código executaria na tela de **qualquer
+pessoa que visse aquele texto depois** — inclusive RH ou Administrador,
+um caminho de escalonamento de privilégio dentro da própria empresa.
+
+Corrigido com duas funções novas em `js/02-core-helpers.js`:
+- `escaparHtml()` — para texto de usuário indo pro meio do HTML.
+- `escaparParaOnclick()` — para texto de usuário usado como argumento
+  dentro de um `onclick`/`onchange` (precisa de tratamento em duas
+  camadas: escape JavaScript primeiro, depois escape HTML — só usar
+  `escaparHtml()` ali não bastava, e alguns lugares já tinham um escape
+  manual incompleto que só tratava aspas simples, não aspas duplas).
+
+Aplicado em praticamente todas as telas do sistema: Colaboradores,
+Webhooks, Empresa, Cultura Organizacional, Desenho de Cargo (incluindo a
+comparação entre versões), Base de Cargos, Ciclos de Avaliação (PDI,
+Mentalidade, indicadores), Notificações in-app, Banco de Inteligência,
+Pesquisa de Clima, Super Admin (incluindo a tabela de analytics entre
+empresas), Auditoria (corrigido na origem — `nomePorPerfilId()` já
+protege todos os lugares que a usam), Usuários & Acesso, Estrutura
+Organizacional, Mapa de Sucessão, Diagnóstico & PDI, os 3 e-mails que o
+sistema envia (convite, boas-vindas, avaliação pendente), o gráfico SVG
+da Matriz 9-Box, e os dashboards de todos os papéis.
+
+Testado com os 3 padrões de ataque reais: `<img onerror>` num campo de
+texto, aspas duplas tentando quebrar um atributo `onclick`, e aspas
+simples tentando quebrar a string JavaScript dentro do `onclick` — os
+três ficaram neutralizados, e o caso legítimo (nome com apóstrofo, tipo
+"O'Brien") continua funcionando normalmente.
+
+**2) Tokens gerados com `Math.random()`** — não é criptograficamente
+seguro, usado nos códigos de convite (`js/06-page-usuarios.js`) e de
+licença de empresa (`js/23-page-super-admin.js`). Como esses códigos dão
+acesso a criar conta/empresa na plataforma, trocado por
+`crypto.getRandomValues()` — a mesma família segura que já era usada
+corretamente em outro lugar (`uid()`, via `crypto.randomUUID()`). Mesmo
+formato de código de antes, só a fonte de aleatoriedade mudou.
+
+## v0.22.3 — Segundo bug de contraste corrigido (texto sumindo no menu "Ver como")
+A correção da v0.22.2 resolveu o botão principal (fundo mudava de cor
+junto com o texto), mas não cobria outro caso: em vários lugares — menu
+"Ver como (pré-visualização)", abas de avaliador, rótulos "eyebrow" — a
+mesma cor personalizável era usada como texto em cima do fundo **escuro e
+fixo** da barra lateral (que nunca muda). Se a empresa escolhesse uma cor
+também escura (ou parecida com o próprio fundo escuro do sistema), o
+texto ficava invisível — o "algumas cores brancas... desaparecem" que foi
+relatado.
+
+Corrigido em `js/02-core-helpers.js` e `css/style.css`: nova variável
+`--gold-on-dark`, calculada a partir da cor escolhida — se ela for escura
+demais pra contrastar com o fundo fixo, usa uma versão clareada
+automaticamente só nesses lugares específicos (menu de papéis, abas,
+rótulos, badges). Testei com a cor exata do próprio fundo do sistema
+(`#0a2647`) e com preto puro — os dois casos agora geram uma versão clara
+e legível, em vez de ficarem invisíveis.
+
+## v0.22.2 — Bug corrigido: texto dos botões ficava ilegível com cores escuras (white-label)
+A funcionalidade de white-label na interface (v0.21.1) mudava a cor de
+fundo dos botões principais, mas o texto tinha uma cor **fixa e escura**
+— pensada só pra funcionar com a cor padrão (dourado, um tom claro). Se a
+empresa escolhesse uma cor escura pra Identidade Visual, o resultado era
+texto escuro em cima de fundo escuro — praticamente ilegível.
+
+Corrigido em `js/02-core-helpers.js` e `css/style.css`: agora calcula
+automaticamente o contraste (luminância) da cor escolhida e usa texto
+claro ou escuro, o que fizer mais sentido. Testei com a própria cor azul
+marinho padrão do sistema (bem escura) e confirmei que o texto vira claro
+automaticamente — o cenário exato que causava o bug.
+
+## v0.22.1 — Webhooks: formato amigável pro Slack
+O Slack só entende mensagens no formato `{"text": "..."}` — diferente do
+JSON genérico que os outros webhooks recebem. Agora o gatilho detecta
+sozinho se a URL cadastrada é do Slack (contém `hooks.slack.com`) e, nesse
+caso, manda uma mensagem de texto legível em vez do JSON bruto. Pra
+qualquer outra URL, continua mandando o mesmo JSON de sempre — nada muda
+pra quem já está usando (testado com webhook.site na conversa).
+
+- **`sql/19-webhooks-formato-slack.sql`** (rodar depois do
+  `18-webhooks-eventos-dominio.sql`).
+- Tela de cadastro de webhook agora mostra um aviso "✅ URL do Slack
+  detectada" assim que você cola uma URL do Slack no campo.
+
+## v0.22.0 — Webhooks públicos sobre eventos de domínio
+Reaproveita o barramento de eventos de domínio que já existe desde a
+v0.7.0 (`eventos_dominio` — ciclo.aberto, pdi.aprovado, diagnostico.gerado
+etc.). Agora dá pra cadastrar uma URL de webhook por Empresa, e o sistema
+chama essa URL automaticamente sempre que um dos eventos escolhidos
+acontece — sem precisar construir uma integração sob medida pra cada
+sistema externo (folha de pagamento, ATS, Slack).
+
+- **`sql/18-webhooks-eventos-dominio.sql`** (rodar no SQL Editor, depois
+  do `17-notificacoes-in-app.sql`): ativa a extensão `pg_net`, cria a
+  tabela `webhooks_configurados`, e um gatilho no banco que dispara os
+  webhooks direto — **não depende do navegador de ninguém estar aberto**,
+  já que roda no próprio Postgres.
+- **Nova tela "Webhooks (integrações)"** (Administrador/RH): cadastra
+  webhooks com nome, URL e quais eventos escutar (ou todos), mostra a
+  chave de assinatura (pra quem recebe confirmar que a chamada veio do
+  NORTE de verdade), ativa/desativa/exclui.
+- **Importante**: depois de rodar a SQL, teste com uma URL de teste (ex.:
+  webhook.site) antes de usar em produção — a sintaxe exata do `pg_net`
+  pode variar um pouco conforme a versão do Supabase.
+
+**Sobre o item "PWA / instalável no celular"**: isso já foi implementado
+na v0.20.0 (manifest, ícones, service worker) — nada novo a fazer aqui.
+
+## v0.21.1 — White-label na interface + onboarding com barra de progresso
+
+**White-label na interface**: as cores de Identidade Visual (Configurações),
+que até agora só afetavam os PDFs exportados, agora também repintam a
+interface do sistema ao vivo (botões, abas ativas etc.) assim que a empresa
+salva sua cor escolhida. Diferente da tentativa anterior (v0.12.0,
+removida na v0.12.1) — aqui não tem nenhuma extração automática de cor a
+partir do logo, é só a cor que a própria empresa escolhe manualmente. As
+cores de classificação IDA continuam fixas, nunca mudam.
+
+**Onboarding com barra de progresso**: o checklist de primeiros passos
+("Onboarding do tenant") já existia, mas ficava discreto entre outros
+cartões de pendência. Agora mostra uma barra de progresso visual (X de 5
+passos), marca visualmente os passos já concluídos (✅) ao lado dos
+pendentes, e na primeira visita (0 passos feitos) troca a saudação por
+"Bem-vindo(a) à Plataforma NORTE!". Continua desaparecendo sozinho quando
+os 5 passos são concluídos.
+
+## v0.21.0 — 4 módulos novos: Check-in, Clima/eNPS, 9-Box, Sucessão
+
+**1) Feedback contínuo (check-ins 1:1)** — registro informal de conversas
+entre Gestor e Colaborador fora do ciclo formal. **Não pontua, não afeta
+a média 25/50/25 (RN003)** — é só um histórico de acompanhamento contínuo.
+Aparece na tela de Colaboradores (Gestor registra) e no Dashboard do
+Colaborador (vê o que foi registrado sobre ele).
+
+**2) Pesquisa de Clima / eNPS** — módulo novo e separado da Avaliação de
+Desempenho (não usa escala IDA). RH cria uma pesquisa com pergunta
+customizável (padrão eNPS: nota 0-10 de recomendação), colaboradores
+respondem, RH acompanha o score eNPS calculado automaticamente
+(promotores − detratores), distribuição e comentários recebidos.
+
+**3) Matriz 9-Box** — gráfico de dispersão (SVG próprio) cruzando
+Desempenho (dimensão Resultado) × Potencial, reaproveitando 100% dos
+dados já calculados no Diagnóstico. Adicionado na tela de Diagnóstico &
+PDI, respeitando a visibilidade por papel (Gestor só vê a própria equipe).
+
+**4) Mapa de Sucessão** — nova tela, sugerindo automaticamente sucessores
+em potencial pra cargos de natureza Estratégica (posições-chave),
+baseado em quem tem o Potencial mais alto na mesma Unidade/Setor. É
+sugestão de ponto de partida — a decisão final continua sendo humana
+(Princípio 6 da Metodologia).
+
+Nenhum desses 4 precisa de SQL nova — todos guardam dados dentro do
+mesmo blob flexível já usado pelo resto do sistema. Testei a lógica de
+cálculo dos 4 isoladamente antes de entregar.
+
+## v0.20.1 — Bug corrigido: painel de notificações cortado pela barra lateral
+O painel que abre ao clicar no sino 🔔 (320px de largura) ficava presa
+dentro da barra lateral (250px de largura fixa) — o painel era mais largo
+que o espaço onde estava posicionado, então aparecia cortado/apertado.
+
+Corrigido em `js/25-notificacoes.js`: o painel agora usa posicionamento
+fixo relativo à tela inteira (não mais relativo à barra lateral), então
+flutua livremente por cima de todo o conteúdo, sem ser cortado por nada.
+Também adicionei um jeito de fechar o painel clicando em qualquer lugar
+fora dele.
+
+## v0.20.0 — PWA: instalável no celular
+O sistema virou um PWA (Progressive Web App) de verdade — dá pra instalar
+no celular (ícone na tela inicial, abre em tela cheia, sem barra de
+navegador), tanto no Android quanto no iPhone.
+
+- **`manifest.json`**: nome, ícones, cor do tema.
+- **`icons/icon-192.png` e `icons/icon-512.png`**: gerados a partir do
+  logo padrão atual do sistema.
+- **`sw.js`** (Service Worker): estratégia deliberadamente simples —
+  "rede primeiro, cache só como reserva pra quando estiver sem internet".
+  Isso é importante: um Service Worker mal feito poderia trazer de volta o
+  problema de cache que já corrigimos antes (v0.15.6, o "?v=" nas URLs) —
+  esse aqui nunca esconde uma versão nova por trás de cache.
+- Melhorei o tamanho dos botões de Iniciar/Desenvolver/Alavancar no celular
+  (na tela de preenchimento de avaliação) pra ficar mais fácil de tocar
+  certo — já existia responsividade ali, só ajustei a altura mínima.
+
+**Como instalar**: no Android (Chrome), abre o site e toca em "Adicionar à
+tela inicial" (ou o navegador sugere isso automaticamente depois de usar
+um pouco). No iPhone (Safari), toca em Compartilhar → "Adicionar à Tela de
+Início".
+
+## v0.19.3 — Relatório Institucional Consolidado (PDF)
+Novo tipo de relatório em Relatórios: um "raio-x" da empresa toda, num PDF
+único, pensado pro RH apresentar à diretoria — diferente dos relatórios
+existentes, que são sempre por colaborador/ciclo específico.
+
+**5 seções**: Resumo Executivo (colaboradores ativos, ciclos abertos/
+encerrados), Distribuição por Classificação IDA (com percentuais),
+Adoção de PDI (% de ciclos com PDI ativo, PDIs já aprovados), Comparação
+por Unidade/Setor (média de classificação por setor), e Alertas de
+Acompanhamento (PDIs de Mentalidade pendentes, colaboradores sem ciclo
+aberto).
+
+Reaproveita os mesmos cálculos já usados no Dashboard Executivo e no
+Super Admin — nenhuma lógica nova de agregação, só reorganizada num
+documento único.
+
+## v0.19.2 — Gráfico de trajetória IDA entre ciclos
+Novo gráfico de linha (SVG próprio, sem biblioteca externa) mostrando a
+evolução de Resultado, Comportamento e Potencial ao longo dos ciclos com
+diagnóstico — aproveitando que cada ciclo já é um "retrato congelado"
+(RN024) que nunca muda depois de gerado.
+
+- **Dashboard do Colaborador**: seção "Minha trajetória", com a própria
+  evolução ao longo do tempo (aparece quando já tem 2+ ciclos).
+- **Diagnóstico & PDI**: seção "Trajetória por colaborador", agrupando os
+  ciclos de cada pessoa e mostrando o gráfico de quem já tem histórico
+  suficiente — sem alterar os cards individuais por ciclo que já existiam.
+- Com só 1 ciclo, mostra uma mensagem clara em vez de um gráfico quebrado
+  ou vazio.
+
+## v0.19.1 — Notificações in-app (sino de alertas)
+Complementar ao e-mail (v0.15.2/v0.15.3): agora existe um sino 🔔 no topo
+do menu lateral, com contador de não lidas, que abre um painel com o
+histórico de notificações — diferente dos cartões de "pendências" dos
+dashboards (que são calculados na hora e desaparecem quando resolvidos),
+essas ficam guardadas e podem ser marcadas como lidas.
+
+- **`sql/17-notificacoes-in-app.sql`** (rodar no SQL Editor, depois do
+  `16-ativar-realtime.sql`): cria a tabela `notificacoes`, com RLS
+  garantindo que cada pessoa só vê as próprias, e ativa Realtime nela.
+- **`js/25-notificacoes.js`**: o sino, o painel, e a lógica de carregar/
+  marcar como lida — chegam em tempo real via Realtime, igual ao aviso de
+  atualização (v0.16.0), sem precisar recarregar a tela.
+- Conectado nos mesmos 2 pontos que já disparam e-mail: **avaliação
+  pendente** (quando o ciclo passa de etapa) e **PDI aprovado** — mesmo
+  evento, dois canais (e-mail + sino), um não depende do outro.
+- Clicar numa notificação marca ela como lida e já navega pra tela
+  relevante (Ciclos de Avaliação, ou Diagnóstico & PDI).
+
+## v0.19.0 — Dashboard de analytics entre Empresas-clientes (Super Admin)
+Nova seção "Analytics entre Empresas-clientes" na tela de Super Admin,
+calculada a partir dos mesmos dados já carregados pras métricas agregadas
+(sem consulta nova ao banco):
+
+- **Churn**: % de empresas suspensas ou com pagamento cancelado.
+- **Engajamento médio no ciclo**: % de ciclos que chegam a "Encerrado"
+  (em vez de ficarem abandonados no meio do caminho).
+- **Adoção média de PDI**: dos ciclos que geraram diagnóstico, quantos de
+  fato têm um PDI de Desenvolvimento ou Mentalidade preenchido (mede se a
+  empresa está só avaliando, ou também usando a parte de desenvolvimento).
+- **Tabela comparativa de maturidade entre empresas**: colaboradores,
+  conclusão de ciclo, adoção de PDI, cobertura (% de colaboradores que já
+  participaram de algum ciclo), última atividade registrada, e um "score
+  de maturidade" (média dos indicadores acima, 0-100) — ordenada da mais
+  madura pra menos madura. Empresas em churn aparecem esmaecidas na lista.
+
+**Importante**: esses indicadores são de produto (pra você acompanhar
+adoção entre clientes), não fazem parte da Metodologia NORTE nem de
+nenhuma RN oficial — são cálculos nossos, específicos dessa tela.
+
+## v0.18.3 — Status de pagamento (preparação pro gateway de pagamento)
+Preparação pra quando a integração com um gateway de pagamento (Asaas ou
+outro) for conectada — por enquanto, tudo controlado manualmente.
+
+- **Cadastro da Empresa → Dados de faturamento**: campos novos "Status"
+  (Em dia / Pendente / Atrasado / Cancelado) e "Próxima cobrança" (data).
+- **Tela de Super Admin**: nova coluna "Pagamento" na lista de empresas,
+  mostrando o status de cada uma — dá pra ver de relance quem está em dia
+  e quem está atrasado, sem precisar entrar empresa por empresa.
+- Guardado também um campo `idAssinaturaGateway` (vazio por enquanto) —
+  reservado pra quando a integração de cobrança automática for conectada,
+  sem precisar mudar a estrutura de novo nesse momento.
+
+**Ainda não faz nada sozinho**: esse status é preenchido manualmente por
+enquanto. A cobrança automática (Pix/Cartão/Boleto recorrente via Asaas)
+fica pra quando você criar a conta no gateway e voltarmos a essa parte.
+
+## v0.18.2 — Periodicidade do plano contratual
+Novo campo "Periodicidade do plano" em Cadastro da Empresa → Dados de
+faturamento do contrato, com as opções **Mensal**, **Semestral** e
+**Anual**. Fica ao lado do "Plano contratado" (Essencial/Profissional/
+Enterprise) — um define o nível do plano, o outro define o ciclo de
+cobrança.
+
+## v0.18.1 — Segmento: opção "Outro" ganhou campo de texto livre
+O campo Segmento (Cadastro da Empresa) virou uma lista fixa na v0.17.0
+pra fazer o filtro da Base de Cargos funcionar de forma confiável — mas
+isso tirou a flexibilidade de descrever um segmento que não está na
+lista. Agora tem os dois: escolhe uma das 13 opções fixas, e se escolher
+**"Outro"**, aparece um campo de texto pra descrever livremente.
+
+- O filtro da Base de Cargos continua funcionando normalmente (usa sempre
+  uma das 13 categorias fixas — "Outro" mostra os cargos gerais).
+- O texto livre é só descritivo — aparece ao lado do nome do segmento na
+  tela de Base de Cargos, mas não interfere no filtro.
+
+## v0.18.0 — Desenho de Cargo no padrão completo (baseado em documento de referência)
+Reconstrução completa do modelo de Desenho de Cargo, a partir de um
+documento de referência real (Desenho de Cargo — Analista de Dados) que
+segue um padrão de mercado bem mais detalhado do que o formato anterior
+(que só tinha sumário, atividades e requisitos em texto livre).
+
+**Estrutura nova, em 9 seções** (tanto na tela de edição quanto na base
+CBO): Identificação do Cargo (área/departamento, nível hierárquico, regime
+de trabalho, local de trabalho, subordinação, subordinados diretos),
+Missão do Cargo, Responsabilidades e Atribuições (+ Cultura e Postura
+Institucional, RN030), Requisitos (formação acadêmica, experiência,
+conhecimentos técnicos, idiomas), Competências Comportamentais,
+Ferramentas e Sistemas Utilizados, Indicadores de Desempenho (KPIs do
+Cargo), Condições de Trabalho, e Perspectivas de Carreira.
+
+- **`js/12-page-desenho.js`**: tela de edição inteira reconstruída nesse
+  formato, com as 9 seções.
+- **`js/04-data-cbo.js`**: os 42 cargos da base CBO já vêm com todo esse
+  conteúdo preenchido — o "Analista de Dados" segue quase palavra por
+  palavra o documento de referência enviado; os demais 41 seguem o mesmo
+  padrão, com conteúdo ajustado ao contexto de cada função (ex.: Pedreiro
+  tem menos "ferramentas de sistema" que um cargo de escritório, o que
+  faz sentido pela natureza do trabalho).
+- **`js/11-page-cargos.js`** (`importarCargo`): atualizado para copiar
+  todos os campos novos da base CBO pro cargo importado pela empresa.
+
+## v0.17.1 — Filtro de segmento agora é estrito (sem mistura de "gerais")
+Ajuste no comportamento da v0.17.0, a pedido: em vez de misturar cargos
+"gerais" com os do segmento escolhido através de uma regra especial no
+código, agora o filtro é direto — só mostra cargos marcados pro segmento
+que a empresa escolheu.
+
+- Removido o "sentinela" `Geral` da lógica de filtro (`js/11-page-cargos.js`).
+- Os cargos genuinamente universais (Gerente, Recepcionista, Auxiliar
+  Administrativo etc.) continuam aparecendo em qualquer segmento — mas
+  agora porque estão marcados explicitamente em **todos os 13 segmentos**
+  na própria base (`js/04-data-cbo.js`), não por causa de uma exceção
+  escondida no filtro. Os cargos específicos (Enfermeiro, Pedreiro,
+  Professor etc.) continuam só nos segmentos certos.
+- Os números totais por segmento continuam idênticos aos da v0.17.0 (24 a
+  27 cargos, dependendo do segmento) — só a forma de calcular ficou mais
+  simples e transparente.
+
+## v0.17.0 — Base de Cargos (CBO) filtrada pelo segmento da empresa
+Em vez de simplesmente ampliar a lista de cargos sem critério, o pedido foi
+melhor que isso: filtrar os cargos sugeridos pela área de atuação da
+empresa (ex.: uma empresa de Saúde só ver cargos relevantes pra Saúde, não
+uma lista genérica misturada com Pedreiro ou Professor).
+
+- **`js/04-data-cbo.js`**: campo novo `segmentos` em cada cargo, marcando a
+  qual área ele pertence. Cargos "Geral" (Gerente, Recepcionista, Auxiliar
+  Administrativo etc.) aparecem pra qualquer segmento. Foram adicionados
+  18 cargos novos cobrindo áreas que antes não tinham nenhuma
+  representação: Saúde, Educação, Tecnologia, Jurídico, Construção Civil,
+  Agronegócio e Logística — total foi de 24 para 42 cargos.
+- **Cadastro da Empresa**: o campo "Segmento" deixou de ser texto livre e
+  virou uma lista fixa de 13 áreas — isso é o que permite o filtro
+  funcionar de forma confiável (texto livre como "saude" vs "Saúde" vs
+  "Hospital" não dava pra casar com precisão).
+- **Base de Cargos**: filtra automaticamente pelos cargos "Geral" + os do
+  segmento escolhido pela empresa. Tem uma opção pra "ver cargos de todos
+  os segmentos" a qualquer momento, se quiser.
+
+**Importante sobre os códigos CBO usados**: não tive acesso à base de
+dados oficial completa do governo nesse ambiente (sem internet aberta) —
+os códigos e descrições foram escritos com base em conhecimento geral
+sobre ocupações comuns no Brasil, com boa confiança, mas **não foram
+verificados contra o registro oficial do Ministério do Trabalho**. Vale
+conferir o código exato antes de usar em algo formal (ex.: registro em
+carteira de trabalho), se isso for relevante pro caso de uso.
+
+## v0.16.2 — Segunda correção do aviso de atualização (janela de tempo)
+A correção da v0.16.1 (comparar o carimbo exato do salvamento) não era
+suficiente: se a pessoa clica em várias coisas seguidas, cada clique
+dispara seu próprio salvamento, e o aviso de um mais antigo podia chegar
+depois do carimbo já ter mudado pra um mais novo — dando falso positivo
+mesmo sendo tudo ação da própria pessoa.
+
+Trocado por uma abordagem mais tolerante em `js/18-persistence.js` e
+`js/02-core-helpers.js`: em vez de comparar um carimbo exato, o sistema
+agora marca "última vez que eu fiz alguma ação" a cada interação, e só
+mostra o aviso se **nenhuma ação minha aconteceu nos últimos 4 segundos**
+— cobrindo com folga o caso de vários cliques rápidos seguidos. Testei os
+3 cenários (ação isolada, ação de outra pessoa depois de um tempo, e
+vários cliques rápidos em sequência) e confirmei o comportamento certo
+nos três.
+
+## v0.16.1 — Bug corrigido: aviso de atualização aparecia toda hora
+O aviso "Alguém mais atualizou os dados" (v0.16.0) disparava até quando a
+mudança era da própria pessoa — o sistema salva sozinho toda vez que
+qualquer coisa é feita (agendarSalvamento), e isso também contava como
+"atualização" pro Realtime. Resultado: o aviso ficava aparecendo o tempo
+todo, sem servir de aviso real de nada.
+
+Corrigido em `js/18-persistence.js` e `js/02-core-helpers.js`: cada
+salvamento agora carimba um identificador próprio, e o aviso só aparece
+quando o carimbo recebido pelo Realtime **não bate** com o do nosso
+último salvamento — ou seja, só quando é mudança de outra pessoa de
+verdade. Testei os dois cenários (eco próprio vs. mudança alheia) e
+confirmei o comportamento certo nos dois.
+
+## v0.16.0 — Aviso automático quando outra pessoa atualiza os dados (Realtime)
+Resolve o ponto #4 identificado na revisão geral: duas pessoas da mesma
+empresa usando o sistema ao mesmo tempo sem saber que os dados mudaram —
+o caso real que já aconteceu nessa mesma conversa (RH vendo "etapa 2"
+enquanto o Líder já via "etapa 3"). O botão "Atualizar" já resolvia isso,
+mas exigia que a pessoa soubesse que precisava clicar nele.
+
+Agora, usando o **Supabase Realtime**, o navegador é avisado sozinho
+sempre que os dados da empresa mudam (por qualquer pessoa, em qualquer
+tela) — aparece uma faixa discreta no topo da tela: "Alguém mais atualizou
+os dados da empresa", com botão para atualizar na hora ou ignorar por
+enquanto.
+
+**Decisão importante de segurança**: o aviso não atualiza os dados
+sozinho automaticamente — só avisa. Atualizar sozinho correria o risco de
+apagar um formulário que a pessoa esteja preenchendo bem naquele momento
+(o mesmo tipo de problema já corrigido antes na tela de login). Quem
+decide quando atualizar continua sendo a pessoa, agora só que avisada.
+
+**Precisa rodar uma SQL nova**: `sql/16-ativar-realtime.sql` (depois do
+`15-controle-migrations.sql`) — ativa o Realtime na tabela `dados_sistema`.
+
+## v0.15.6 — Rede de segurança pro processo de publicar atualizações
+Não é uma mudança de funcionalidade — é sobre reduzir o risco do processo
+manual de subir cada atualização (baixar zip → substituir arquivos →
+git push → esperar deploy → dar refresh forçado no navegador).
+
+- **Cache-busting automático** (`index.html`): todo arquivo `.js`/`.css`
+  local agora carrega com `?v=X.Y.Z` na URL. Isso resolve de vez o
+  problema do navegador (ou do GitHub Pages) mostrar a versão antiga do
+  código depois de um `git push` — não depende mais de lembrar de dar
+  Ctrl+Shift+R. **Mas exige disciplina**: a cada nova versão publicada, o
+  número em `?v=` precisa ser atualizado em todas as linhas do
+  `index.html` (tem um comentário lá explicando isso).
+- **Controle de migrations SQL** (`sql/15-controle-migrations.sql`): nova
+  tabela `migrations_aplicadas`, que registra quais scripts já foram
+  rodados. Resolve a dúvida de "já rodei essa SQL ou não" — é só rodar
+  `select * from migrations_aplicadas order by aplicada_em;` no SQL
+  Editor pra ver o histórico completo. Toda migration nova, a partir de
+  agora, deve terminar registrando a si mesma nessa tabela.
+
+## v0.15.5 — Coluna "Detalhes" da Auditoria menos poluída
+A coluna de detalhes de cada evento mostrava o JSON bruto (com chaves,
+aspas e IDs completos de 36 caracteres) — ficava larga e difícil de ler.
+Agora mostra só "chave: valor" separado por ponto, e IDs longos (UUIDs)
+aparecem encurtados (só os 8 primeiros caracteres).
+
+## v0.15.4 — Bug de segurança corrigido: Super Admin podia se auto-bloquear
+Um Super Admin que também está cadastrado como colaborador de uma empresa
+(caso comum, já que é a mesma pessoa fazendo os dois papéis) conseguia
+suspender a própria empresa pela tela — e a trava de suspensão vale pra
+qualquer um vinculado a ela, sem exceção pro Super Admin. Resultado: a
+pessoa se bloqueava do próprio sistema, sem conseguir nem entrar de volta
+pra reverter (já que reverter exige estar logado como Super Admin).
+
+Corrigido em `js/23-page-super-admin.js`: o botão "Suspender" não aparece
+mais para a própria empresa do Super Admin (mostra uma nota explicando por
+quê), e a lista marca visualmente qual empresa é "sua empresa". Se for
+realmente necessário suspender a própria empresa por algum motivo, ainda
+dá pra fazer direto via SQL — só não é mais um clique acidental.
+
+## v0.15.3 — E-mail de boas-vindas ao criar conta
+Complementa a v0.15.2: agora, assim que alguém termina de criar a conta
+(seja usando um código de convite pra entrar numa empresa já existente, ou
+um código de licença pra cadastrar uma empresa nova), recebe um e-mail de
+boas-vindas confirmando que deu certo. Usa a mesma Edge Function
+`enviar-email` já implantada — nenhuma configuração nova é necessária além
+da que já foi feita pra v0.15.2.
+
+## v0.15.2 — Notificações por e-mail (convite, avaliação pendente, PDI aprovado)
+Primeira leva de notificações por e-mail, usando o Resend como serviço de
+envio. Como o app é um site estático (GitHub Pages), o envio não pode
+acontecer direto do navegador — isso exigiria expor a chave secreta do
+Resend pra qualquer pessoa que abrisse o código-fonte da página. A solução
+é uma **Edge Function** do Supabase: um pedacinho de código que roda no
+servidor do Supabase, guarda a chave em segredo, e só ele conversa com o
+Resend.
+
+**O que foi implementado:**
+- **Convite de acesso gerado**: a tela de convite (Usuários & Acesso) agora
+  tem um campo opcional de e-mail — se preenchido, o código do convite é
+  enviado automaticamente pra pessoa, além de continuar disponível pra
+  copiar manualmente.
+- **Sua avaliação está pendente**: sempre que um ciclo passa a etapa (abre
+  pela primeira vez, avança do Colaborador pro Líder, do Líder pro RH),
+  a pessoa responsável pela nova etapa recebe um e-mail avisando.
+- **PDI aprovado**: o colaborador recebe um e-mail quando o Gestor/RH
+  aprova o PDI dele.
+
+**Arquivos novos:**
+- `supabase/functions/enviar-email/index.ts` — a Edge Function em si (tem
+  instruções completas de implantação no final do próprio arquivo).
+- `sql/14-preparacao-notificacoes-email.sql` — adiciona uma cópia do
+  e-mail em `perfis` (o app não consegue ler `auth.users` diretamente por
+  segurança) e um campo de e-mail em `convites`.
+- `enviarEmailNotificacao()` e `emailWrapperHTML()` em
+  `js/02-core-helpers.js` — funções reutilizáveis pra qualquer notificação
+  futura.
+
+**Nenhum e-mail falhando trava o sistema**: se o envio não funcionar por
+qualquer motivo (Edge Function ainda não implantada, chave errada, etc.),
+a ação principal (gerar convite, avançar etapa, aprovar PDI) continua
+funcionando normalmente — só o e-mail em si não sai, com um aviso no
+console do navegador.
+
+### ⚠️ 3 passos manuais obrigatórios antes de funcionar de verdade
+1. Criar conta gratuita em **resend.com** e pegar a API Key.
+2. Rodar **`sql/14-preparacao-notificacoes-email.sql`** no SQL Editor do
+   Supabase (depois do `13-metricas-super-admin.sql`).
+3. Implantar a Edge Function e configurar a chave do Resend como secret —
+   instruções completas dentro de
+   `supabase/functions/enviar-email/index.ts`.
+
+Sem esses 3 passos, os e-mails simplesmente não saem (mas nada quebra).
+
+## v0.15.1 — Métricas agregadas no Super Admin
+A tela de Super Admin só listava empresas uma a uma — agora mostra também
+números consolidados de toda a plataforma no topo: empresas ativas,
+empresas suspensas, total de colaboradores (somando todas as empresas),
+ciclos em andamento e ciclos já encerrados (histórico).
+
+Como esses números vivem dentro do "payload" de cada empresa (blob JSON em
+`dados_sistema`, não uma tabela separada), foi necessária uma nova permissão
+de leitura pro Super Admin — ver `sql/13-metricas-super-admin.sql` (rodar
+no SQL Editor, depois do `12-suspensao-empresas.sql`). É só leitura: o
+Super Admin nunca ganha permissão de editar os dados operacionais de uma
+empresa-cliente.
+
+## v0.15.0 — Tela de Auditoria + Suspender empresas (Super Admin)
+
+**1) Tela de Auditoria** (`js/24-page-auditoria.js`, visível pra
+Administrador e RH): o sistema já registrava mais de 40 tipos de evento
+diferentes (login, desligamento, mudança de papel, aprovação de PDI,
+exportação de relatório etc.) numa tabela append-only desde o início —
+só não existia nenhuma tela pra ver isso. Agora tem, com filtro por tipo
+de evento e por pessoa, mostrando os últimos 500 registros com data/hora,
+quem fez e detalhes técnicos de cada um.
+
+**2) Suspender acesso de Empresas ativas** (Super Admin): até aqui, o
+Super Admin só controlava a criação de Empresas novas (código de
+licença) — não existia jeito de suspender uma Empresa já ativa (ex.:
+parou de pagar, contrato encerrado). Agora existe um botão
+"Suspender"/"Reativar" na lista de Empresas, e ninguém daquela Empresa
+consegue entrar no sistema enquanto estiver suspensa.
+
+- **`sql/12-suspensao-empresas.sql`** (rodar no SQL Editor, depois do
+  `11-licenciamento-empresas.sql`): adiciona as colunas de suspensão em
+  `empresas` e a permissão do Super Admin pra atualizá-las.
+- Bug corrigido de passagem: a consulta de empresas na tela de Super
+  Admin usava um nome de coluna que não existe (`criado_em` — o certo é
+  `created_at`), então a lista de empresas nunca aparecia direito.
+
+## v0.14.7 — Corrigido de vez: tela de nova senha aparecia e sumia em 1 segundo
+A v0.14.6 eliminou a disputa entre duas rotinas, mas sobrou uma disputa de
+**ordem** dentro da própria rotina: a trava que impede outros eventos de
+assumir a tela (`_tratandoLinkDeRecuperacao`) só era ligada DEPOIS de trocar
+o token pela sessão — mas essa troca em si (`setSession`/
+`exchangeCodeForSession`) já dispara o evento de "sessão mudou" NO MEIO do
+processo, antes da trava existir. Resultado exato relatado: a tela de nova
+senha chegava a aparecer por um instante, e o app normal (que já tinha sido
+disparado por baixo dos panos, sem trava nenhuma barrando) tomava conta da
+tela logo em seguida.
+
+Corrigido em `js/19-auth.js`: a trava agora liga de forma síncrona, lendo a
+URL diretamente, **antes** de qualquer troca de token começar — nunca mais
+depois. Simulei o cenário exato (evento disparando no meio do processo) e
+confirmei que agora fica bloqueado corretamente.
+
+## v0.14.6 — Disputa de tempo no link de recuperação eliminada de vez
+As correções anteriores (v0.13.6, v0.13.7) reduziram a disputa, mas não
+eliminaram — o link ainda funcionava só às vezes, porque duas rotinas
+diferentes competiam pra processar o mesmo link ao mesmo tempo: a detecção
+automática do próprio supabase-js (ligada por padrão) e o código específico
+que escrevemos pra tratar o link de recuperação. Dependendo de qual
+"ganhasse a corrida" primeiro, ora funcionava, ora abria o sistema direto.
+
+Corrigido de raiz em `js/01-supabase-client.js` e `js/19-auth.js`:
+- **Desligada a detecção automática do supabase-js** (`detectSessionInUrl:
+  false`) — agora só existe UM caminho processando qualquer link recebido
+  por e-mail, nunca dois ao mesmo tempo.
+- O app passou a processar os tokens da URL manualmente e sequencialmente
+  (`processarTokensDaUrlSeHouver`), cobrindo os dois formatos possíveis
+  (PKCE `?code=...` e implícito `#access_token=...`), antes de qualquer
+  outra decisão ser tomada.
+- Como efeito colateral necessário: qualquer outro tipo de link com token
+  na URL (ex.: confirmação de cadastro por e-mail, se algum dia for
+  ativada) também passou a ser tratado explicitamente pelo mesmo código —
+  antes dependia da mesma detecção automática que foi desligada.
+
+## v0.14.5 — Mensagem de e-mail duplicado cobre mais variações
+A garantia em si já existia (o Supabase impede, no nível do banco, duas
+contas com o mesmo e-mail — isso nunca dependeu do código do front-end).
+O que foi ajustado foi só a detecção da mensagem de erro para mostrar o
+aviso amigável: o texto exato que o Supabase retorna varia um pouco
+("User already registered", "already been registered", "already in use"),
+e a checagem só cobria uma dessas variações — nas outras, a pessoa via o
+erro técnico em inglês em vez da explicação em português. Agora cobre
+todas as variações conhecidas.
+
+## v0.14.4 — Mudar o papel de uma conta já existente
+Até aqui, o papel (RH/Gestor/Colaborador) só podia ser definido no momento
+do convite — não existia jeito de promover ou rebaixar alguém que já
+tivesse conta criada, sem desativar e recriar do zero.
+
+- Nova opção **"Mudar papel para…"** em Usuários & Acesso, ao lado de cada
+  pessoa (exceto o próprio Administrador da empresa, que não muda).
+- Mesma regra do convite: só o Administrador pode promover alguém a RH —
+  RH pode promover/rebaixar entre Gestor e Colaborador livremente.
+- Não precisou de mudança no banco — a política de segurança que já
+  permite Dono/RH administrarem qualquer perfil da empresa (criada na
+  correção `07-fix-desativar-usuario.sql`) já cobre esse caso.
+
+## v0.14.3 — Correção retroativa: colaboradores desligados antes da v0.14.2
+A correção da v0.14.2 (Desligar também remove o login) só vale para
+desligamentos feitos depois dela — quem já tinha sido desligado antes
+ficou com o cadastro inativo, mas o login continuava ativo, sem nenhum
+jeito automático de perceber isso.
+
+Adicionado em `js/13-page-colaboradores.js`: a tela de Colaboradores agora
+detecta automaticamente esses casos (desligado + login ainda ativo) e
+mostra um alerta com botão "Desativar login agora" pra cada um — corrige
+com um clique, sem precisar ir em Usuários & Acesso manualmente.
+
+## v0.14.2 — Desligar colaborador agora remove o acesso de login também
+Gap de segurança real corrigido em `js/13-page-colaboradores.js`: clicar em
+"Desligar" só marcava o registro de RH do colaborador como inativo — a
+conta de login dela continuava funcionando normalmente, ela ainda
+conseguia entrar no sistema depois de desligada.
+
+- `desligarColaborador` agora, além de marcar o colaborador como desligado,
+  desativa também a conta de login vinculada (se houver uma) — a pessoa
+  perde o acesso ao sistema imediatamente. Pede confirmação antes de agir.
+- Novo botão **"Religar"**, ao lado de "Anonimizar (LGPD)", pra quando o
+  colaborador é recontratado pela mesma Empresa: reativa o cadastro dele e
+  reativa o acesso de login junto (se havia um vinculado).
+- Se o colaborador for "religado" numa **outra** Empresa (não a mesma),
+  isso continua exigindo uma conta nova com um e-mail diferente — é a
+  mesma limitação de e-mail único por conta em toda a plataforma já
+  documentada em `RECONCILIACAO-RN.md`, não algo resolvido nesta versão.
+
+## v0.14.1 — Bug corrigido: tela de Super Admin travava em "Carregando…"
+A condição que decidia buscar os dados verificava se as listas de empresas
+e códigos estavam vazias — mas lista vazia também é o estado normal antes
+de existir qualquer empresa ou código gerado (como é o caso logo depois de
+configurar o Super Admin pela primeira vez). Isso fazia a tela recarregar
+os dados a cada render, pra sempre, sem nunca aceitar "zero resultados"
+como uma resposta válida — travando em "Carregando…" eternamente.
+
+Corrigido em `js/23-page-super-admin.js`: agora existe uma flag separada
+(`_superAdminJaCarregou`) que só controla "já tentei carregar uma vez",
+independente de quantos resultados vieram. Também adicionado aviso de erro
+explícito caso a consulta ao Supabase falhe (antes falhava em silêncio).
+
+## v0.14.0 — Licenciamento de Empresas (controle do dono da plataforma)
+Até aqui, qualquer pessoa que chegasse na tela de cadastro e escolhesse
+"não tenho convite" conseguia criar uma Empresa nova sozinha, sem nenhum
+controle — qualquer um tinha acesso à plataforma. Agora isso exige
+aprovação prévia do Instituto INETRIS (dono da Metodologia NORTE).
+
+- **Novo conceito: Super Admin da plataforma** — um nível acima do
+  Administrador de cada Empresa. O Administrador só enxerga a própria
+  Empresa; o Super Admin enxerga e gerencia todas.
+- **`sql/11-licenciamento-empresas.sql`** (rodar no SQL Editor do Supabase,
+  depois de todos os scripts anteriores): cria as tabelas `super_admins` e
+  `codigos_licenca_empresa`, e atualiza a trigger de cadastro — criar uma
+  Empresa nova (sem convite) agora exige um código de licença válido e
+  ainda não usado; sem isso, o cadastro é recusado com uma mensagem clara.
+- **Tela nova "Super Admin — Empresas"** (`js/23-page-super-admin.js`),
+  visível só pra quem está na tabela `super_admins`: gera códigos de
+  licença (formato legível, tipo `NORTE-XXXX-XXXX`, fácil de ditar por
+  telefone/WhatsApp), lista todas as Empresas cadastradas na plataforma,
+  mostra quais códigos já foram usados e por qual Empresa, e permite
+  revogar um código ainda não usado.
+- Tela de cadastro atualizada: quem for criar uma Empresa nova agora
+  também precisa preencher o código de licença, além do nome da empresa.
+
+**Ação manual obrigatória, uma única vez**, depois de rodar o script SQL:
+insira a própria conta (a do Instituto INETRIS) na tabela `super_admins`
+rodando, no SQL Editor do Supabase:
+```sql
+insert into super_admins (id, nome) values ('SEU-USER-ID-AQUI', 'Seu nome');
+```
+O ID do usuário fica visível em Authentication → Users, no painel do
+Supabase. Sem essa linha, ninguém tem acesso de Super Admin — nem o dono
+da conta.
+
+## v0.13.7 — Bug corrigido (de vez, esperamos): link de recuperação continuava não mostrando a tela de nova senha
+A correção da v0.13.6 não foi suficiente — o link continuava abrindo o
+sistema normal em vez da tela de nova senha, mesmo em aba anônima com link
+recém-gerado. Causa provável: o projeto Supabase pode estar usando o fluxo
+"PKCE" para o link de recuperação (`?code=...`), que — diferente do fluxo
+"implícito" mais antigo (`#access_token=...`) — não gera uma sessão
+sozinho: o app precisa trocar esse código manualmente por uma sessão
+(`exchangeCodeForSession`). Sem isso, o Supabase às vezes dispara um evento
+genérico (`SIGNED_IN`) em vez de `PASSWORD_RECOVERY`, e o app só via "tem
+uma sessão válida" e entrava direto no dashboard.
+
+Reescrito em `js/19-auth.js`:
+- Detecção do link de recuperação agora acontece de forma síncrona e
+  explícita ao carregar a página (não depende só do evento do Supabase).
+- Cobre os dois formatos possíveis: PKCE (`?code=...&type=recovery`, com
+  troca manual via `exchangeCodeForSession`) e implícito
+  (`#access_token=...&type=recovery`).
+- Uma trava (`_tratandoLinkDeRecuperacao`) impede que qualquer outro evento
+  de autenticação (como `SIGNED_IN`) atropele a tela de nova senha depois
+  que ela já foi decidida.
+- Se nenhum dos dois formatos funcionar (link expirado ou já usado — os
+  links de recuperação só funcionam uma vez), mostra uma mensagem de erro
+  clara em vez de simplesmente cair no login sem explicação.
+
+## v0.13.6 — Bug corrigido: link de redefinição de senha entrava direto no site
+Mesmo com o link do e-mail chegando certo (v0.13.5), clicar nele levava
+direto pro dashboard normal em vez de mostrar a tela "Defina sua nova
+senha". Causa: o link de recuperação já cria uma sessão temporária válida
+no Supabase — e o código tinha duas verificações rodando em paralelo no
+carregamento da página (`onAuthStateChange` com o evento
+`PASSWORD_RECOVERY`, e um `getSession()` inicial): o `getSession()` via
+essa sessão temporária e entrava direto no site, ganhando a corrida contra
+a tela de nova senha.
+
+Corrigido em `js/19-auth.js`: antes de decidir entrar direto no site, o
+código agora confere se a própria URL indica um link de recuperação
+(`type=recovery`, nos dois formatos que o Supabase pode usar) e, se for o
+caso, mostra a tela de nova senha em vez de pular direto pro dashboard.
+
+## v0.13.5 — Bug corrigido: "Esqueci minha senha" não completava a troca
+Duas causas, as duas em `js/19-auth.js`:
+
+1. **Link do e-mail sem destino explícito.** `resetPasswordForEmail` estava
+   sendo chamado sem `redirectTo` — nesse caso o Supabase usa a "Site URL"
+   configurada no painel do projeto como destino do link. Se esse endereço
+   estiver desatualizado (ex.: ainda apontando pra `localhost` ou uma URL
+   antiga), o link do e-mail leva a um endereço que não existe — exatamente
+   o erro relatado ("não é possível acessar o site"). Agora o link é gerado
+   sempre com `redirectTo` = o endereço de onde o site está rodando no
+   momento, então nunca aponta pra um lugar errado.
+2. **Faltava a tela para completar a troca.** Mesmo que o link chegasse
+   certo, o app não tinha nenhuma tela de "defina sua nova senha" — o
+   evento de recuperação de senha do Supabase caía direto no fluxo normal
+   de login. Agora existe `renderRedefinirSenha()`, com validação de senha
+   mínima e confirmação, que aparece automaticamente quando alguém chega
+   pelo link do e-mail.
+
+**Ação manual necessária no painel do Supabase** (não dá pra fazer isso
+pelo código): em Authentication → URL Configuration, confirme que a "Site
+URL" e a lista de "Redirect URLs" incluem o endereço real onde o site está
+hospedado (ex.: a URL do GitHub Pages) — o Supabase só aceita redirecionar
+para endereços que estejam nessa lista.
+
+## v0.13.4 — Bug corrigido: qualquer clique jogava a página pro topo
+`js/05-navigation.js` tinha um `window.scrollTo(0,0)` incondicional dentro
+de `render()` — e como praticamente toda ação do sistema (marcar uma nota
+Iniciar/Desenvolver/Alavancar, editar um campo, abrir um painel) chama
+`render()`, a página voltava pro topo a cada clique. Ficava especialmente
+incômodo em telas longas, como preencher uma avaliação com muitos
+indicadores — cada nota marcada jogava a pessoa de volta pro topo, tendo
+que rolar tudo de novo pra continuar.
+
+Corrigido: `render()` agora só rola pro topo quando a pessoa realmente
+muda de tela (rota) ou abre/fecha um ciclo específico — nunca por causa
+de uma interação dentro da mesma tela. Testei a sequência real (carregar
+→ navegar → abrir ciclo → marcar várias notas → voltar pra lista) e só
+rola nos momentos que fazem sentido como "nova tela".
+
+## v0.13.3 — Bug corrigido: RH via a etapa desatualizada (dados não sincronizavam entre pessoas)
+Cenário relatado: o Líder já tinha enviado a avaliação (sua própria tela
+mostrava "Etapa 3 de 3 — RH"), mas a tela do RH continuava mostrando
+"Etapa 2 de 3 — Líder", como se a etapa ainda não tivesse mudado. Não era
+um problema de permissão (o papel do RH estava certo) — era sincronização:
+o sistema carrega os dados uma única vez, no login, e não busca atualização
+depois disso. Se o RH já estava com a tela aberta antes do Líder enviar,
+ficava vendo a versão antiga do ciclo indefinidamente, sem nenhum jeito de
+perceber isso a não ser dando F5 na página inteira.
+
+Corrigido:
+- Nova função `atualizarDadosAoVivo()` (`js/05-navigation.js`), que busca
+  os dados mais recentes do servidor e atualiza a tela sem precisar
+  recarregar a página inteira (não perde o lugar onde a pessoa estava).
+- Chamada automaticamente sempre que alguém entra na tela de **Ciclos de
+  Avaliação**.
+- Botão "↻ Atualizar" visível tanto na lista de Ciclos quanto dentro de um
+  ciclo específico, para quem já está com a tela aberta esperando a vez.
+- A mensagem "Esta etapa ainda não é sua" agora sugere clicar em
+  "↻ Atualizar" como primeiro passo, já que essa costuma ser a causa real.
+
+Limitação que continua existindo (não é bug, é característica da
+arquitetura atual): o sistema não tem sincronização em tempo real — a
+atualização só acontece quando alguém pede (ao entrar na tela ou clicar em
+"Atualizar"), não automaticamente enquanto a tela está parada. Para tempo
+real de verdade, seria necessário usar Realtime do Supabase — fora do
+escopo atual.
+
+## v0.13.2 — Bug corrigido: Administrador não conseguia concluir a etapa do RH
+Mesma família do bug da v0.13.1, agora na última etapa do ciclo (RH). A
+etapa só liberava para quem tinha o papel de sistema `rh` exato — se o
+Administrador estava fazendo esse papel na prática (comum em empresas sem
+RH separado), a tela mostrava "Esta etapa ainda não é sua".
+
+Corrigido em `js/14-permissions.js` (`podeEditarEtapa`): a etapa do RH
+agora libera também para o Administrador. Diferente da etapa do Líder
+(vinculada a um colaborador específico via `gestorPerfilId`), a etapa do
+RH é uma função de empresa toda — e o Administrador já tinha acesso
+irrestrito para ver todos os ciclos, construir e aprovar PDI (RN
+`cicloVisivelParaMim`, `podeConstruirPDI`, `podeAprovarPDI`); faltava só
+essa etapa específica de preenchimento seguir a mesma regra.
+
+## v0.13.1 — Bug corrigido: Administrador que também é gestor direto não conseguia avaliar
+Cenário relatado: Colaborador concluiu a autoavaliação, o ciclo passou para
+a etapa do Líder Direto — mas a pessoa logada, apesar de estar cadastrada
+como gestor direto daquele colaborador, tinha o papel de sistema
+"Administrador" (`owner`), não "Gestor" (`lider`). A tela mostrava "Esta
+etapa ainda não é sua" e os botões de avaliação apareciam desabilitados.
+
+Corrigido em `js/14-permissions.js` (`podeEditarEtapa`) e
+`js/15-page-ciclos-avaliacao.js` (`souGestorDoCiclo`): agora a etapa do
+Líder Direto é liberada tanto para quem tem o papel `lider` quanto para o
+Administrador, **desde que** o vínculo de gestor já esteja cadastrado no
+organograma daquele colaborador especificamente (`gestorPerfilId` apontando
+para essa pessoa). Isso é diferente de liberar avaliação para qualquer
+Administrador em qualquer ciclo — só vale quando a própria empresa já
+cadastrou essa pessoa como gestor direto de alguém, um cenário comum em
+empresas pequenas onde o dono também lidera parte da equipe diretamente.
+
+Nota técnica: encontrei e corrigi de passagem uma duplicação perigosa —
+existiam duas funções `souGestorDoCiclo` diferentes (uma em
+`js/14-permissions.js`, outra em `js/15-page-ciclos-avaliacao.js`); a
+segunda, por carregar depois, sempre sobrescrevia silenciosamente a
+primeira. Consolidado em uma única definição.
+
+A etapa do RH e a construção/aprovação do PDI não foram alteradas nesta
+correção — o Administrador já podia atuar nelas sem restrição.
+
+## v0.13.0 — Novo logo padrão do sistema
+- Substituído o logo padrão exibido no canto superior esquerdo do menu (e
+  na tela de login) quando nenhuma empresa definiu um logotipo próprio —
+  agora usa a nova marca fornecida (fundo azul, ícone de conexões em branco
+  e dourado), redimensionada para 200×200 e otimizada em PNG (~11KB, contra
+  ~64KB do logo anterior).
+- A cor de fundo da nova imagem (~#072444) é praticamente idêntica à cor de
+  fundo do menu lateral (`--surface: #0a2647`), então ela se funde sem
+  parecer uma caixa recortada.
+- `js/00-logo-asset.js` — mesma constante `LOGO_INETRIS_B64`, conteúdo
+  trocado (não renomeei a constante para não precisar alterar todas as
+  referências em `js/05-navigation.js` e `js/19-auth.js` sem necessidade).
+
+## v0.12.6 — Bug corrigido: remover o logotipo não voltava ao padrão
+Duas causas encontradas e corrigidas em `js/02-core-helpers.js` e
+`js/05-navigation.js`:
+
+1. **Duas fontes de logo, um só botão de remover.** O logo do menu lateral
+   podia vir de dois campos diferentes (Cadastro de Empresa ou
+   Configurações → Identidade Visual — um servindo de reserva do outro).
+   Remover em um lugar só não limpava o outro, então se os dois estivessem
+   preenchidos, o logo "sobrevivia" à remoção. Agora o botão "Remover
+   logotipo" limpa os dois de uma vez, em qualquer uma das duas telas.
+2. **Definir/remover só valia depois de clicar em "Salvar".** Nenhuma das
+   duas ações realmente escrevia no estado do sistema — só no campo
+   escondido do formulário — então o menu lateral só refletia a mudança se
+   a pessoa depois clicasse no botão "Salvar" geral da tela (que atualiza
+   várias coisas de uma vez). Agora definir ou remover o logotipo grava no
+   estado, atualiza o menu lateral na hora (sem re-renderizar a tela
+   inteira, pra não apagar outros campos do formulário ainda não salvos) e
+   salva em segundo plano — nenhum dos dois depende mais do botão "Salvar".
+
+## v0.12.5 — Bug corrigido: campos de login/cadastro se apagavam sozinhos
+Bug pré-existente (não introduzido nesta conversa) em `js/19-auth.js`: os
+campos de e-mail e senha do formulário de login não guardavam o que a
+pessoa tinha digitado. Toda vez que a tela re-renderizava — o que acontece
+em qualquer erro de login, ao ficar bloqueada, ou ao clicar em "Esqueci
+minha senha" — os dois campos voltavam vazios, obrigando a redigitar tudo
+de novo a cada tentativa. O mesmo acontecia no formulário de cadastro
+(nome, empresa, código de convite): marcar/desmarcar "Tenho um código de
+convite" apagava o nome já digitado.
+
+- Todos os campos do formulário (e-mail, senha, nome, empresa, código de
+  convite) agora preservam o valor digitado através de qualquer
+  re-renderização da tela.
+- A senha digitada é limpa da memória assim que o login tem sucesso (não
+  fica residindo em uma variável além do necessário).
+
+Esta correção veio de uma segunda revisão geral do código, a pedido do
+usuário, procurando especificamente por esse tipo de problema (formulário
+que perde o que foi digitado por causa de uma re-renderização). Não
+encontrei o mesmo padrão em nenhuma outra tela do sistema — as demais só
+re-renderizam ao abrir/fechar painéis que não têm campo de texto ao lado
+ainda não salvo.
+
+## v0.12.4 — Bug corrigido: logotipo não aparecia nos PDFs exportados
+A seção "Identidade visual em relatórios exportados" (Configurações) salvava
+o logotipo desde a v0.11.1, mas nenhum dos 3 PDFs gerados (`js/20-page-relatorios.js`
+— Avaliação individual, PDI individual, Dossiê completo) de fato desenhava a
+imagem no documento — só as cores (`corPrimaria`/`corSecundaria`) eram
+aplicadas nos cabeçalhos de tabela. O nome da seção prometia um efeito que
+não existia.
+
+- Nova função `desenharLogoNoPDF()`, que embute o logotipo no topo de cada
+  PDF quando ele veio de **Colar imagem** ou **Enviar arquivo** (base64).
+- Logotipos definidos por **link (URL)** externo continuam aparecendo
+  normalmente na tela, mas não são embutidos no PDF — o navegador não
+  consegue ler os pixels de uma URL remota de forma síncrona (mesma
+  limitação de CORS já documentada na tentativa de extração de cor da
+  v0.12.0, removida na v0.12.1). Isso agora está explicado na própria tela
+  de Configurações, em vez de falhar silenciosamente.
+- Falha ao desenhar uma imagem corrompida/inesperada não derruba mais a
+  exportação inteira do PDF (blindado com try/catch).
+
+## v0.12.3 — Revisão de bugs
+Revisão completa do código: toda chamada de função foi cruzada com sua
+definição (nenhuma referência quebrada encontrada), e os cálculos de
+diagnóstico/classificação foram testados isoladamente. Encontrados e
+corrigidos 4 bugs reais, todos da mesma família — um "else" genérico que,
+na ausência de dado, acabava afirmando a MELHOR classificação possível
+(Alavancar) em vez de admitir que não havia dado:
+
+1. `consolidarCiclo` (`js/15-page-ciclos-avaliacao.js`): se um diagnóstico
+   fosse gerado sem nenhum pilar com média válida (caso extremo, hoje
+   bloqueado pela validação do Desenho de Cargo, mas não pelo cálculo em
+   si), a divisão virava `NaN` e `classificar(NaN)` retornava `'A'` por
+   acaso — `NaN <= x` é sempre falso, então a comparação caía no último
+   `return`. Agora fica `null` explicitamente.
+2. `pillClass`/`pillLabel` (`js/02-core-helpers.js`): mesmo problema, um
+   nível abaixo — qualquer valor que não fosse `'I'` nem `'D'` (incluindo
+   `null`/`undefined`) virava visualmente "Alavancar". Agora existe uma
+   checagem explícita para `'A'`, e o caso sem dado usa o estilo neutro
+   (`pill-neutral`) com o texto "Sem dado".
+3. `renderDistribuicaoIDA` (`js/07-router-dashboard.js`, dashboards do RH
+   e Administrador): a contagem "% por classificação" somava qualquer
+   diagnóstico sem `geral` reconhecido como Alavancar. Agora exclui esses
+   casos da contagem.
+4. Consolidado mensal "Evolução organizacional" (mesmo arquivo): um
+   diagnóstico com `geralMedia` nula (mesmo caso extremo do item 1) entraria
+   na média do mês como `0` (coerção de `null` em soma), puxando a média
+   pra baixo silenciosamente. Agora é excluído do cálculo.
+
+Nenhum desses bugs muda o comportamento em uso normal — em todos os casos
+reais (cargo com Desenho aprovado, indicadores respondidos) o resultado
+antes e depois é idêntico. O problema só aparecia num cenário praticamente
+inatingível pela interface hoje; ainda assim, o sistema não deveria inventar
+uma nota boa por falta de dado, então valia corrigir.
+
+## v0.12.2 — Remover logotipo + correção de bug ao trocar mais de uma vez
+- **Botão "Remover logotipo"**: aparece junto do preview sempre que há um
+  logotipo definido, nos dois lugares (Cadastro de Empresa e Configurações
+  → Identidade Visual). Limpa o valor e os campos de URL/arquivo.
+- **Corrigido: trocar o logotipo mais de uma vez não fazia nada.** Duas
+  causas encontradas e corrigidas em `js/02-core-helpers.js`:
+  - O `<input type="file">` não tinha seu valor resetado depois de ler o
+    arquivo — navegadores não disparam o evento de novo ao escolher o
+    mesmo arquivo (ou às vezes nem outro) sem esse reset.
+  - A área de "Colar imagem" não limpava o próprio conteúdo depois de cada
+    colagem, deixando o elemento num estado que atrapalhava a tentativa
+    seguinte.
+
+## v0.12.1 — Removida a adaptação automática de cor
+- Removida a extração automática de cor do logotipo introduzida na v0.12.0
+  (funções `extrairCorDominante`, `aplicarTemaCores`, `adaptarCoresAoLogo`,
+  `rgbParaHex`, `corMaisClara`) — por decisão de produto, as cores do tema
+  voltam a ser só as escolhidas manualmente em Configurações → Identidade
+  Visual (como já era antes da v0.12.0).
+- **Mantido**: o logotipo da empresa no canto superior esquerdo do menu
+  (substituindo o símbolo do Instituto INETRIS quando definido), introduzido
+  também na v0.12.0.
+
+## v0.12.0 — Adaptação de cor ao logotipo + logo da empresa no menu
+- **Cores do sistema adaptadas ao logotipo**: ao definir um logotipo (em
+  Cadastro de Empresa ou em Configurações → Identidade Visual, pelos 3
+  modos da v0.11.1), o sistema tenta extrair a cor dominante da imagem via
+  canvas e aplica como cor de destaque do tema (botões, abas ativas, etc.)
+  — as cores de classificação IDA (Iniciar/Desenvolver/Alavancar) não
+  mudam, pois são semânticas da metodologia, não da marca da empresa.
+  Quando o logotipo veio de um link (URL) externo sem CORS liberado, a
+  extração de cor pode não funcionar (limitação do navegador, não do
+  sistema) — nesse caso as cores continuam ajustáveis manualmente em
+  Configurações. O tema escolhido é salvo e reaplicado automaticamente a
+  cada novo login.
+- **Logotipo da empresa no canto superior esquerdo**: o menu lateral agora
+  mostra o logotipo da empresa (quando definido) no lugar do símbolo do
+  Instituto INETRIS, com o nome fantasia da empresa como título — mantendo
+  "Metodologia NORTE" como crédito. Sem logotipo definido, continua exibindo
+  a marca padrão do Instituto INETRIS, como sempre foi.
+
+## v0.11.1 — Upload de logotipo com 3 opções
+- Novo componente reutilizável (`logoUploadWidgetHTML`, em
+  `js/02-core-helpers.js`) usado tanto no Cadastro de Empresa quanto em
+  Configurações → Identidade Visual. Antes só dava para colar um link
+  (URL) da imagem; agora tem 3 opções lado a lado:
+  - **Link (URL)** — como já era.
+  - **Colar imagem** — cola (Ctrl+V) uma imagem copiada de qualquer lugar.
+  - **Enviar arquivo** — escolhe um arquivo de imagem do computador.
+  Nos dois novos modos, a imagem é redimensionada no próprio navegador
+  (máx. 300px no maior lado) e guardada como base64 — não depende de
+  nenhum servidor de upload de arquivos. Preview do logotipo atual sempre
+  visível abaixo dos controles.
+
+## v0.11.0 — Integração do Documento 07 (Backlog de Desenvolvimento)
+- **Dossiê completo em PDF** (História 5.4, MVP): novo tipo de relatório em
+  `js/20-page-relatorios.js` que consolida **Desenho de Cargo + Avaliação +
+  PDI (Desenvolvimento e Mentalidade)** de um colaborador em um único PDF —
+  antes só existiam PDFs separados de Avaliação e de PDI, e nenhum incluía
+  o Desenho de Cargo.
+- **% de colaboradores por classificação no dashboard do RH** (História
+  5.3): o card "Distribuição por classificação IDA" (que já existia só no
+  dashboard do Administrador) agora também aparece no dashboard do RH, e
+  passou a mostrar percentual além da contagem absoluta.
+- **Mensagem de erro melhorada** para e-mail duplicado no cadastro
+  (`js/19-auth.js`): em vez do erro genérico do Supabase, explica que
+  e-mail é único em toda a plataforma (não por Empresa) e orienta o que
+  fazer. A limitação de arquitetura em si (não dá pra usar o mesmo e-mail
+  em duas Empresas) não foi resolvida — está documentada no
+  `RECONCILIACAO-RN.md` como decisão pendente de avaliação futura.
+
+## v0.10.0 — Integração do Documento 06 (Protótipos/Wireframes)
+- **Cartões de Dimensão (Resultado/Comportamento/Potencial)**: o Diagnóstico
+  calculava só por Pilar (N,O,R,T,E) — faltava a agregação por Dimensão que
+  as Telas 02 e 06 exigem (RN008/009/010: N+O+R → Resultado, T →
+  Comportamento, E → Potencial). Agora `consolidarCiclo` calcula
+  `dimensaoMedia`/`dimensaoSigla`, e `diagnosticoSummaryHTML` mostra os 3
+  cartões de Dimensão no topo, com o detalhamento por Pilar logo abaixo —
+  igual ao layout da Tela 06.
+- **"Esqueci minha senha"** (Tela 01): link na tela de login, usando
+  `resetPasswordForEmail` do Supabase Auth.
+- **Escolher ação do Banco de Ações no PDI** (Tela 08): antes só dava para
+  editar o texto livre da ação sugerida automaticamente. Agora o Gestor
+  pode trocar por qualquer ação compatível do Banco de Ações (filtrada por
+  pilar), que já preenche evidência e prazo sugeridos.
+- **RN017 explícito** na tela de Diagnóstico ("somente leitura, nunca
+  editável"), como no rodapé da Tela 06.
+- **Alerta "N PDIs de Mentalidade pendentes"** no Dashboard do Gestor
+  (Tela 03), além do destaque que já existia na tela de Diagnóstico & PDI.
+- **Alinhamento de mensagens de estado vazio**: "Sua primeira avaliação
+  ainda não foi concluída" (Dashboard Colaborador, Tela 02).
+
+## v0.9.0 — Integração do Documento 05 (Fluxo de Navegação)
+Este documento serviu como validação externa da reconciliação de RN feita na
+v0.8.0 (todos os códigos citados nele batem com o que já tínhamos corrigido)
+e revelou lacunas novas, agora implementadas:
+
+- **Bloqueio de login após 5 tentativas falhas** (Cap. 1.2): implementado no
+  cliente (`js/19-auth.js`), com bloqueio de 15 minutos por e-mail. Nota
+  importante: isso é uma camada de UX — não substitui rate-limiting real no
+  backend/Supabase Auth Hooks, que é o único mecanismo que resiste a alguém
+  chamando a API diretamente, fora desta tela.
+- **RN022 (toda Ação do PDI precisa de responsável e prazo)**: antes, um
+  Gestor podia aprovar um PDI com ações sem prazo definido (o campo aceitava
+  ficar como "A combinar" silenciosamente). Agora `aprovarPDI` bloqueia a
+  aprovação e lista quais indicadores/eixos ainda estão pendentes, com a
+  mensagem oficial do Documento 05.
+- **Alerta de ciclo pendente há mais de 15 dias** e **aviso de ciclo
+  extraordinário pós-promoção vencendo em 7 dias** (Cap. 2.3/2.5): novos
+  itens no painel de pendências do RH.
+- **Confirmação antes de desativar usuário** (Cap. 1.3): texto oficial
+  "Deseja realmente remover este usuário? Esta ação não apaga seu histórico
+  (RN025)."
+- **Alinhamento de textos de sistema** com o Documento 05: cadastro de
+  empresa, erro de CNPJ duplicado, evidência enviada/recebida.
+- **Progresso da avaliação da equipe** no painel do Gestor: "Sua avaliação
+  da equipe está X% concluída. Faltam N colaborador(es)."
+- **Sugestões de UX oficiais implementadas** (marcadas no documento como
+  "não alteram a metodologia"):
+  - Destaque visual (borda de alerta) para PDIs de Mentalidade não
+    iniciados, no painel "Diagnóstico & PDI".
+  - Comparação lado a lado (ciclo atual vs. anterior) na tabela de
+    desempenho da equipe do Gestor, com indicador de evolução (↑/→/↓).
+  - Frase de reforço da filosofia junto ao PDI de Mentalidade.
+  - Checklist de onboarding (Estrutura → Cultura → Cargos → Colaboradores)
+    já existia como "Onboarding do tenant" no Dashboard do Administrador —
+    confirmado que já atende a sugestão do documento.
+
+## v0.8.1 — Pesos dos avaliadores travados conforme RN003
+- **Decisão de produto**: em vez de formalizar a exceção no PRD, os pesos
+  dos avaliadores foram travados em Colaborador 25% / Líder Direto 50% /
+  RH 25%, exatamente como especifica a RN003 do Documento 04.
+- Removidos: o seletor "Modo de avaliação do RH" (RH revisar sem pontuar)
+  e o suporte a múltiplos avaliadores de RH — não são mais configuráveis
+  em Configurações nem existem mais no cálculo de consolidação do ciclo.
+- O RH agora sempre pontua normalmente, como Colaborador e Líder — a única
+  forma de o peso de um avaliador ser redistribuído é a ausência formal
+  já prevista (avaliador não respondeu dentro do prazo), que continua
+  funcionando como antes.
+- `RECONCILIACAO-RN.md` atualizado para refletir que a divergência foi
+  fechada por travamento, não por atualização do PRD.
+
+## v0.8.0 — Reconciliação com o PRD (Documento 04)
+- **Correção RN013**: limite de indicadores personalizados por pilar (T, E)
+  ajustado de 5 para 2, conforme o PRD (2 personalizados + 2 padrão da
+  metodologia = 4 no total). Antes o sistema divergia do documento oficial.
+- **Reconciliação de numeração de RN**: até esta versão, os comentários do
+  código e este changelog usavam uma numeração própria de RN001–RN031 que
+  não coincidia com a numeração oficial do PRD (Documento 04, Cap. 6) — os
+  mesmos códigos apontavam para regras diferentes nos dois lugares (ex.:
+  "RN004" no código era o modo de avaliação do RH, mas no PRD é a regra de
+  conclusão da Avaliação com os 3 avaliadores). Todas as citações de RN no
+  código, no CHANGELOG e no checklist de QA foram revisadas e corrigidas
+  para apontar para o código oficial do PRD, ou removidas/reescritas como
+  "regra interna" quando não existe RN correspondente no documento. Ver
+  `RECONCILIACAO-RN.md` para a tabela completa de correspondência.
+- **Extensão documentada (não é mais um RN inventado)**: o modo "RH revisa
+  sem pontuar" e o suporte a múltiplos avaliadores de RH (peso redistribuído)
+  são uma flexibilização de produto que diverge da RN003 do PRD (pesos fixos
+  25/50/25, sem exceção prevista). A funcionalidade foi mantida, mas agora
+  está claramente sinalizada na tela de Configurações como uma extensão
+  pendente de decisão formal — atualizar o PRD para prevê-la, ou remover a
+  flexibilização e travar os pesos em 25/50/25.
+
+## v0.7.0
+- RNF011 (LGPD): desligamento e anonimização de colaboradores, preservando
+  histórico estatístico agregado.
+- RNF012: barramento interno de eventos de domínio (`ciclo.aberto`,
+  `diagnostico.gerado`, `pdi.criado`, `pdi.aprovado`, `avaliacao.encerrada`,
+  `cargo.desenho_publicado`, `lgpd.dados_anonimizados`), preparando o núcleo
+  para integrações futuras sem necessidade de refatoração.
+
+## v0.6.0
+- RNF008: correções de responsividade mobile (tabelas com rolagem
+  horizontal, linha de avaliação IDA empilhada em telas pequenas).
+- RNF003: log de auditoria tornado verdadeiramente append-only (sem UPDATE/
+  DELETE, nem para o Administrador).
+- RNF002: painel de permissões configuráveis pelo Administrador (Gestor
+  abrir ciclo, Gestor acessar Cargos/Desenho, RH acessar Cadastro da Empresa).
+- Checklist de QA para testes manuais de isolamento entre tenants e perfis.
+
+## v0.5.0
+- Fechamento do fluxo de PDI: construção editável (ação, evidência, prazo,
+  responsável), adição de ações personalizadas sempre vinculadas a um
+  indicador de origem, e aprovação formal do PDI antes do Acompanhamento.
+
+## v0.4.0
+- Dashboards distintos por perfil (Administrador, RH, Gestor, Colaborador),
+  cada um com o escopo de dados correto.
+- Escopo estendido: permissão de "escopo estendido" para Gestores, concedida
+  explicitamente pelo Administrador (extensão de RBAC — PRD Cap. 3, sem RN
+  própria; nota: nas versões anteriores este item aparecia rotulado como
+  "RN029", código que no PRD pertence a outra regra — natureza do cargo).
+- RN025/RN026: confirmação de que nenhuma entidade histórica é excluída
+  fisicamente; carimbo de auditoria padrão (criado/atualizado por/em) nas
+  principais entidades (nota: rotulado anteriormente como "RN030/RN031").
+- Central de pendências por perfil na tela inicial (Cap. 9).
+- Registro de reunião de feedback no ciclo.
+
+## v0.3.0
+- Módulo de Relatórios: exportação de avaliação e PDI em PDF, consolidado
+  por Unidade/Setor e comparativo histórico em Excel.
+- Módulo de Configurações: periodicidade de ciclo, modo de avaliação do RH
+  (extensão além da RN003 do PRD, não é a regra RN004 do documento oficial),
+  identidade visual em relatórios.
+- Banco de Ações customizável pela empresa, com sinalização visual de
+  origem (metodologia vs. customizada).
+
+## v0.2.0
+- Módulo de Usuários e Permissões completo: vínculo à estrutura
+  organizacional, desativação de conta sem perda de histórico.
+- Módulo de Cultura Organizacional com retrato congelado por ciclo — mudanças
+  não afetam retroativamente ciclos já abertos/encerrados (extensão do
+  princípio de versionamento, RN024; nota: rotulado anteriormente como
+  "RN017", código que no PRD pertence à automação do Diagnóstico).
+- Desenho de Cargo com versionamento real (RN024), motivo obrigatório a
+  partir da 2ª versão, comparação visual entre versões (diff), e
+  "descontinuar" em vez de excluir (nota: rotulado anteriormente como
+  "RN019", código que no PRD pertence à listagem de indicadores no PDI de
+  Desenvolvimento).
+- Módulo de Colaboradores com vínculo completo (critério de aceite do módulo
+  — PRD Cap. 5, sem RN própria) e histórico de movimentações (promoção,
+  troca de setor/gestor).
+- Prazos de avaliação com lembretes (D-5/D-2/D-0) e estado de "Pendência de
+  Avaliador" (regra interna, sem RN correspondente no PRD), com opções de
+  estender prazo ou registrar ausência formal.
+- Reabertura formal de ciclo consolidado (regra interna, sem RN
+  correspondente no PRD).
+
+## v0.1.0
+- Primeira versão organizada em múltiplos arquivos (antes, tudo vivia em um
+  único `index.html`).
+- Login e cadastro com código de convite, perfis de acesso (Dono, RH,
+  Gestor, Colaborador).
+- Módulos de Empresa, Estrutura Organizacional, Banco de Inteligência
+  (sugestões por família de cargo — Cap. 11.5, Governança de IA, sempre
+  como rascunho editável).
+- Botão de gerar dados de teste.

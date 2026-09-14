@@ -1,0 +1,1476 @@
+// UUID v4 real — permite futura sincronização entre ambientes sem colisão de IDs
+// (Documento 03, Cap. 4 — Chaves Primárias). Usa crypto.randomUUID() quando
+// disponível (todo navegador moderno), com um gerador manual como reserva.
+const uid = () => {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0,
+      v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ---------- Estado (simulando o banco multi-tenant) ---------- */
+const state = {
+  role: 'admin', // admin | rh | gestor | colaborador
+  route: 'dashboard',
+  empresa: null,
+  estrutura: [], // {id,nome,tipo,paiId,responsavel}
+  cultura: {
+    missao: '',
+    visao: '',
+    valores: '',
+    indicadoresT: [
+      { id: 't-padrao-1', nome: 'Respeito e ética nas relações de trabalho', origem: 'padrão' },
+      { id: 't-padrao-2', nome: 'Colaboração e trabalho em equipe', origem: 'padrão' },
+    ],
+    indicadoresE: [
+      { id: 'e-padrao-1', nome: 'Interesse em aprender e se desenvolver continuamente', origem: 'padrão' },
+      { id: 'e-padrao-2', nome: 'Disposição para assumir novos desafios', origem: 'padrão' },
+    ],
+  },
+  cargos: [], // {id,nome,familia,natureza,cbo,indicadoresN:[],indicadoresO:[],desenho:{versao,atividades,aprovado}}
+  colaboradores: [], // {id,nome,cargoId,setorId,gestorNome,admissao}
+  bancoAcoes: [],
+  feedbackContinuo: [], // check-ins 1:1 fora do ciclo formal — RN003 não é afetada (não pontua)
+  pesquisasClima: [], // pesquisas de clima/eNPS, módulo separado da avaliação de desempenho
+  ciclos: [], // {id,colaboradorId,cargoId,estado,dataAbertura,notas:{colaborador:{},gestor:{},rh:{}},diagnostico,pdiDesenvolvimento,pdiMentalidade}
+  ciclosSelecionado: null,
+  avaliadorAtivo: 'colaborador',
+};
+
+const PILAR_LABEL = { N: 'Nível Técnico', O: 'Operação', R: 'Resultado', T: 'Time', E: 'Evolução' };
+// Cores por dimensão do gráfico de 5 dimensões — valores exatos do
+// documento identidade-visual-inetris.html, seção "Telas de referência"
+// (a versão real de tela, não a versão decorativa de vitrine do manual):
+// Nível Técnico #2563EB · Operacional #0EA5E9 · Resultado #16A34A ·
+// Time #7C3AED · Evolução #65A30D.
+const COR_PILAR = { N: '#2563eb', O: '#0ea5e9', R: '#16a34a', T: '#7c3aed', E: '#65a30d' };
+const PILAR_TAGLINE = {
+  N: 'O que você precisa saber',
+  O: 'O que você precisa executar',
+  R: 'O que você precisa entregar',
+  T: 'Como você vive a cultura',
+  E: 'Para onde você quer ir',
+};
+const IDA_VAL = { I: 0, D: 0.5, A: 1 };
+const IDA_LABEL = { I: 'Iniciar', D: 'Desenvolver', A: 'Alavancar' };
+
+function classificar(media) {
+  if (media <= 0.33) return 'I';
+  if (media <= 0.66) return 'D';
+  return 'A';
+}
+// BUG CORRIGIDO: antes, qualquer valor que não fosse exatamente 'I' ou 'D'
+// caía no `else` final e virava 'pill-alavancar' — incluindo null/undefined
+// (sem dado). Um diagnóstico incompleto podia aparecer visualmente como
+// "Alavancar" (a melhor nota possível) em vez de mostrar que não há dado.
+function pillClass(sig) {
+  return sig === 'I'
+    ? 'pill-iniciar'
+    : sig === 'D'
+      ? 'pill-desenvolver'
+      : sig === 'A'
+        ? 'pill-alavancar'
+        : 'pill-neutral';
+}
+function pillLabel(sig) {
+  return IDA_LABEL[sig] || 'Sem dado';
+}
+
+/* Explicação da escala IDA, mostrada no início de toda tela onde alguém vai
+   de fato lançar uma nota — pra quem nunca usou o sistema (ou esqueceu)
+   entender o que cada letra significa antes de começar a avaliar. */
+function explicacaoEscalaIDA() {
+  return `
+    <div class="notice" style="border-left-color:var(--gold);">
+      <b>Como funciona a escala IDA</b> — cada indicador é classificado em um destes 3 níveis:
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;">
+        <span><span class="pill pill-iniciar">I</span> <b>Iniciar</b> — a competência ainda não é demonstrada de forma consistente.</span>
+        <span><span class="pill pill-desenvolver">D</span> <b>Desenvolver</b> — existe base, mas ainda em construção.</span>
+        <span><span class="pill pill-alavancar">A</span> <b>Alavancar</b> — ponto forte já consolidado.</span>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- Estado inicial em branco (dados reais vêm do Supabase) ---------- */
+/* ---------- RN026: campos de auditoria padrão em toda entidade principal ----------
+   criado_por / criado_em / atualizado_por / atualizado_em + vínculo ao tenant. */
+// Transforma um item cru (atividade/competência do cargo) numa pergunta
+// avaliativa bem formulada, alinhada ao pilar NORTE. Em vez de copiar a
+// atividade "Interpretar ordens de serviço", gera "Com que domínio técnico
+// o colaborador interpreta ordens de serviço?". O avaliador responde na
+// escala IDA (Iniciar/Desenvolver/Alavancar).
+function _perguntaNorte(texto, pilar) {
+  let t = (typeof texto === 'object' && texto !== null ? texto.nome || '' : String(texto || '')).trim();
+  if (!t) return '';
+  // Remove marcadores de área (— TÍTULO —) que não são itens avaliáveis.
+  if (/^—.*—$/.test(t)) return '';
+  // As atividades da CBO vêm no infinitivo ("Interpretar", "Calcular"). Pra a
+  // frase ficar natural ("o colaborador interpreta"), conjugamos a 1ª palavra
+  // pra 3ª pessoa do singular do presente. Regra simples que cobre a maioria
+  // dos verbos regulares em -ar/-er/-ir.
+  t = t.charAt(0).toLowerCase() + t.slice(1);
+  const palavras = t.split(' ');
+  palavras[0] = _conjugar3aPessoa(palavras[0]);
+  const corpo = palavras.join(' ');
+  const molde = {
+    N: `Com que domínio técnico o colaborador ${corpo}?`, // Nível Técnico
+    O: `Com que consistência e organização o colaborador ${corpo}?`, // Operação
+    R: `Em que medida o colaborador demonstra a competência: ${corpo}?`, // Resultado/comportamental
+  };
+  let q = molde[pilar] || `Como o colaborador se sai em: ${corpo}?`;
+  if (q.length > 150) q = q.slice(0, 148).trim() + '…';
+  return q.charAt(0).toUpperCase() + q.slice(1);
+}
+
+// Conjuga um verbo no infinitivo (-ar/-er/-ir) para a 3ª pessoa do singular
+// do presente. Cobre os verbos regulares (a maioria das atividades da CBO).
+// Verbos irregulares podem sair imperfeitos — o texto é editável de todo jeito.
+function _conjugar3aPessoa(palavra) {
+  const p = palavra.toLowerCase();
+  if (p.endsWith('ar')) return p.slice(0, -2) + 'a'; // interpretar -> interpreta
+  if (p.endsWith('er')) return p.slice(0, -2) + 'e'; // resolver -> resolve
+  if (p.endsWith('ir')) return p.slice(0, -2) + 'e'; // cumprir -> cumpre
+  if (p.endsWith('or')) return p.slice(0, -2) + 'õe'; // compor -> compõe
+  return palavra; // não parece infinitivo — deixa como está
+}
+
+function novoCarimbo() {
+  const agora = new Date().toISOString();
+  return {
+    tenantId: empresaIdAtual,
+    criadoPor: meuPerfilId,
+    criadoEm: agora,
+    atualizadoPor: meuPerfilId,
+    atualizadoEm: agora,
+  };
+}
+
+// =========================================================================
+// Geração automática dos indicadores de avaliação a partir do cargo.
+// A empresa não precisa mais cadastrar "perguntas" à mão: ao criar o cargo,
+// o sistema monta 5 indicadores por nível (N, O, R):
+//   N (Conhecimento)  <- conhecimentos técnicos / atividades técnicas da CBO
+//   O (Organização)   <- responsabilidades / atividades do cargo
+//   R (Relações)      <- competências comportamentais
+// Usa a CBO oficial vinculada quando existe; senão, o desenho do cargo.
+// =========================================================================
+
+// Quebra um texto de conhecimentos técnicos (que costuma vir como uma frase
+// com itens separados por ; , ou .) numa lista de itens curtos.
+function _fatiarConhecimentos(texto) {
+  if (!texto) return [];
+  return String(texto)
+    .split(/[;.\n]|,(?![^(]*\))/) // separa por ; . quebra de linha e vírgulas fora de parênteses
+    .map((s) => s.trim())
+    .filter((s) => s.length > 3);
+}
+
+// Deixa a primeira letra maiúscula e corta itens muito longos, pra virar
+// um rótulo de indicador limpo.
+function _rotuloIndicador(texto) {
+  // Aceita string ou objeto {nome}; nunca deixa virar "[object Object]".
+  let t = typeof texto === 'object' && texto !== null ? texto.nome || '' : String(texto || '');
+  t = t.trim();
+  if (t.length > 90) t = t.slice(0, 88).trim() + '…';
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+// Distingue, nas atividades da CBO, as "técnicas" das "comportamentais".
+// A CBO lista as competências pessoais como "Demonstrar ...", "Trabalhar em
+// equipe", "Agir com ...", etc. — usamos isso pra separar N/R.
+function _ehAtividadeComportamental(atv) {
+  return /^(demonstrar|trabalhar em equipe|agir com|manter sigilo|relacionar-se|ter consci|evidenciar|zelar|contornar|adaptar-se|comunicar-se|autocontrolar|sociabilizar|pró-agir|liderar|responsabilizar|desenvolver iniciativa|praticar sinergia|autodesenvolver)/i.test(
+    String(atv).trim()
+  );
+}
+
+function gerarIndicadoresDoCargo(cargo, POR_NIVEL = 5) {
+  // Cada nível gera perguntas avaliativas alinhadas ao seu pilar NORTE.
+  const mkPilar = (pilar) => (item) => {
+    const pergunta = _perguntaNorte(item, pilar);
+    return pergunta ? { id: uid(), nome: pergunta, marcado: true } : null;
+  };
+  const limpar = (arr) => arr.filter(Boolean).slice(0, POR_NIVEL);
+  let N = [];
+  let O = [];
+  let R = [];
+
+  const cbo = cargo.cboOficial;
+  const areasCbo = cargo._cboAreasParaIndicadores; // opcional: áreas cruas passadas na criação
+  if (areasCbo && areasCbo.length) {
+    // Gera a partir das áreas de atividade da CBO.
+    const areaComp = areasCbo.find((ar) => /compet[êe]ncias?\s+pessoa/i.test(ar.a));
+    const tecnicas = areasCbo.filter((ar) => ar !== areaComp);
+    const ativTecnicas = [];
+    tecnicas.forEach((ar) => (ar.i || []).forEach((a) => ativTecnicas.push(a)));
+    N = limpar(ativTecnicas.slice(0, POR_NIVEL * 2).map(mkPilar('N')));
+    O = limpar(ativTecnicas.slice(POR_NIVEL, POR_NIVEL * 3).map(mkPilar('O')));
+    R = limpar((areaComp ? areaComp.i || [] : []).map(mkPilar('R')));
+  } else if (cbo && Array.isArray(cbo.atividades) && cbo.atividades.length) {
+    const comportamentais = cbo.atividades.filter(_ehAtividadeComportamental);
+    const tecnicas = cbo.atividades.filter((a) => !_ehAtividadeComportamental(a));
+    N = limpar(tecnicas.slice(0, POR_NIVEL * 2).map(mkPilar('N')));
+    O = limpar(tecnicas.slice(POR_NIVEL, POR_NIVEL * 3).map(mkPilar('O')));
+    R = limpar(comportamentais.map(mkPilar('R')));
+  }
+
+  const d = cargo.desenho || {};
+  // Completa (ou preenche, se não veio da CBO) com o desenho do cargo.
+  if (N.length < POR_NIVEL) {
+    const tecnicos = _fatiarConhecimentos(d.conhecimentosTecnicos);
+    N = limpar(N.concat(tecnicos.map(mkPilar('N'))));
+  }
+  if (O.length < POR_NIVEL) {
+    const resp = d.responsabilidades || [];
+    O = limpar(O.concat(resp.map(mkPilar('O'))));
+  }
+  if (R.length < POR_NIVEL) {
+    const comp = d.competenciasComportamentais || [];
+    R = limpar(R.concat(comp.map(mkPilar('R'))));
+  }
+
+  return { indicadoresN: N, indicadoresO: O, indicadoresR: R };
+}
+
+function atualizarCarimbo(obj) {
+  obj.atualizadoPor = meuPerfilId;
+  obj.atualizadoEm = new Date().toISOString();
+}
+
+function seed() {
+  state.empresa = null;
+  state.estrutura = [];
+  state.cultura = {
+    missao: '',
+    visao: '',
+    valores: '',
+    indicadoresT: [
+      { id: 't-padrao-1', nome: 'Respeito e ética nas relações de trabalho', origem: 'padrão' },
+      { id: 't-padrao-2', nome: 'Colaboração e trabalho em equipe', origem: 'padrão' },
+    ],
+    indicadoresE: [
+      { id: 'e-padrao-1', nome: 'Interesse em aprender e se desenvolver continuamente', origem: 'padrão' },
+      { id: 'e-padrao-2', nome: 'Disposição para assumir novos desafios', origem: 'padrão' },
+    ],
+  };
+  state.cargos = [];
+  state.colaboradores = [];
+  state.bancoAcoes = [
+    {
+      id: 'a1',
+      categoria: 'Conteúdo',
+      titulo: 'Curso de atualização técnica relacionado ao cargo',
+      pilares: ['N'],
+      prazoSugerido: '30 dias',
+      origem: 'metodologia',
+      competencias: ['Raciocínio analítico'],
+    },
+    {
+      id: 'a2',
+      categoria: 'Conteúdo',
+      titulo: 'Leitura guiada: manual de boas práticas da função',
+      pilares: ['N', 'O'],
+      prazoSugerido: '15 dias',
+      origem: 'metodologia',
+      competencias: ['Organização e atenção a detalhes'],
+    },
+    {
+      id: 'a3',
+      categoria: 'Conteúdo',
+      titulo: 'Trilha e-learning sobre sistemas utilizados no dia a dia',
+      pilares: ['N'],
+      prazoSugerido: '20 dias',
+      origem: 'metodologia',
+      competencias: ['Raciocínio analítico'],
+    },
+    {
+      id: 'a4',
+      categoria: 'Formação',
+      titulo: 'Workshop interno de excelência operacional',
+      pilares: ['O', 'R'],
+      prazoSugerido: '45 dias',
+      origem: 'metodologia',
+      competencias: ['Organização de equipes', 'Agilidade na execução'],
+    },
+    {
+      id: 'a5',
+      categoria: 'Formação',
+      titulo: 'Treinamento de gestão do tempo e prazos',
+      pilares: ['O'],
+      prazoSugerido: '30 dias',
+      origem: 'metodologia',
+      competencias: ['Gestão de prazos'],
+    },
+    {
+      id: 'a6',
+      categoria: 'Formação',
+      titulo: 'Formação em qualidade e redução de falhas',
+      pilares: ['R'],
+      prazoSugerido: '40 dias',
+      origem: 'metodologia',
+      competencias: ['Atenção a detalhes'],
+    },
+    {
+      id: 'a7',
+      categoria: 'Prática',
+      titulo: 'Simulação supervisionada de processo crítico',
+      pilares: ['N', 'O'],
+      prazoSugerido: '20 dias',
+      origem: 'metodologia',
+      competencias: ['Disciplina e cumprimento de normas'],
+    },
+    {
+      id: 'a8',
+      categoria: 'Prática',
+      titulo: 'Aplicação prática de checklist de qualidade',
+      pilares: ['O'],
+      prazoSugerido: '15 dias',
+      origem: 'metodologia',
+      competencias: ['Atenção a detalhes'],
+    },
+    {
+      id: 'a9',
+      categoria: 'Prática',
+      titulo: 'Rodízio assistido em etapa complementar do processo',
+      pilares: ['N'],
+      prazoSugerido: '30 dias',
+      origem: 'metodologia',
+      competencias: ['Trabalho em equipe'],
+    },
+    {
+      id: 'a10',
+      categoria: 'Experiência',
+      titulo: 'Participação em projeto interdepartamental',
+      pilares: ['T', 'R'],
+      prazoSugerido: '60 dias',
+      origem: 'metodologia',
+      competencias: ['Comunicação com múltiplos níveis', 'Trabalho em equipe'],
+    },
+    {
+      id: 'a11',
+      categoria: 'Experiência',
+      titulo: 'Vivência em rotina crítica com mentor designado',
+      pilares: ['O'],
+      prazoSugerido: '30 dias',
+      origem: 'metodologia',
+      competencias: ['Resiliência'],
+    },
+    {
+      id: 'a12',
+      categoria: 'Experiência',
+      titulo: 'Representação da equipe em comitê de melhoria',
+      pilares: ['T'],
+      prazoSugerido: '45 dias',
+      origem: 'metodologia',
+      competencias: ['Comunicação institucional'],
+    },
+    {
+      id: 'a13',
+      categoria: 'Desenvolvimento',
+      titulo: 'Mentoria com liderança técnica sênior',
+      pilares: ['N', 'E'],
+      prazoSugerido: '60 dias',
+      origem: 'metodologia',
+      competencias: ['Visão estratégica'],
+    },
+    {
+      id: 'a14',
+      categoria: 'Desenvolvimento',
+      titulo: 'Plano de autodesenvolvimento com check-ins mensais',
+      pilares: ['E'],
+      prazoSugerido: '90 dias',
+      origem: 'metodologia',
+      competencias: ['Tomada de decisão'],
+    },
+    {
+      id: 'a15',
+      categoria: 'Desenvolvimento',
+      titulo: 'Feedback estruturado 360 com pares',
+      pilares: ['T', 'E'],
+      prazoSugerido: '30 dias',
+      origem: 'metodologia',
+      competencias: ['Comunicação com múltiplos níveis'],
+    },
+    {
+      id: 'a16',
+      categoria: 'Inovação',
+      titulo: 'Proposta de melhoria contínua (kaizen) do próprio processo',
+      pilares: ['R', 'E'],
+      prazoSugerido: '45 dias',
+      origem: 'metodologia',
+      competencias: ['Resolução de problemas do dia a dia'],
+    },
+    {
+      id: 'a17',
+      categoria: 'Inovação',
+      titulo: 'Participação em hackathon interno de processos',
+      pilares: ['E'],
+      prazoSugerido: '30 dias',
+      origem: 'metodologia',
+      competencias: ['Resolução de problemas do dia a dia'],
+    },
+    {
+      id: 'a18',
+      categoria: 'Inovação',
+      titulo: 'Estudo de caso e proposta de automação de rotina',
+      pilares: ['N', 'R'],
+      prazoSugerido: '60 dias',
+      origem: 'metodologia',
+      competencias: ['Raciocínio analítico'],
+    },
+    {
+      id: 'a19',
+      categoria: 'Formação',
+      titulo: 'Certificação técnica externa relacionada ao cargo',
+      pilares: ['N'],
+      prazoSugerido: '90 dias',
+      origem: 'metodologia',
+      competencias: ['Raciocínio analítico'],
+    },
+    {
+      id: 'a20',
+      categoria: 'Prática',
+      titulo: 'Condução assistida de reunião de time',
+      pilares: ['T'],
+      prazoSugerido: '20 dias',
+      origem: 'metodologia',
+      competencias: ['Gestão de pessoas e equipes', 'Comunicação com múltiplos níveis'],
+    },
+  ];
+  state.ciclos = [];
+  state.configuracoes = {
+    periodicidadeCiclo: 'Anual',
+    // Pesos dos avaliadores travados em 25/50/25 (RN003, PRD Documento 04) —
+    // não é mais configurável (era uma extensão fora do PRD; removida por decisão de produto).
+    notificacoes: { lembretesPrazo: true },
+    identidadeVisual: { logoUrl: '', corPrimaria: '#2563eb', corSecundaria: '#0d1b33' },
+    // RNF002 — permissões configuráveis pelo Administrador (exceções ao
+    // modelo padrão de papéis; por padrão, tudo desligado = comportamento fixo de sempre).
+    permissoesExtras: {
+      gestorAbreCiclo: false,
+      gestorPublicaDesenho: false,
+      rhCadastraEmpresa: false,
+    },
+  };
+}
+
+/* ---------- Banco de Inteligência — biblioteca de competências e
+   indicadores sugeridos por família de cargo (Cap. 6 do doc. funcional).
+   Cap. 11.5 (Governança de IA): estas sugestões nunca são aplicadas automaticamente — sempre
+   apresentadas como rascunho editável, exigindo confirmação humana. ---------- */
+
+/* =========================================================
+   COMPONENTE REUTILIZÁVEL — upload de logotipo
+   -----------------------------------------------------------
+   3 formas de definir o logotipo: colar um link (URL), colar uma
+   imagem copiada (Ctrl+V) ou enviar um arquivo do computador.
+   Nos dois últimos casos, a imagem é redimensionada no navegador
+   (máx. 300px no maior lado) e guardada como data URL (base64) —
+   não depende de nenhum servidor de upload de arquivos.
+   ========================================================= */
+function logoUploadWidgetHTML(fieldId, valorAtual) {
+  const ehUrlHttp = valorAtual && /^https?:\/\//i.test(valorAtual);
+  return `
+    <div id="wrap_${fieldId}">
+      <input type="hidden" id="${fieldId}" value="${valorAtual || ''}">
+      <div class="filtro-categorias" style="margin-bottom:8px;">
+        <button type="button" class="filtro-pill active" data-modo="url" onclick="logoTrocarModo('${fieldId}','url')">Link (URL)</button>
+        <button type="button" class="filtro-pill" data-modo="colar" onclick="logoTrocarModo('${fieldId}','colar')">Colar imagem</button>
+        <button type="button" class="filtro-pill" data-modo="arquivo" onclick="logoTrocarModo('${fieldId}','arquivo')">Enviar arquivo</button>
+      </div>
+      <div id="modo_url_${fieldId}">
+        <input type="text" placeholder="https://..." value="${ehUrlHttp ? valorAtual : ''}" onchange="logoDefinirURL('${fieldId}', this.value)">
+      </div>
+      <div id="modo_colar_${fieldId}" style="display:none;">
+        <div contenteditable="true" onpaste="logoColarImagem(event,'${fieldId}')" style="border:1px dashed var(--line);border-radius:8px;padding:16px;text-align:center;color:var(--ink-faint);font-size:13px;cursor:text;outline:none;">Clique aqui e cole (Ctrl+V) uma imagem copiada</div>
+      </div>
+      <div id="modo_arquivo_${fieldId}" style="display:none;">
+        <input type="file" accept="image/*" onchange="logoDefinirArquivo(event,'${fieldId}')">
+      </div>
+      <div id="preview_${fieldId}" style="margin-top:10px;">
+        ${logoPreviewInternoHTML(fieldId, valorAtual)}
+      </div>
+    </div>`;
+}
+function logoPreviewInternoHTML(fieldId, valor) {
+  if (!valor) return '<span class="small-muted">Nenhum logotipo definido ainda.</span>';
+  return `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <img src="${valor}" style="max-height:60px;max-width:200px;border:1px solid var(--line);border-radius:6px;background:#fff;padding:4px;">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="logoRemover('${fieldId}')">Remover logotipo</button>
+    </div>`;
+}
+function logoTrocarModo(fieldId, modo) {
+  ['url', 'colar', 'arquivo'].forEach((m) => {
+    const painel = document.getElementById(`modo_${m}_${fieldId}`);
+    if (painel) painel.style.display = m === modo ? '' : 'none';
+  });
+  document
+    .querySelectorAll(`#wrap_${fieldId} .filtro-pill`)
+    .forEach((b) => b.classList.toggle('active', b.dataset.modo === modo));
+}
+function logoAtualizarPreview(fieldId, valor) {
+  const campo = document.getElementById(fieldId);
+  if (campo) campo.value = valor;
+  const preview = document.getElementById(`preview_${fieldId}`);
+  if (preview) preview.innerHTML = logoPreviewInternoHTML(fieldId, valor);
+  // BUG CORRIGIDO: antes, o logotipo só passava a valer no menu lateral
+  // depois de clicar no botão "Salvar" da tela (Empresa ou Configurações) —
+  // e remover o logotipo não tinha efeito nenhum ali, porque a função só
+  // mexia no campo escondido do formulário, nunca no estado de verdade.
+  // Agora toda mudança de logotipo (definir ou remover) grava direto no
+  // estado, atualiza o menu lateral na hora, e salva em segundo plano —
+  // sem depender do botão "Salvar" do resto do formulário.
+  if (fieldId === 'f_logo') {
+    state.empresa = state.empresa || {};
+    state.empresa.logotipo = valor;
+  } else if (fieldId === 'cfg_logo') {
+    state.configuracoes = state.configuracoes || {};
+    state.configuracoes.identidadeVisual = { ...(state.configuracoes.identidadeVisual || {}), logoUrl: valor };
+  }
+  if (typeof atualizarLogoSidebarAoVivo === 'function') atualizarLogoSidebarAoVivo();
+  if (typeof agendarSalvamento === 'function') agendarSalvamento();
+}
+function logoRemover(fieldId) {
+  // Remove dos DOIS campos possíveis (Cadastro de Empresa e Identidade
+  // Visual) — os dois alimentam o mesmo logo do menu lateral (um serve de
+  // reserva pro outro), então remover só um deles deixava o outro
+  // aparecendo, dando a falsa impressão de que "remover" não funcionava.
+  logoAtualizarPreview('f_logo', '');
+  logoAtualizarPreview('cfg_logo', '');
+  ['f_logo', 'cfg_logo'].forEach((fid) => {
+    const inputUrl = document.querySelector(`#modo_url_${fid} input`);
+    if (inputUrl) inputUrl.value = '';
+    const inputArquivo = document.querySelector(`#modo_arquivo_${fid} input`);
+    if (inputArquivo) inputArquivo.value = '';
+  });
+  showToast('Logotipo removido — voltou ao símbolo padrão do sistema.');
+}
+function logoDefinirURL(fieldId, url) {
+  logoAtualizarPreview(fieldId, url.trim());
+}
+function logoRedimensionarEConverter(file, callback) {
+  const leitor = new FileReader();
+  leitor.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxLado = 300;
+      let { width, height } = img;
+      if (width > maxLado || height > maxLado) {
+        const escala = maxLado / Math.max(width, height);
+        width = Math.round(width * escala);
+        height = Math.round(height * escala);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      callback(canvas.toDataURL('image/png'));
+    };
+    img.src = e.target.result;
+  };
+  leitor.readAsDataURL(file);
+}
+function logoDefinirArquivo(event, fieldId) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast('Selecione um arquivo de imagem.');
+    event.target.value = '';
+    return;
+  }
+  logoRedimensionarEConverter(file, (dataUrl) => {
+    logoAtualizarPreview(fieldId, dataUrl);
+    showToast('Logotipo carregado.');
+  });
+  // Reseta o valor do <input type="file"> — sem isso, escolher o MESMO
+  // arquivo de novo (ex.: pra trocar de novo) não dispara o evento "change"
+  // uma segunda vez, dando a impressão de que nada aconteceu.
+  event.target.value = '';
+}
+function logoColarImagem(event, fieldId) {
+  const itens = (event.clipboardData || window.clipboardData)?.items || [];
+  let achouImagem = false;
+  for (const item of itens) {
+    if (item.type && item.type.startsWith('image/')) {
+      achouImagem = true;
+      const file = item.getAsFile();
+      logoRedimensionarEConverter(file, (dataUrl) => {
+        logoAtualizarPreview(fieldId, dataUrl);
+        showToast('Imagem colada como logotipo.');
+      });
+      break;
+    }
+  }
+  if (!achouImagem)
+    showToast(
+      'Não encontrei nenhuma imagem na área de transferência — copie uma imagem (não um link de texto) antes de colar aqui.'
+    );
+  event.preventDefault();
+  // Reseta o conteúdo da área de colar — sem isso, o texto/imagem colado
+  // pode ficar "grudado" ali dentro, e uma segunda tentativa de colar às
+  // vezes parece não fazer nada porque o navegador já vê aquele elemento
+  // como preenchido.
+  event.currentTarget.innerHTML = 'Clique aqui e cole (Ctrl+V) uma imagem copiada';
+}
+
+/* =========================================================
+   NOTIFICAÇÕES POR E-MAIL
+   -----------------------------------------------------------
+   Chama a Edge Function "enviar-email" (supabase/functions/enviar-email),
+   que manda pro Resend mantendo a chave de API em segredo no servidor.
+   Nunca falha "alto" — se o e-mail não sair, a ação principal (aprovar
+   PDI, avançar etapa etc.) continua funcionando normalmente; só mostra um
+   aviso discreto no console.
+   ========================================================= */
+async function enviarEmailNotificacao(destinatario, assunto, corpoHtml) {
+  if (!destinatario) return false;
+  try {
+    const { data, error } = await sb.functions.invoke('enviar-email', {
+      body: { destinatario, assunto, corpoHtml },
+    });
+    if (error) {
+      console.error('Falha ao enviar e-mail de notificação:', error);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('Falha ao enviar e-mail de notificação:', e);
+    return false;
+  }
+}
+function emailWrapperHTML(tituloInterno, corpoTexto, botaoTexto, botaoUrl) {
+  // Template simples e consistente pra todos os e-mails da plataforma.
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#ffffff;color:#0d1b33;border-radius:8px;border:1px solid #e5e7eb;">
+      <div style="font-size:20px;font-weight:700;margin-bottom:4px;color:#0d1b33;">INETRIS</div>
+      <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#4b5563;margin-bottom:20px;">Sistema de Gestão de Pessoas · Metodologia NORTE</div>
+      <h2 style="font-size:17px;margin:0 0 12px;color:#0d1b33;">${tituloInterno}</h2>
+      <p style="font-size:14px;line-height:1.5;color:#0d1b33;">${corpoTexto}</p>
+      ${botaoUrl ? `<a href="${botaoUrl}" style="display:inline-block;margin-top:16px;padding:10px 18px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:700;font-size:13px;">${botaoTexto || 'Acessar'}</a>` : ''}
+    </div>`;
+}
+
+/* =========================================================
+   AVISO DE ATUALIZAÇÃO EM TEMPO REAL (Supabase Realtime)
+   -----------------------------------------------------------
+   Resolve o problema de duas pessoas da mesma empresa usando o sistema ao
+   mesmo tempo sem saber que os dados mudaram (ex.: o caso real que
+   aconteceu — RH via "etapa 2" enquanto o Líder já via "etapa 3", porque
+   o RH só carregou os dados antes do Líder enviar).
+
+   Importante: isso AVISA a pessoa, mas não atualiza sozinho. Atualizar
+   automaticamente correria o risco de apagar um formulário que a pessoa
+   esteja preenchendo bem naquele momento — o mesmo tipo de problema já
+   corrigido antes na tela de login. Por isso o aviso fica num elemento
+   separado do #app (não participa do render() principal), e quem decide
+   quando atualizar é a pessoa, com um clique.
+   ========================================================= */
+let _canalRealtimeDadosSistema = null;
+
+function assinarAtualizacoesAoVivo() {
+  if (_canalRealtimeDadosSistema || !empresaIdAtual) return; // já assinado, evita duplicar
+  _canalRealtimeDadosSistema = sb
+    .channel(`dados_sistema_${empresaIdAtual}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'dados_sistema',
+        filter: `empresa_id=eq.${empresaIdAtual}`,
+      },
+      () => {
+        // BUG CORRIGIDO (segunda tentativa): comparar o carimbo exato do
+        // salvamento não bastava — se a pessoa clica em várias coisas
+        // seguidas, cada clique dispara seu próprio salvamento, e o aviso de
+        // um mais antigo podia chegar depois do carimbo já ter mudado pra
+        // um mais novo, dando falso positivo. Agora usa uma janela de tempo:
+        // se eu mesmo fiz qualquer ação nos últimos 4 segundos, assume que a
+        // mudança é minha e não mostra o aviso.
+        const segundosDesdeMinhaUltimaAtividade = (Date.now() - _minhaUltimaAtividadeEm) / 1000;
+        if (segundosDesdeMinhaUltimaAtividade < 4) return;
+        mostrarAvisoAtualizacao();
+      }
+    )
+    .subscribe();
+}
+function mostrarAvisoAtualizacao() {
+  const el = document.getElementById('aviso-atualizacao');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="aviso-atualizacao-banner">
+      <span>Alguém mais atualizou os dados da empresa.</span>
+      <button class="btn btn-primary btn-sm" onclick="atualizarDadosAoVivo(); esconderAvisoAtualizacao();">Atualizar agora</button>
+      <button class="btn btn-ghost btn-sm" onclick="esconderAvisoAtualizacao();">Depois</button>
+    </div>`;
+}
+function esconderAvisoAtualizacao() {
+  const el = document.getElementById('aviso-atualizacao');
+  if (el) el.innerHTML = '';
+}
+
+/* =========================================================
+   GRÁFICO DE TRAJETÓRIA IDA — evolução ao longo de múltiplos ciclos
+   -----------------------------------------------------------
+   SVG simples, sem biblioteca externa — plota Resultado, Comportamento e
+   Potencial (as 3 Dimensões) ao longo dos ciclos com diagnóstico, na
+   ordem cronológica. Cada ciclo já é um "retrato congelado" (RN024) — os
+   valores aqui nunca mudam depois de gerados, só a lista de pontos cresce
+   conforme novos ciclos são consolidados.
+   ========================================================= */
+function renderGraficoTrajetoriaIDA(ciclosComDiagnostico) {
+  const pontos = ciclosComDiagnostico
+    .filter((c) => c.diagnostico?.dimensaoMedia)
+    .slice()
+    .sort((a, b) => a.dataAbertura.localeCompare(b.dataAbertura));
+
+  if (pontos.length < 2) {
+    return (
+      '<p class="small-muted">Precisa de pelo menos 2 ciclos com diagnóstico pra desenhar uma trajetória — hoje só tem ' +
+      pontos.length +
+      '.</p>'
+    );
+  }
+
+  const W = 640,
+    H = 220,
+    PAD_L = 40,
+    PAD_R = 16,
+    PAD_T = 16,
+    PAD_B = 34;
+  const areaW = W - PAD_L - PAD_R,
+    areaH = H - PAD_T - PAD_B;
+  const passoX = pontos.length > 1 ? areaW / (pontos.length - 1) : 0;
+  const yDoValor = (v) => PAD_T + areaH - (v == null ? 0 : v) * areaH;
+  const xDoIndice = (i) => PAD_L + i * passoX;
+
+  const SERIES = [
+    { chave: 'Resultado', cor: 'var(--alavancar)' },
+    { chave: 'Comportamento', cor: 'var(--gold)' },
+    { chave: 'Potencial', cor: 'var(--iniciar)' },
+  ];
+
+  function linhaSVG(chave) {
+    const coords = pontos
+      .map((c, i) => {
+        const v = c.diagnostico.dimensaoMedia[chave];
+        return v == null ? null : `${xDoIndice(i)},${yDoValor(v)}`;
+      })
+      .filter(Boolean);
+    return coords.length > 1
+      ? `<polyline points="${coords.join(' ')}" fill="none" stroke="${SERIES.find((s) => s.chave === chave).cor}" stroke-width="2.5" />`
+      : '';
+  }
+  function pontosSVG(chave) {
+    return pontos
+      .map((c, i) => {
+        const v = c.diagnostico.dimensaoMedia[chave];
+        if (v == null) return '';
+        return `<circle cx="${xDoIndice(i)}" cy="${yDoValor(v)}" r="3.5" fill="${SERIES.find((s) => s.chave === chave).cor}" />`;
+      })
+      .join('');
+  }
+
+  const linhasGuia = [0, 0.33, 0.66, 1]
+    .map(
+      (v) => `
+    <line x1="${PAD_L}" x2="${W - PAD_R}" y1="${yDoValor(v)}" y2="${yDoValor(v)}" stroke="var(--line)" stroke-width="1" />
+    <text x="${PAD_L - 6}" y="${yDoValor(v) + 3}" font-size="9" fill="var(--ink-faint)" text-anchor="end">${v === 0 ? 'I' : v === 1 ? 'A' : 'D'}</text>
+  `
+    )
+    .join('');
+
+  const rotulosX = pontos
+    .map(
+      (c, i) => `
+    <text x="${xDoIndice(i)}" y="${H - PAD_B + 16}" font-size="9" fill="var(--ink-faint)" text-anchor="middle">${new Date(c.dataAbertura).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })}</text>
+  `
+    )
+    .join('');
+
+  return `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:640px;">
+      ${linhasGuia}
+      ${SERIES.map((s) => linhaSVG(s.chave) + pontosSVG(s.chave)).join('')}
+      ${rotulosX}
+    </svg>
+    <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap;">
+      ${SERIES.map((s) => `<span style="font-size:11.5px;color:var(--ink-dim);"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${s.cor};margin-right:5px;"></span>${s.chave}</span>`).join('')}
+    </div>`;
+}
+
+/* =========================================================
+   MATRIZ 9-BOX — Desempenho (Resultado) × Potencial
+   -----------------------------------------------------------
+   Visualização clássica de RH, reaproveitando dados já calculados no
+   Diagnóstico: eixo X = Resultado (Dimensão), eixo Y = Potencial
+   (Dimensão) — cada colaborador plotado pelo último ciclo com
+   diagnóstico que ele tiver.
+   ========================================================= */
+function calcularPosicoes9Box(colaboradores, ciclos) {
+  return colaboradores
+    .map((p) => {
+      const ultimoCiclo = ciclos
+        .filter((c) => c.colaboradorId === p.id && c.diagnostico?.dimensaoMedia)
+        .slice()
+        .sort((a, b) => b.dataAbertura.localeCompare(a.dataAbertura))[0];
+      if (!ultimoCiclo) return null;
+      const desempenho = ultimoCiclo.diagnostico.dimensaoMedia.Resultado;
+      const potencial = ultimoCiclo.diagnostico.dimensaoMedia.Potencial;
+      if (desempenho == null || potencial == null) return null;
+      return { nome: p.nome, desempenho, potencial };
+    })
+    .filter(Boolean);
+}
+
+const QUADRANTES_9BOX = [
+  ['Enigma', 'Comprometido', 'Forte desempenho'],
+  ['Questionável', 'Mantenedor', 'Alto potencial'],
+  ['Risco', 'Eficaz', 'Estrela'],
+];
+
+function renderMatriz9Box(colaboradores, ciclos) {
+  const pontos = calcularPosicoes9Box(colaboradores, ciclos);
+  if (!pontos.length) return '<div class="empty">Nenhum colaborador com diagnóstico ainda para plotar.</div>';
+
+  const W = 480,
+    H = 480,
+    PAD = 50;
+  const area = W - PAD * 2;
+  const xDoValor = (v) => PAD + v * area;
+  const yDoValor = (v) => H - PAD - v * area; // potencial cresce pra cima
+
+  const celulas = [];
+  for (let col = 0; col < 3; col++) {
+    for (let lin = 0; lin < 3; lin++) {
+      const x0 = PAD + col * (area / 3),
+        y0 = PAD + lin * (area / 3);
+      celulas.push(`<rect x="${x0}" y="${y0}" width="${area / 3}" height="${area / 3}" fill="none" stroke="var(--line)" stroke-width="1" />
+        <text x="${x0 + 8}" y="${y0 + 16}" font-size="9" fill="var(--ink-faint)">${QUADRANTES_9BOX[2 - lin][col]}</text>`);
+    }
+  }
+
+  const bolinhas = pontos
+    .map((p) => {
+      const cor =
+        p.desempenho >= 0.67 && p.potencial >= 0.67
+          ? 'var(--alavancar)'
+          : p.desempenho <= 0.33 && p.potencial <= 0.33
+            ? 'var(--iniciar)'
+            : 'var(--gold)';
+      return `<circle cx="${xDoValor(p.desempenho)}" cy="${yDoValor(p.potencial)}" r="6" fill="${cor}" fill-opacity=".85" stroke="var(--surface)" stroke-width="1.5">
+      <title>${escaparHtml(p.nome)}</title>
+    </circle>`;
+    })
+    .join('');
+
+  return `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:480px;height:auto;">
+      ${celulas.join('')}
+      <text x="${W / 2}" y="${H - 14}" font-size="11" fill="var(--ink-dim)" text-anchor="middle">Desempenho (Resultado) →</text>
+      <text x="14" y="${H / 2}" font-size="11" fill="var(--ink-dim)" text-anchor="middle" transform="rotate(-90 14 ${H / 2})">Potencial →</text>
+      ${bolinhas}
+    </svg>
+    <div class="small-muted" style="margin-top:6px;">Passe o mouse sobre cada ponto pra ver o nome. ${pontos.length} colaborador(es) plotado(s).</div>
+  `;
+}
+
+/* =========================================================
+   WHITE-LABEL NA INTERFACE — cores da Identidade Visual, ao vivo
+   -----------------------------------------------------------
+   Diferente da tentativa anterior (v0.12.0, removida na v0.12.1 por
+   decisão do usuário) — aquela tentava EXTRAIR a cor automaticamente do
+   logo. Esta aqui só usa as cores que a própria empresa escolhe
+   manualmente nos seletores de cor de Configurações → Identidade Visual
+   (que já existiam e já afetavam só os PDFs) — agora também repinta a
+   interface ao vivo. Nunca mexe nas cores semânticas de classificação
+   IDA (Iniciar/Desenvolver/Alavancar), que continuam fixas da metodologia.
+   ========================================================= */
+function aplicarTemaCoresInterface(corPrimaria) {
+  if (!corPrimaria || !/^#[0-9a-f]{6}$/i.test(corPrimaria)) return;
+  const h = corPrimaria.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16),
+    g = parseInt(h.slice(2, 4), 16),
+    b = parseInt(h.slice(4, 6), 16);
+  document.documentElement.style.setProperty('--gold', corPrimaria);
+  document.documentElement.style.setProperty('--gold-soft', `rgba(${r},${g},${b},.16)`);
+  // BUG CORRIGIDO: o texto do botão principal (.btn-primary) tinha uma cor
+  // fixa e escura, pensada só pra funcionar com a cor padrão (dourado). Se
+  // a empresa escolhesse uma cor escura pra Identidade Visual, o texto
+  // escuro ficava quase invisível em cima de um botão também escuro (texto
+  // preto sobre fundo escuro). Agora calcula o contraste (luminância) da
+  // cor escolhida e usa texto claro ou escuro, o que fizer mais sentido.
+  const luminancia = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  const corTexto = luminancia > 0.6 ? '#1a1305' : '#ffffff';
+  document.documentElement.style.setProperty('--gold-text', corTexto);
+  // BUG CORRIGIDO (segundo caso): em vários lugares (menu de "ver como",
+  // abas de avaliador, rótulos "eyebrow"), a MESMA cor customizável era
+  // usada como texto em cima do fundo FIXO da barra lateral — diferente
+  // do botão (onde o fundo também muda de cor), aqui o fundo nunca muda,
+  // só o texto. Com a identidade INETRIS (v0.35.0), esse fundo fixo virou
+  // BRANCO — antes era escuro. Por isso a lógica agora é o oposto: se a
+  // cor escolhida for CLARA demais pra contrastar com um fundo branco,
+  // ela é escurecida automaticamente (antes, era o contrário: clareava
+  // pra contrastar com um fundo que era escuro).
+  let corParaFundoFixo = corPrimaria;
+  if (luminancia > 0.6) {
+    const escurecer = (v) => Math.round(v * 0.45);
+    corParaFundoFixo = rgbParaHexLocal(escurecer(r), escurecer(g), escurecer(b));
+  }
+  document.documentElement.style.setProperty('--gold-on-light', corParaFundoFixo);
+}
+function rgbParaHexLocal(r, g, b) {
+  return (
+    '#' +
+    [r, g, b]
+      .map((v) =>
+        Math.max(0, Math.min(255, Math.round(v)))
+          .toString(16)
+          .padStart(2, '0')
+      )
+      .join('')
+  );
+}
+
+/* =========================================================
+   BUG DE SEGURANÇA CORRIGIDO — XSS armazenado (stored XSS)
+   -----------------------------------------------------------
+   Quase todo o front-end monta a interface via innerHTML com
+   interpolação direta de texto vindo de campos livres (nome de
+   colaborador, comentário, título, URL etc.), sem nenhum escape. Alguém
+   mal-intencionado podia colocar algo como
+   <img src=x onerror="..."> num campo de texto livre, e esse código
+   executaria na tela de QUALQUER pessoa que visse aquele texto depois —
+   inclusive RH/Administrador, um caminho de escalonamento de privilégio
+   dentro da própria empresa.
+
+   Esta função escapa os 5 caracteres que dão esse poder ao HTML (& < > " ')
+   — use em TODO texto que venha de um campo preenchido por alguém (nome,
+   comentário, título, URL, e-mail etc.) antes de colocar dentro de um
+   template de HTML. Não precisa usar em números, IDs internos gerados
+   pelo sistema, ou texto fixo escrito no próprio código.
+   ========================================================= */
+function escaparHtml(texto) {
+  if (texto === null || texto === undefined) return '';
+  return String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+/* BUG DE SEGURANÇA CORRIGIDO — variante do escape acima, pra texto que vai
+   dentro de um argumento de onclick/onchange, tipo onclick="fn('${texto}')".
+   Só usar escaparHtml() ali não bastava: o navegador decodifica entidades
+   HTML do atributo ANTES de interpretar como JavaScript — então um &#39;
+   viraria ' de novo bem a tempo de quebrar a string do onclick. Esta função
+   escapa primeiro pro contexto JavaScript (aspas simples, barra invertida),
+   e só depois escapa pro contexto HTML do atributo — nessa ordem, os dois
+   níveis ficam protegidos. Substituiu escapes manuais incompletos que só
+   tratavam aspas simples (ex.: .replace(/'/g,"\\'")), que não protegiam
+   contra aspas duplas quebrando o próprio atributo onclick.
+   Uso: onclick="fn('${escaparParaOnclick(x.nome)}')" */
+function escaparParaOnclick(texto) {
+  if (texto === null || texto === undefined) return '';
+  const jsEscapado = String(texto).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
+  return escaparHtml(jsEscapado);
+}
+
+/* =========================================================
+   GRÁFICOS DO DASHBOARD (Chart.js) — v0.26.0
+   -----------------------------------------------------------
+   Scripts dentro de innerHTML não executam sozinhos — por isso os
+   gráficos são montados aqui, chamados pelo próprio render() (ver
+   05-navigation.js) depois que o HTML já está de verdade na tela. Os
+   dados são calculados dentro de renderDashboardAdmin() e guardados em
+   _dadosGraficosDashboardAdmin pra essa função ler.
+   ========================================================= */
+/* =========================================================
+   CARREGAMENTO SOB DEMANDA — v0.30.0
+   -----------------------------------------------------------
+   PROBLEMA DE PERFORMANCE CORRIGIDO: até aqui, 4 bibliotecas pesadas
+   (XLSX, jsPDF + autotable, Chart.js) eram baixadas em TODO carregamento
+   da página, pra TODO mundo — mesmo um Colaborador que só vai responder
+   uma autoavaliação e nunca vai exportar Excel, PDF ou ver um gráfico
+   naquela sessão. Isso deixava o sistema mais lento pra abrir sem
+   necessidade.
+
+   Agora essas 4 bibliotecas só são baixadas no exato momento em que a
+   funcionalidade correspondente é usada de verdade (clicar em
+   "Exportar Excel", gerar um PDF, ou entrar numa tela com gráfico) — o
+   Supabase continua carregando sempre, porque login e dados básicos
+   dependem dele em toda tela.
+   ========================================================= */
+const _scriptsCarregados = {};
+function carregarScript(url) {
+  if (_scriptsCarregados[url]) return _scriptsCarregados[url];
+  _scriptsCarregados[url] = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = url;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Falha ao carregar biblioteca externa: ' + url));
+    document.head.appendChild(script);
+  });
+  return _scriptsCarregados[url];
+}
+async function garantirXLSX() {
+  if (window.XLSX) return;
+  await carregarScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+}
+async function garantirJsPDF() {
+  if (window.jspdf) return;
+  await carregarScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+  await carregarScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js');
+}
+async function garantirChart() {
+  if (window.Chart) return;
+  await carregarScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js');
+}
+
+// Busca global — digitada no cabeçalho, aplicada como filtro por nome na
+// tela de Colaboradores (a busca mais comum num sistema de RH). Fica
+// guardada aqui porque é lida em telas diferentes de onde é escrita.
+let _termoBuscaGlobal = '';
+
+// Aplica a marca d'água (fundo espalhado no canto superior direito da
+// tela) — feito via variáveis CSS porque JS não consegue manipular
+// pseudo-elementos (::before) diretamente. Roda só uma vez; não precisa
+// repetir a cada render(), já que o valor não muda depois de aplicado.
+let _marcaDaguaAplicada = false;
+function aplicarMarcaDagua() {
+  if (_marcaDaguaAplicada || typeof MARCA_DAGUA_B64 === 'undefined') return;
+  document.documentElement.style.setProperty('--marca-dagua-1', `url('data:image/png;base64,${MARCA_DAGUA_B64}')`);
+  _marcaDaguaAplicada = true;
+}
+
+let _dadosGraficosDashboardAdmin = null;
+let _dadosGraficosDashboardRH = null;
+let _dadosGraficosDashboardGestor = null;
+let _dadosGraficosDashboardColaborador = null;
+// Gráfico das 5 dimensões (N·O·R·T·E) — elemento visual assinatura da
+// identidade INETRIS (Manual, Seção 10). Guarda os dados de cada ciclo
+// por id, já que a mesma tela (Diagnóstico) pode mostrar vários cartões
+// de ciclo ao mesmo tempo, cada um com seu próprio radar.
+let _dadosGraficosRadar = {};
+let _chartsAtivos = [];
+
+function destruirGraficosAtivos() {
+  _chartsAtivos.forEach((c) => c.destroy());
+  _chartsAtivos = [];
+}
+
+// BUG CORRIGIDO: nomes longos (competência, cargo, colaborador) nas
+// barras horizontais dos dashboards estavam sendo cortados no MEIO do
+// texto — o espaço da coluna do gráfico não é largo o suficiente pra
+// caber tudo, e o Chart.js simplesmente desenhava o que cabia, sem
+// nenhum aviso visual de que faltava texto. Agora o rótulo do eixo é
+// encurtado de forma controlada (com "…" no final), e o nome completo
+// continua aparecendo ao passar o mouse (tooltip usa o texto original,
+// não o encurtado).
+function truncarRotuloEixo(texto, maximo = 24) {
+  if (!texto || texto.length <= maximo) return texto;
+  return texto.slice(0, maximo - 1) + '…';
+}
+
+function inicializarGraficosDashboard() {
+  // Se alguma tela com gráfico está na página, mas o Chart.js ainda não
+  // foi baixado, carrega agora (só nesse momento) e reexecuta essa mesma
+  // função quando terminar — o resto da tela já está interativa nesse
+  // meio-tempo, só os gráficos aparecem com um pequeno atraso na primeira
+  // vez que alguém entra numa tela com gráfico naquela sessão.
+  const temTelaComGrafico =
+    document.getElementById('donutIda') ||
+    document.getElementById('rhDonutIda') ||
+    document.getElementById('gestorDonutIda') ||
+    document.getElementById('colabGaugePdi') ||
+    document.querySelector('[id^="radar_"]');
+  if (temTelaComGrafico && !window.Chart) {
+    garantirChart().then(() => inicializarGraficosDashboard());
+    return;
+  }
+  if (!window.Chart) return;
+  destruirGraficosAtivos();
+  const corGrade = 'rgba(255,255,255,0.06)';
+  const corEixo = '#9ca3af';
+  const corTexto = '#4b5563';
+
+  if (_dadosGraficosDashboardAdmin && document.getElementById('donutIda')) {
+    const d = _dadosGraficosDashboardAdmin;
+    _chartsAtivos.push(
+      new Chart(document.getElementById('donutIda'), {
+        type: 'doughnut',
+        data: {
+          datasets: [
+            {
+              data: d.ida,
+              backgroundColor: ['#ef4444', '#f59e0b', '#16a34a'],
+              borderWidth: 0,
+              borderRadius: 6,
+              spacing: 3,
+              hoverOffset: 6,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '70%',
+          plugins: { legend: { display: false } },
+        },
+      })
+    );
+    if (document.getElementById('sparklineAdmin') && d.sparkline?.length > 1) {
+      _chartsAtivos.push(
+        new Chart(document.getElementById('sparklineAdmin'), {
+          type: 'line',
+          data: {
+            labels: d.sparkline.map((_, i) => i),
+            datasets: [
+              {
+                data: d.sparkline.map((v) => Number(v.toFixed(2))),
+                borderColor: '#2563eb',
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.35,
+                fill: false,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: { x: { display: false }, y: { display: false } },
+          },
+        })
+      );
+    }
+    if (document.getElementById('barSetores') && d.setores && d.setores.length) {
+      // Cor de cada barra segue o desempenho do setor: <0.34 vermelho,
+      // <0.67 laranja, senão verde.
+      const corSetor = (m) => (m < 0.34 ? '#ef4444' : m < 0.67 ? '#f59e0b' : '#16a34a');
+      _chartsAtivos.push(
+        new Chart(document.getElementById('barSetores'), {
+          type: 'bar',
+          data: {
+            labels: d.setores.map((s) => s.nome),
+            datasets: [
+              {
+                data: d.setores.map((s) => Number(s.media.toFixed(2))),
+                backgroundColor: d.setores.map((s) => corSetor(s.media)),
+                borderRadius: 4,
+                maxBarThickness: 20,
+              },
+            ],
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { min: 0, max: 1, ticks: { color: corEixo, font: { size: 10 } }, grid: { color: corGrade } },
+              y: {
+                ticks: {
+                  color: corTexto,
+                  font: { size: 10 },
+                  callback: function (valor, indice) {
+                    return truncarRotuloEixo(this.getLabelForValue(indice));
+                  },
+                },
+                grid: { display: false },
+              },
+            },
+          },
+        })
+      );
+    }
+    if (document.getElementById('radarAdmin')) {
+      const labels = ['N', 'O', 'R', 'T', 'E'].filter((p) => d.pilares[p] !== null && d.pilares[p] !== undefined);
+      if (labels.length) {
+        _chartsAtivos.push(
+          new Chart(document.getElementById('radarAdmin'), {
+            type: 'radar',
+            data: {
+              labels: labels.map((p) => PILAR_LABEL[p] || p),
+              datasets: [
+                {
+                  data: labels.map((p) => Number(d.pilares[p].toFixed(2))),
+                  borderColor: '#2563eb',
+                  backgroundColor: 'rgba(37,99,235,0.15)',
+                  pointBackgroundColor: labels.map((p) => COR_PILAR[p] || '#2563eb'),
+                  borderWidth: 2,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                r: {
+                  min: 0,
+                  max: 1,
+                  ticks: { stepSize: 0.25, color: corEixo, backdropColor: 'transparent', font: { size: 9 } },
+                  grid: { color: corGrade },
+                  angleLines: { color: corGrade },
+                  pointLabels: { color: corTexto, font: { size: 11 } },
+                },
+              },
+            },
+          })
+        );
+      }
+    }
+  }
+
+  if (_dadosGraficosDashboardRH) {
+    const d = _dadosGraficosDashboardRH;
+    if (document.getElementById('rhDonutIda')) {
+      _chartsAtivos.push(
+        new Chart(document.getElementById('rhDonutIda'), {
+          type: 'doughnut',
+          data: {
+            datasets: [
+              {
+                data: d.ida,
+                backgroundColor: ['#ef4444', '#f59e0b', '#16a34a'],
+                borderWidth: 0,
+                borderRadius: 6,
+                spacing: 3,
+                hoverOffset: 6,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: { legend: { display: false } },
+          },
+        })
+      );
+    }
+    if (document.getElementById('radarRH')) {
+      const labels = ['N', 'O', 'R', 'T', 'E'].filter((p) => d.pilares[p] !== null && d.pilares[p] !== undefined);
+      if (labels.length) {
+        _chartsAtivos.push(
+          new Chart(document.getElementById('radarRH'), {
+            type: 'radar',
+            data: {
+              labels: labels.map((p) => PILAR_LABEL[p] || p),
+              datasets: [
+                {
+                  data: labels.map((p) => Number(d.pilares[p].toFixed(2))),
+                  borderColor: '#2563eb',
+                  backgroundColor: 'rgba(37,99,235,0.15)',
+                  pointBackgroundColor: labels.map((p) => COR_PILAR[p] || '#2563eb'),
+                  borderWidth: 2,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                r: {
+                  min: 0,
+                  max: 1,
+                  ticks: { stepSize: 0.25, color: corEixo, backdropColor: 'transparent', font: { size: 9 } },
+                  grid: { color: corGrade },
+                  angleLines: { color: corGrade },
+                  pointLabels: { color: corTexto, font: { size: 11 } },
+                },
+              },
+            },
+          })
+        );
+      }
+    }
+  }
+
+  if (_dadosGraficosDashboardGestor) {
+    const d = _dadosGraficosDashboardGestor;
+    if (document.getElementById('gestorDonutIda')) {
+      _chartsAtivos.push(
+        new Chart(document.getElementById('gestorDonutIda'), {
+          type: 'doughnut',
+          data: {
+            datasets: [
+              {
+                data: d.ida,
+                backgroundColor: ['#ef4444', '#f59e0b', '#16a34a'],
+                borderWidth: 0,
+                borderRadius: 6,
+                spacing: 3,
+                hoverOffset: 6,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: { legend: { display: false } },
+          },
+        })
+      );
+    }
+    if (document.getElementById('radarGestor')) {
+      const labels = ['N', 'O', 'R', 'T', 'E'].filter((p) => d.pilares[p] !== null && d.pilares[p] !== undefined);
+      if (labels.length) {
+        _chartsAtivos.push(
+          new Chart(document.getElementById('radarGestor'), {
+            type: 'radar',
+            data: {
+              labels: labels.map((p) => PILAR_LABEL[p] || p),
+              datasets: [
+                {
+                  data: labels.map((p) => Number(d.pilares[p].toFixed(2))),
+                  borderColor: '#2563eb',
+                  backgroundColor: 'rgba(37,99,235,0.15)',
+                  pointBackgroundColor: labels.map((p) => COR_PILAR[p] || '#2563eb'),
+                  borderWidth: 2,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                r: {
+                  min: 0,
+                  max: 1,
+                  ticks: { stepSize: 0.25, color: corEixo, backdropColor: 'transparent', font: { size: 9 } },
+                  grid: { color: corGrade },
+                  angleLines: { color: corGrade },
+                  pointLabels: { color: corTexto, font: { size: 11 } },
+                },
+              },
+            },
+          })
+        );
+      }
+    }
+    if (document.getElementById('gestorBarPotencial') && d.potencial.length) {
+      _chartsAtivos.push(
+        new Chart(document.getElementById('gestorBarPotencial'), {
+          type: 'bar',
+          data: {
+            labels: d.potencial.map((p) => p.nome),
+            datasets: [
+              {
+                data: d.potencial.map((p) => Number(p.potencial.toFixed(2))),
+                backgroundColor: '#1baf7a',
+                borderRadius: 4,
+                maxBarThickness: 18,
+              },
+            ],
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { min: 0, max: 1, ticks: { color: corEixo, font: { size: 10 } }, grid: { color: corGrade } },
+              y: {
+                ticks: {
+                  color: corTexto,
+                  font: { size: 10 },
+                  callback: function (valor, indice) {
+                    return truncarRotuloEixo(this.getLabelForValue(indice));
+                  },
+                },
+                grid: { display: false },
+              },
+            },
+          },
+        })
+      );
+    }
+  }
+
+  if (_dadosGraficosDashboardColaborador?.pctPdiPessoal !== null && document.getElementById('colabGaugePdi')) {
+    const pct = _dadosGraficosDashboardColaborador.pctPdiPessoal;
+    _chartsAtivos.push(
+      new Chart(document.getElementById('colabGaugePdi'), {
+        type: 'doughnut',
+        data: {
+          datasets: [
+            {
+              data: [pct, 100 - pct],
+              backgroundColor: ['#2563eb', '#e5e7eb'],
+              borderWidth: 0,
+              circumference: 180,
+              rotation: 270,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '75%',
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        },
+      })
+    );
+  }
+
+  // Gráfico das 5 dimensões (N·O·R·T·E) — pode aparecer várias vezes na
+  // mesma tela (um por ciclo, em Diagnóstico & PDI), por isso percorre
+  // todo canvas com esse padrão de id em vez de um id fixo.
+  document.querySelectorAll('[id^="radar_"]').forEach((canvas) => {
+    const cicloId = canvas.id.replace('radar_', '');
+    const pilarMedia = _dadosGraficosRadar[cicloId];
+    if (!pilarMedia) return;
+    const labels = ['N', 'O', 'R', 'T', 'E'].filter((p) => pilarMedia[p] !== null && pilarMedia[p] !== undefined);
+    if (!labels.length) return;
+    _chartsAtivos.push(
+      new Chart(canvas, {
+        type: 'radar',
+        data: {
+          labels: labels.map((p) => PILAR_LABEL[p] || p),
+          datasets: [
+            {
+              data: labels.map((p) => Number(pilarMedia[p].toFixed(2))),
+              borderColor: '#2563eb',
+              backgroundColor: 'rgba(37,99,235,0.15)',
+              pointBackgroundColor: labels.map((p) => COR_PILAR[p] || '#2563eb'),
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            r: {
+              min: 0,
+              max: 1,
+              ticks: { stepSize: 0.25, color: '#9ca3af', backdropColor: 'transparent', font: { size: 9 } },
+              grid: { color: '#e5e7eb' },
+              angleLines: { color: '#e5e7eb' },
+              pointLabels: { color: '#374151', font: { size: 11 } },
+            },
+          },
+        },
+      })
+    );
+  });
+}
