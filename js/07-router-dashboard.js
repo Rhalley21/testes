@@ -476,7 +476,7 @@ function renderDashboardAdmin(abertos, pdisAtivos, encerrados) {
     }
     ${
       pontoHabilitado
-        ? `<div class="painel-visao-geral" style="grid-template-columns:1fr 1fr;align-items:start;">
+        ? `<div class="painel-visao-geral dash-equipe-ponto" style="grid-template-columns:1fr 1fr;align-items:stretch;">
       ${renderCardColaboradores()}
       ${renderCardPontoDashboard()}
     </div>`

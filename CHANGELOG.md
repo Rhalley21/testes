@@ -3,6 +3,22 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.74.0 — Botão "Voltar" automático em todas as telas
+Todas as telas (menos o painel) agora têm um botão "Voltar" no topo, que
+retorna à tela anterior — como o botão voltar do navegador. É automático: o
+sistema guarda o histórico de navegação e o botão volta na ordem certa; se
+não houver para onde voltar, vai ao painel. O botão manual que havia sido
+adicionado à tela de Acompanhamento foi substituído por esse global.
+
+## v0.73.3 — Botão "Voltar ao painel" na tela de Acompanhamento
+A tela de Acompanhamento (PDIs e Avaliações) ganhou um botão "Voltar ao
+painel" no topo, para retornar ao dashboard sem precisar usar o menu.
+
+## v0.73.2 — Cards de Equipe e Ponto com a mesma altura
+Ajuste visual: os cards "Equipe" e "Ponto — últimos 30 dias", que ficam lado
+a lado no dashboard, agora têm a mesma altura (antes o de Ponto ficava mais
+alto, com espaço vazio embaixo).
+
 ## v0.73.1 — Fim do banner "alguém atualizou"; botão discreto de atualizar
 O aviso "Alguém mais atualizou os dados da empresa" deixou de aparecer como
 banner que interrompe. No lugar, um botão discreto e fixo "Atualizar" no

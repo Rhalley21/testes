@@ -111,9 +111,18 @@ let _ultimaRotaRenderizada = null;
 let _ultimoCicloAtivoRenderizado = undefined;
 function render() {
   const app = document.getElementById('app');
+  // Botão de voltar automático: aparece em todas as telas menos o painel
+  // (que é a tela inicial). Volta pra tela anterior, como o do navegador.
+  const mostrarVoltar = state.route && state.route !== 'dashboard_role';
+  const botaoVoltar = mostrarVoltar
+    ? `<button class="btn-voltar-global" onclick="voltarTela()" title="Voltar para a tela anterior">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Voltar
+      </button>`
+    : '';
   app.innerHTML = `
     ${renderSidebar()}
-    <main>${renderRoute()}</main>
+    <main>${botaoVoltar}${renderRoute()}</main>
   `;
   // BUG CORRIGIDO: antes, TODA chamada de render() forçava a rolagem pro
   // topo da página — inclusive ações simples dentro da mesma tela (ex.:
@@ -299,6 +308,12 @@ function goto(id) {
     showToast('Você não tem acesso a essa área.');
     return;
   }
+  // Histórico de navegação: guarda a rota atual antes de sair, pra o botão
+  // "voltar" poder retornar pra ela. Ignora se for a mesma rota.
+  if (state.route && state.route !== id) {
+    _historicoNavegacao.push(state.route);
+    if (_historicoNavegacao.length > 50) _historicoNavegacao.shift(); // não cresce infinito
+  }
   state.route = id;
   _menuMobileAberto = false;
   // Se a pessoa navegou pra um item, o grupo dele deve aparecer aberto —
@@ -309,6 +324,20 @@ function goto(id) {
   if (id === 'colaboradores') carregarUsuarios(); // usado pra detectar inconsistências (ver banner de "desligado mas com login ativo")
   if (id === 'auditoria') carregarUsuarios(); // usado pra resolver nome de quem fez cada evento
   if (id === 'ciclos') atualizarDadosAoVivo(true); // busca o estado mais recente sempre que entra na tela de Ciclos
+  render();
+}
+
+// Pilha de rotas visitadas, pro botão "voltar" (como o do navegador).
+let _historicoNavegacao = [];
+function voltarTela() {
+  const anterior = _historicoNavegacao.pop();
+  if (!anterior) {
+    // Sem histórico (ex: entrou direto numa tela): volta pro painel.
+    state.route = 'dashboard_role';
+  } else {
+    state.route = anterior;
+  }
+  _menuMobileAberto = false;
   render();
 }
 
