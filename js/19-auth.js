@@ -348,6 +348,7 @@ async function iniciarComSessao(sessao) {
   state.role = PAPEL_PARA_ROLE[meuPapelReal] || 'colaborador';
   state.route = 'dashboard_role';
   assinarAtualizacoesAoVivo();
+  renderBotaoAtualizar(); // botão discreto de atualizar, sempre disponível
   render(); // já mostra a tela; notificações entram logo em seguida
   assinarNotificacoesAoVivo();
   carregarNotificacoes().then(render); // não bloqueia a abertura

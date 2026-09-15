@@ -474,7 +474,14 @@ function renderDashboardAdmin(abertos, pdisAtivos, encerrados) {
     `
         : ''
     }
-    ${renderCardPontoDashboard()}
+    ${
+      pontoHabilitado
+        ? `<div class="painel-visao-geral" style="grid-template-columns:1fr 1fr;align-items:start;">
+      ${renderCardColaboradores()}
+      ${renderCardPontoDashboard()}
+    </div>`
+        : renderCardColaboradores()
+    }
     <div class="painel-kpi-inetris">
       <div class="kpi-card-inetris" style="flex-direction:column;align-items:stretch;">
         <div style="display:flex;gap:12px;">
@@ -487,7 +494,7 @@ function renderDashboardAdmin(abertos, pdisAtivos, encerrados) {
         </div>
         ${mesesOrdenados.length > 1 ? '<div class="kpi-sparkline-wrap"><canvas id="sparklineAdmin"></canvas></div><div class="kpi-card-rodape">Últimos ' + mesesOrdenados.length + ' meses</div>' : ''}
       </div>
-      <div class="kpi-card-inetris" style="flex-direction:column;align-items:stretch;">
+      <div class="kpi-card-inetris kpi-clicavel" style="flex-direction:column;align-items:stretch;cursor:pointer;" onclick="_acompAba='avaliacao';goto('acompanhamento')" title="Ver todos os colaboradores e o status da avaliação">
         <div style="display:flex;gap:12px;">
           <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M9 12l2 2 4-4"/></svg></div>
           <div>
@@ -497,15 +504,15 @@ function renderDashboardAdmin(abertos, pdisAtivos, encerrados) {
           </div>
         </div>
         <div class="kpi-progresso-trilha"><div class="kpi-progresso-fill" style="width:${totalIda ? Math.min(100, Math.round((totalIda / state.colaboradores.length) * 100)) : 0}%;"></div></div>
-        <div class="kpi-card-rodape">Meta: 90%</div>
+        <div class="kpi-card-rodape">Meta: 90% · <span style="color:var(--gold-on-light);">ver detalhes →</span></div>
       </div>
-      <div class="kpi-card-inetris">
+      <div class="kpi-card-inetris kpi-clicavel" style="cursor:pointer;" onclick="_acompAba='pdi';goto('acompanhamento')" title="Ver todos os colaboradores e o status do PDI">
         <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg></div>
         <div>
           <div class="kpi-card-label">PDIs em andamento</div>
           <div class="kpi-card-valor">${pdisAtivos}</div>
           <div class="kpi-card-nota">Em progresso</div>
-          <div class="kpi-card-nota">Total de ativos: ${ciclosComPdi.length}</div>
+          <div class="kpi-card-nota">Total de ativos: ${ciclosComPdi.length} · <span style="color:var(--gold-on-light);">ver →</span></div>
         </div>
       </div>
     </div>
@@ -534,182 +541,15 @@ function renderDashboardAdmin(abertos, pdisAtivos, encerrados) {
       </div>
     </div>
 
-    <div class="painel-visao-geral" style="grid-template-columns:1fr 1fr;">
-      <div class="card" style="margin-bottom:0;">
-        <h3>Desempenho por setor <small>Nota média de cada setor (escala 0 a 1)</small></h3>
-        ${
-          desempenhoSetores.length
-            ? `<div class="grafico-canvas-lg" style="height:${Math.max(120, desempenhoSetores.length * 36)}px;"><canvas id="barSetores" role="img" aria-label="Desempenho médio por setor"></canvas></div>`
-            : '<div class="empty">Ainda não há setores com colaboradores avaliados.</div>'
-        }
-      </div>
-      <div class="card" style="margin-bottom:0;">
-        <h3>Melhores colaboradores <small>Ranking por nota do diagnóstico</small></h3>
-        ${(() => {
-          const ranking = Object.values(notaPorColab)
-            .map((c) => {
-              const p = state.colaboradores.find((x) => x.id === c.colaboradorId);
-              const cargo = state.cargos.find((x) => x.id === c.cargoId);
-              return {
-                nome: p?.nome || '—',
-                cargo: cargo?.nome || '—',
-                nota: c.diagnostico.geralMedia,
-                sig: c.diagnostico.geral,
-              };
-            })
-            .sort((a, b) => b.nota - a.nota)
-            .slice(0, 6);
-          if (!ranking.length) return '<div class="empty">Nenhum colaborador com diagnóstico ainda.</div>';
-          return `<table><thead><tr><th>#</th><th>Colaborador</th><th>Cargo</th><th>Nota</th></tr></thead><tbody>
-            ${ranking
-              .map(
-                (r, i) =>
-                  `<tr><td class="small-muted">${i + 1}º</td><td><b>${escaparHtml(r.nome)}</b></td><td class="small-muted">${escaparHtml(r.cargo)}</td><td><span class="pill ${pillClass(r.sig)}" style="font-family:var(--mono);">${r.nota.toFixed(2)}</span></td></tr>`
-              )
-              .join('')}
-          </tbody></table>`;
-        })()}
-      </div>
-    </div>
-
-    <div class="painel-visao-geral" style="grid-template-columns:1fr 1fr;">
-      <div class="card" style="margin-bottom:0;">
-        <h3>PDIs — quem está fazendo <small>status das ações de desenvolvimento</small></h3>
-        ${(() => {
-          // Um "PDI" por colaborador: pega o ciclo mais recente com PDI e
-          // resume o status das ações (concluído / em andamento / não iniciado).
-          const pdiPorColab = {};
-          state.ciclos
-            .filter((c) => c.pdiDesenvolvimento && c.pdiDesenvolvimento.length)
-            .forEach((c) => {
-              const at = pdiPorColab[c.colaboradorId];
-              if (!at || (c.dataAbertura || '').localeCompare(at.dataAbertura || '') > 0)
-                pdiPorColab[c.colaboradorId] = c;
-            });
-          const linhas = Object.values(pdiPorColab).map((c) => {
-            const p = state.colaboradores.find((x) => x.id === c.colaboradorId);
-            const acoes = c.pdiDesenvolvimento;
-            const concluidas = acoes.filter((a) => (a.status || '').toLowerCase().includes('conclu')).length;
-            const andamento = acoes.filter((a) => {
-              const s = (a.status || '').toLowerCase();
-              return s.includes('andamento') || s.includes('iniciad') === true;
-            }).length;
-            let status, cor;
-            if (concluidas === acoes.length) {
-              status = 'Concluído';
-              cor = 'pill-alavancar';
-            } else if (concluidas > 0 || andamento > 0) {
-              status = 'Em andamento';
-              cor = 'pill-desenvolver';
-            } else {
-              status = 'Não iniciado';
-              cor = 'pill-iniciar';
-            }
-            return { nome: p?.nome || '—', status, cor, prog: `${concluidas}/${acoes.length}` };
-          });
-          if (!linhas.length) return '<div class="empty">Nenhum PDI gerado ainda.</div>';
-          return `<table><thead><tr><th>Colaborador</th><th>Progresso</th><th>Status</th></tr></thead><tbody>
-            ${linhas
-              .slice(0, 6)
-              .map(
-                (l) =>
-                  `<tr><td><b>${escaparHtml(l.nome)}</b></td><td class="small-muted" style="font-family:var(--mono);">${l.prog}</td><td><span class="pill ${l.cor}">${l.status}</span></td></tr>`
-              )
-              .join('')}
-          </tbody></table><button class="btn btn-ghost btn-sm ver-todas-link" onclick="_acompAba='pdi';goto('acompanhamento')">Ver todos os colaboradores →</button>`;
-        })()}
-      </div>
-      <div class="card" style="margin-bottom:0;">
-        <h3>Avaliações — quem fez e quem falta <small>status da avaliação de cada colaborador</small></h3>
-        ${(() => {
-          // Para cada colaborador ativo, qual o status da avaliação no ciclo
-          // mais recente dele: Feita (diagnóstico gerado), Pendente (ciclo
-          // aberto sem diagnóstico) ou Não iniciada (sem ciclo).
-          const cicloPorColab = {};
-          state.ciclos.forEach((c) => {
-            const at = cicloPorColab[c.colaboradorId];
-            if (!at || (c.dataAbertura || '').localeCompare(at.dataAbertura || '') > 0)
-              cicloPorColab[c.colaboradorId] = c;
-          });
-          const ativos = state.colaboradores.filter((p) => !p.inativo);
-          if (!ativos.length) return '<div class="empty">Nenhum colaborador cadastrado.</div>';
-          const linhas = ativos.map((p) => {
-            const c = cicloPorColab[p.id];
-            let status, cor;
-            if (c && c.diagnostico) {
-              status = 'Feita';
-              cor = 'pill-alavancar';
-            } else if (c) {
-              status = 'Pendente';
-              cor = 'pill-desenvolver';
-            } else {
-              status = 'Não iniciada';
-              cor = 'pill-iniciar';
-            }
-            return { nome: p.nome, status, cor };
-          });
-          // Ordena: pendentes e não iniciadas primeiro (o que precisa de ação).
-          const ordem = { Pendente: 0, 'Não iniciada': 1, Feita: 2 };
-          linhas.sort((a, b) => ordem[a.status] - ordem[b.status] || a.nome.localeCompare(b.nome));
-          return `<table><thead><tr><th>Colaborador</th><th>Avaliação</th></tr></thead><tbody>
-            ${linhas
-              .slice(0, 12)
-              .map(
-                (l) =>
-                  `<tr><td><b>${escaparHtml(l.nome)}</b></td><td><span class="pill ${l.cor}">${l.status}</span></td></tr>`
-              )
-              .join('')}
-          </tbody></table><button class="btn btn-ghost btn-sm ver-todas-link" onclick="_acompAba='avaliacao';goto('acompanhamento')">Ver todos os colaboradores →</button>`;
-        })()}
-      </div>
-    </div>
-
     <div class="card">
-      <h3>Melhores e piores colaboradores <small>Por nota do último diagnóstico (escala 0 a 1)</small></h3>
-      ${(() => {
-        // Ranking por nota geral do diagnóstico. Pega o ciclo mais recente
-        // com diagnóstico de cada colaborador (pra não contar a mesma pessoa
-        // várias vezes).
-        const porColab = {};
-        state.ciclos
-          .filter((c) => c.diagnostico && c.diagnostico.geralMedia !== null && c.diagnostico.geralMedia !== undefined)
-          .forEach((c) => {
-            const atual = porColab[c.colaboradorId];
-            if (!atual || c.dataAbertura.localeCompare(atual.dataAbertura) > 0) porColab[c.colaboradorId] = c;
-          });
-        const ranking = Object.values(porColab)
-          .map((c) => {
-            const p = state.colaboradores.find((x) => x.id === c.colaboradorId);
-            const cargo = state.cargos.find((x) => x.id === c.cargoId);
-            return {
-              nome: p?.nome || '—',
-              cargo: cargo?.nome || '—',
-              nota: c.diagnostico.geralMedia,
-              sig: c.diagnostico.geral,
-            };
-          })
-          .sort((a, b) => b.nota - a.nota);
-
-        if (ranking.length < 2) {
-          return '<div class="empty">É preciso pelo menos 2 colaboradores com diagnóstico gerado para montar o ranking.</div>';
-        }
-        const melhores = ranking.slice(0, 3);
-        const piores = ranking.slice(-3).reverse();
-        const linha = (r) =>
-          `<tr><td><b>${escaparHtml(r.nome)}</b></td><td class="small-muted">${escaparHtml(r.cargo)}</td><td style="font-family:var(--mono);">${r.nota.toFixed(2)}</td><td><span class="pill ${pillClass(r.sig)}">${pillLabel(r.sig)}</span></td></tr>`;
-        return `
-          <div class="grid2" style="gap:20px;">
-            <div>
-              <div class="section-label" style="color:var(--alavancar);margin-bottom:8px;">▲ Melhores desempenhos</div>
-              <table><tbody>${melhores.map(linha).join('')}</tbody></table>
-            </div>
-            <div>
-              <div class="section-label" style="color:var(--iniciar);margin-bottom:8px;">▼ Precisam de atenção</div>
-              <table><tbody>${piores.map(linha).join('')}</tbody></table>
-            </div>
-          </div>`;
-      })()}
+      <h3>Desempenho por setor <small>Nota média de cada setor (escala 0 a 1)</small></h3>
+      ${
+        desempenhoSetores.length
+          ? `<div class="grafico-canvas-lg" style="height:${Math.max(120, desempenhoSetores.length * 36)}px;"><canvas id="barSetores" role="img" aria-label="Desempenho médio por setor"></canvas></div>`
+          : '<div class="empty">Ainda não há setores com colaboradores avaliados.</div>'
+      }
     </div>
+
 
     <div class="card">
       <h3>Avaliações recentes</h3>

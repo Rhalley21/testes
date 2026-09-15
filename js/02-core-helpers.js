@@ -692,33 +692,37 @@ function assinarAtualizacoesAoVivo() {
         filter: `empresa_id=eq.${empresaIdAtual}`,
       },
       () => {
-        // BUG CORRIGIDO (segunda tentativa): comparar o carimbo exato do
-        // salvamento não bastava — se a pessoa clica em várias coisas
-        // seguidas, cada clique dispara seu próprio salvamento, e o aviso de
-        // um mais antigo podia chegar depois do carimbo já ter mudado pra
-        // um mais novo, dando falso positivo. Agora usa uma janela de tempo:
-        // se eu mesmo fiz qualquer ação nos últimos 4 segundos, assume que a
-        // mudança é minha e não mostra o aviso.
+        // Não interrompe mais com banner: só marca que há dados novos, e o
+        // botão discreto de atualizar (canto) ganha um ponto de destaque.
         const segundosDesdeMinhaUltimaAtividade = (Date.now() - _minhaUltimaAtividadeEm) / 1000;
         if (segundosDesdeMinhaUltimaAtividade < 4) return;
-        mostrarAvisoAtualizacao();
+        _haDadosNovos = true;
+        renderBotaoAtualizar();
       }
     )
     .subscribe();
 }
-function mostrarAvisoAtualizacao() {
+let _haDadosNovos = false;
+// Botão discreto e fixo pra atualizar quando a pessoa quiser. Fica sempre
+// disponível; quando alguém mais salva algo, ganha um pontinho de aviso.
+function renderBotaoAtualizar() {
   const el = document.getElementById('aviso-atualizacao');
   if (!el) return;
   el.innerHTML = `
-    <div class="aviso-atualizacao-banner">
-      <span>Alguém mais atualizou os dados da empresa.</span>
-      <button class="btn btn-primary btn-sm" onclick="atualizarDadosAoVivo(); esconderAvisoAtualizacao();">Atualizar agora</button>
-      <button class="btn btn-ghost btn-sm" onclick="esconderAvisoAtualizacao();">Depois</button>
-    </div>`;
+    <button class="botao-atualizar-fixo ${_haDadosNovos ? 'tem-novidade' : ''}"
+      title="${_haDadosNovos ? 'Há dados novos — clique para atualizar' : 'Atualizar dados'}"
+      onclick="atualizarDadosAoVivo(); _haDadosNovos=false; renderBotaoAtualizar();">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      <span class="botao-atualizar-texto">Atualizar</span>
+    </button>`;
+}
+function mostrarAvisoAtualizacao() {
+  // Mantido por compatibilidade — agora apenas garante que o botão exista.
+  renderBotaoAtualizar();
 }
 function esconderAvisoAtualizacao() {
-  const el = document.getElementById('aviso-atualizacao');
-  if (el) el.innerHTML = '';
+  _haDadosNovos = false;
+  renderBotaoAtualizar();
 }
 
 /* =========================================================

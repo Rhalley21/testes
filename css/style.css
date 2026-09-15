@@ -741,25 +741,70 @@ tr:hover td {
   transform: translateY(0);
 }
 
-.aviso-atualizacao-banner {
+/* Botão discreto e fixo de atualizar (canto inferior direito). Substitui o
+   antigo banner "alguém atualizou" — não interrompe, fica sempre à mão. */
+.botao-atualizar-fixo {
   position: fixed;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--surface);
-  border: 1px solid var(--gold);
-  color: var(--ink);
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  bottom: 18px;
+  right: 18px;
   z-index: 1000;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 7px;
+  padding: 9px 14px;
+  border-radius: 100px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-dim);
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
-.aviso-atualizacao-banner button {
-  white-space: nowrap;
+.botao-atualizar-fixo:hover {
+  color: var(--ink);
+  border-color: var(--gold);
+  transform: translateY(-1px);
+}
+/* Quando há dados novos: destaque sutil com um pontinho pulsante. */
+.botao-atualizar-fixo.tem-novidade {
+  color: var(--gold-on-light);
+  border-color: var(--gold);
+}
+.botao-atualizar-fixo.tem-novidade::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--iniciar);
+  border: 2px solid var(--surface);
+  animation: pulso-novidade 1.6s ease-in-out infinite;
+}
+@keyframes pulso-novidade {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(239, 68, 68, 0);
+  }
+}
+@media (max-width: 640px) {
+  /* No celular mostra só o ícone, pra não atrapalhar. */
+  .botao-atualizar-texto {
+    display: none;
+  }
+  .botao-atualizar-fixo {
+    padding: 10px;
+    bottom: 14px;
+    right: 14px;
+  }
 }
 
 .chip-row {
@@ -2228,4 +2273,15 @@ hr.sep {
   .landing-plano.destaque {
     transform: none;
   }
+}
+
+/* KPIs clicáveis do dashboard (abrem a tela de Acompanhamento) */
+.kpi-clicavel {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.kpi-clicavel:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
 }

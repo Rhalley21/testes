@@ -3,6 +3,29 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.73.1 — Fim do banner "alguém atualizou"; botão discreto de atualizar
+O aviso "Alguém mais atualizou os dados da empresa" deixou de aparecer como
+banner que interrompe. No lugar, um botão discreto e fixo "Atualizar" no
+canto inferior direito, sempre disponível — a pessoa atualiza quando quiser.
+Quando outra pessoa salva algo, o botão ganha só um pontinho pulsante de
+aviso, sem atrapalhar. No celular vira apenas o ícone.
+
+## v0.73.0 — Dashboard: card de Equipe e resumo de ponto menor
+Novo card "Equipe" no dashboard: total de colaboradores cadastrados e
+quantos são Líderes/Gestores (por papel de login), com o percentual da
+equipe em liderança. O card de "Ponto — últimos 30 dias" ficou menor: agora
+divide a linha lado a lado com o card de Equipe (ocupa metade da largura em
+vez da tela toda), sem reduzir a fonte. Quando o módulo de Ponto está
+desligado, o card de Equipe ocupa a linha inteira.
+
+## v0.72.1 — Dashboard mais limpo: KPIs clicáveis
+Removidos do dashboard os dois cards de lista grandes ("PDIs — quem está
+fazendo" e "Avaliações — quem fez") e os rankings de colaboradores, que
+estavam poluindo a tela. Em vez disso, os KPIs "Colaboradores avaliados" e
+"PDIs em andamento" ficaram clicáveis: clicar abre a tela de Acompanhamento
+já na aba certa (Avaliações ou PDIs), com a lista completa. O gráfico de
+Desempenho por setor foi mantido e agora ocupa a largura toda.
+
 ## v0.72.0 — Tela de Acompanhamento (PDIs e Avaliações completos)
 Os cards "PDIs em andamento" e "Avaliações" no dashboard agora mostram só um
 resumo (top 6) e ganharam um botão "Ver todos os colaboradores →" que abre a

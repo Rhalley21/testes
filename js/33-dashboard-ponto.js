@@ -148,3 +148,40 @@ function renderCardPontoDashboard() {
       ${conteudo}
     </div>`;
 }
+
+// Card com a contagem de colaboradores e quantos são líderes/gestores.
+// "Líder" = quem tem papel 'lider' na conta de login (_perfisEmpresa).
+function renderCardColaboradores() {
+  const ativos = state.colaboradores.filter((p) => !p.inativo).length;
+  const lideres =
+    typeof _perfisEmpresa !== 'undefined'
+      ? _perfisEmpresa.filter((pf) => pf.papel === 'lider' && !pf.desativado).length
+      : 0;
+  const outros = Math.max(0, ativos - lideres);
+  return `
+    <div class="card">
+      <h3>Equipe <small>colaboradores cadastrados</small></h3>
+      <div class="kpi-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="kpi-card-inetris">
+          <div class="kpi-card-icone">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/></svg>
+          </div>
+          <div>
+            <div class="kpi-card-label">Total de colaboradores</div>
+            <div class="kpi-card-valor">${ativos}</div>
+            <div class="small-muted" style="font-size:11px;">${outros} sem função de liderança</div>
+          </div>
+        </div>
+        <div class="kpi-card-inetris">
+          <div class="kpi-card-icone" style="color:var(--gold-on-light);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v6c0 5 3.8 8.3 9 10 5.2-1.7 9-5 9-10V7Z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <div>
+            <div class="kpi-card-label">Líderes / Gestores</div>
+            <div class="kpi-card-valor" style="color:var(--gold-on-light);">${lideres}</div>
+            <div class="small-muted" style="font-size:11px;">${ativos ? Math.round((lideres / ativos) * 100) : 0}% da equipe</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
