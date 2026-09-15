@@ -5,8 +5,13 @@ const STEPS_BASE = [
   { id: 'usuarios', label: 'Usuários & Acesso', group: 'Fundação', papeis: ['owner', 'rh'] },
   { id: 'cargos', label: 'Base de Cargos (CBO)', group: 'Cargos', papeis: ['owner', 'rh'] },
   { id: 'desenho', label: 'Desenho de Cargo', group: 'Cargos', papeis: ['owner', 'rh'] },
-  { id: 'meu_cargo', label: 'Meu Cargo', group: 'Cargos', papeis: ['colaborador', 'lider'] }, // colaborador/gestor veem o descritivo do próprio cargo (só leitura)
-  { id: 'meu_desenvolvimento', label: 'Meu Desenvolvimento', group: 'Cargos', papeis: ['colaborador', 'lider'] }, // PDI + autoavaliação + resultado (após feedback)
+  { id: 'meu_cargo', label: 'Meu Cargo', group: 'Cargos', papeis: ['owner', 'rh', 'lider', 'colaborador'] }, // todos os papéis veem o descritivo do próprio cargo (se tiverem cargo vinculado)
+  {
+    id: 'meu_desenvolvimento',
+    label: 'Meu Desenvolvimento',
+    group: 'Cargos',
+    papeis: ['owner', 'rh', 'lider', 'colaborador'],
+  }, // PDI + autoavaliação + resultado (após feedback)
   { id: 'colaboradores', label: 'Colaboradores', group: 'Pessoas', papeis: ['owner', 'rh', 'lider'] },
   { id: 'acompanhamento', label: 'Acompanhamento', group: 'Pessoas', papeis: ['owner', 'rh', 'lider'], oculto: true }, // acessada pelos botões do dashboard, não aparece no menu
   { id: 'ponto', label: 'Ponto', group: 'Pessoas', apenasSePontoHabilitado: true }, // liga/desliga por Empresa (Super Admin decide ao gerar a licença). Sem `papeis`: quando ligado, todo mundo bate o próprio ponto.

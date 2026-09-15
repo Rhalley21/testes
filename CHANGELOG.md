@@ -3,6 +3,21 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.75.0 — Meu Cargo e Meu Desenvolvimento para todos os papéis
+As telas "Meu Cargo" e "Meu Desenvolvimento" passaram a ser acessíveis a
+todos os papéis (Administrador, RH, Líder e Colaborador), não só colaborador
+e líder. Quem tiver um cargo próprio vinculado vê o descritivo/o
+desenvolvimento; quem não tiver (comum em contas de RH/Admin que só
+gerenciam) vê o aviso pedindo a vinculação. Nenhuma mudança de banco.
+
+## v0.74.1 — Correção: Meu Cargo não mostrava o conteúdo (cargos antigos)
+Na tela "Meu Cargo", o descritivo (responsabilidades, KPIs, competências)
+aparecia vazio para cargos criados antes das mudanças recentes, embora o PDF
+mostrasse tudo. Causa: cargos antigos guardam os itens das listas como
+objetos ({nome}, {texto}...) e a tela só lia strings. Agora a tela aceita os
+dois formatos (string e objeto), então o cargo aparece completo dentro do
+sistema, para cargos antigos e novos. O botão de PDF continua igual.
+
 ## v0.74.0 — Botão "Voltar" automático em todas as telas
 Todas as telas (menos o painel) agora têm um botão "Voltar" no topo, que
 retorna à tela anterior — como o botão voltar do navegador. É automático: o

@@ -17,13 +17,23 @@ function _blocoMeuCargoTexto(titulo, texto) {
     </div>`;
 }
 
+function _mcTextoItem(i) {
+  // Aceita item como string (formato novo) ou objeto (cargos antigos podem
+  // ter {nome}, {texto}, {descricao}, {titulo}, {item}...).
+  if (i == null) return '';
+  if (typeof i === 'string') return i;
+  if (typeof i === 'object') return i.nome || i.texto || i.descricao || i.titulo || i.item || i.valor || '';
+  return String(i);
+}
+
 function _blocoMeuCargoLista(titulo, itens) {
-  if (!itens || !itens.length) return '';
+  const lista = (itens || []).map(_mcTextoItem).filter((t) => t && t.trim());
+  if (!lista.length) return '';
   return `
     <div class="meu-cargo-bloco">
       <div class="meu-cargo-bloco-titulo">${titulo}</div>
       <ul class="meu-cargo-lista">
-        ${itens.map((i) => `<li>${escaparHtml(typeof i === 'string' ? i : i.nome || '')}</li>`).join('')}
+        ${lista.map((t) => `<li>${escaparHtml(t)}</li>`).join('')}
       </ul>
     </div>`;
 }
