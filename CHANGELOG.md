@@ -3,6 +3,15 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.72.0 — Tela de Acompanhamento (PDIs e Avaliações completos)
+Os cards "PDIs em andamento" e "Avaliações" no dashboard agora mostram só um
+resumo (top 6) e ganharam um botão "Ver todos os colaboradores →" que abre a
+tela nova de Acompanhamento. Nela, duas abas: uma lista TODOS os
+colaboradores com o status do PDI (Concluído / Em andamento / Não iniciado /
+Sem PDI) e outra com o status da avaliação (Avaliado / Pendente / Não
+iniciada) — com quem falta no topo, pra facilitar a cobrança. A tela é
+acessada pelos botões, não ocupa espaço no menu.
+
 ## v0.71.1 — Tela de entrada comercial desativada (temporário)
 A landing comercial (planos + teste grátis) foi desativada por ora — o
 sistema volta a abrir direto no login, como antes. O código da landing

@@ -16,6 +16,8 @@ function renderRoute() {
       return pageMeuCargo();
     case 'meu_desenvolvimento':
       return pageMeuDesenvolvimento();
+    case 'acompanhamento':
+      return pageAcompanhamento();
     case 'colaboradores':
       return pageColaboradores();
     case 'ponto':
@@ -608,12 +610,13 @@ function renderDashboardAdmin(abertos, pdisAtivos, encerrados) {
           if (!linhas.length) return '<div class="empty">Nenhum PDI gerado ainda.</div>';
           return `<table><thead><tr><th>Colaborador</th><th>Progresso</th><th>Status</th></tr></thead><tbody>
             ${linhas
+              .slice(0, 6)
               .map(
                 (l) =>
                   `<tr><td><b>${escaparHtml(l.nome)}</b></td><td class="small-muted" style="font-family:var(--mono);">${l.prog}</td><td><span class="pill ${l.cor}">${l.status}</span></td></tr>`
               )
               .join('')}
-          </tbody></table>`;
+          </tbody></table><button class="btn btn-ghost btn-sm ver-todas-link" onclick="_acompAba='pdi';goto('acompanhamento')">Ver todos os colaboradores →</button>`;
         })()}
       </div>
       <div class="card" style="margin-bottom:0;">
@@ -656,7 +659,7 @@ function renderDashboardAdmin(abertos, pdisAtivos, encerrados) {
                   `<tr><td><b>${escaparHtml(l.nome)}</b></td><td><span class="pill ${l.cor}">${l.status}</span></td></tr>`
               )
               .join('')}
-          </tbody></table>${linhas.length > 12 ? `<button class="btn btn-ghost btn-sm ver-todas-link" onclick="goto('ciclos')">Ver todos (${linhas.length}) →</button>` : ''}`;
+          </tbody></table><button class="btn btn-ghost btn-sm ver-todas-link" onclick="_acompAba='avaliacao';goto('acompanhamento')">Ver todos os colaboradores →</button>`;
         })()}
       </div>
     </div>

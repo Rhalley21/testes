@@ -8,6 +8,7 @@ const STEPS_BASE = [
   { id: 'meu_cargo', label: 'Meu Cargo', group: 'Cargos', papeis: ['colaborador', 'lider'] }, // colaborador/gestor veem o descritivo do próprio cargo (só leitura)
   { id: 'meu_desenvolvimento', label: 'Meu Desenvolvimento', group: 'Cargos', papeis: ['colaborador', 'lider'] }, // PDI + autoavaliação + resultado (após feedback)
   { id: 'colaboradores', label: 'Colaboradores', group: 'Pessoas', papeis: ['owner', 'rh', 'lider'] },
+  { id: 'acompanhamento', label: 'Acompanhamento', group: 'Pessoas', papeis: ['owner', 'rh', 'lider'], oculto: true }, // acessada pelos botões do dashboard, não aparece no menu
   { id: 'ponto', label: 'Ponto', group: 'Pessoas', apenasSePontoHabilitado: true }, // liga/desliga por Empresa (Super Admin decide ao gerar a licença). Sem `papeis`: quando ligado, todo mundo bate o próprio ponto.
   {
     id: 'totem_ponto',
@@ -74,6 +75,8 @@ function stepUnlocked(id) {
       return true;
     case 'colaboradores':
       return state.cargos.some((c) => c.desenho.aprovado && !c.descontinuado);
+    case 'acompanhamento':
+      return true;
     case 'ponto':
       return true;
     case 'totem_ponto':
@@ -227,7 +230,7 @@ function renderSidebar() {
       <nav class="steps">
         ${groups
           .map((g) => {
-            const itensDoGrupo = STEPS.filter((s) => s.group === g);
+            const itensDoGrupo = STEPS.filter((s) => s.group === g && !s.oculto);
             const grupoTemRotaAtiva = itensDoGrupo.some((s) => s.id === state.route);
             const expandido = (_gruposExpandidos.has(g) || grupoTemRotaAtiva) && !_gruposFechadosManualmente.has(g);
             return `
