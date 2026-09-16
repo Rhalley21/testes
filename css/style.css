@@ -721,8 +721,8 @@ tr:hover td {
 
 .toast {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: 74px; /* acima do botão fixo de atualizar (que fica em bottom:18px) */
+  right: 18px;
   background: var(--surface);
   border: 1px solid var(--gold);
   color: var(--ink);
@@ -730,7 +730,7 @@ tr:hover td {
   border-radius: 8px;
   font-size: 13px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-  z-index: 999;
+  z-index: 1001; /* acima do botão de atualizar (1000), pra a mensagem ficar visível */
   opacity: 0;
   transform: translateY(8px);
   transition: all 0.25s ease;
@@ -2323,4 +2323,10 @@ hr.sep {
   color: var(--ink);
   border-color: var(--gold);
   background: var(--surface-2);
+}
+
+/* Card de resumo ativo (clicado) na Estrutura */
+.kpi-card-inetris.kpi-ativo {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px var(--gold-soft);
 }

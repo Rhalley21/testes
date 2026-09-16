@@ -373,6 +373,7 @@ async function baixarModeloCargos() {
   ];
   const linhas = [_CARGOS_COLUNAS, exemplo];
   const ws = XLSX.utils.aoa_to_sheet(linhas);
+  ws['!cols'] = larguraColunas(linhas);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Cargos');
   XLSX.writeFile(wb, 'modelo-importacao-cargos.xlsx');

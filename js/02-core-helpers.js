@@ -1033,6 +1033,20 @@ async function garantirXLSX() {
   if (window.XLSX) return;
   await carregarScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
 }
+
+// Calcula a largura de cada coluna de uma planilha (matriz de linhas) com base
+// no maior texto daquela coluna, pra nada ficar cortado nem espremido. Devolve
+// o array no formato que o SheetJS espera em ws['!cols'].
+function larguraColunas(linhas, minimo = 12, maximo = 50) {
+  const larguras = [];
+  linhas.forEach((linha) => {
+    (linha || []).forEach((celula, i) => {
+      const tamanho = String(celula == null ? '' : celula).length;
+      if (larguras[i] === undefined || tamanho > larguras[i]) larguras[i] = tamanho;
+    });
+  });
+  return larguras.map((w) => ({ wch: Math.min(maximo, Math.max(minimo, (w || 0) + 2)) }));
+}
 async function garantirJsPDF() {
   if (window.jspdf) return;
   await carregarScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');

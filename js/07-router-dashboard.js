@@ -482,6 +482,7 @@ function renderDashboardAdmin(abertos, pdisAtivos, encerrados) {
     </div>`
         : renderCardColaboradores()
     }
+    ${renderCardRankingDashboard()}
     <div class="painel-kpi-inetris">
       <div class="kpi-card-inetris" style="flex-direction:column;align-items:stretch;">
         <div style="display:flex;gap:12px;">

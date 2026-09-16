@@ -40,19 +40,23 @@ async function baixarModeloImportacao() {
   const wb = XLSX.utils.book_new();
 
   // Aba principal: onde você preenche.
-  const wsPrincipal = XLSX.utils.aoa_to_sheet([['Nome', 'Cargo', 'Unidade', 'Setor', 'Gestor', 'Admissão'], exemplo]);
+  const cabecalho = ['Nome', 'Cargo', 'Unidade', 'Setor', 'Gestor', 'Admissão'];
+  const wsPrincipal = XLSX.utils.aoa_to_sheet([cabecalho, exemplo]);
+  wsPrincipal['!cols'] = larguraColunas([cabecalho, exemplo]);
   XLSX.utils.book_append_sheet(wb, wsPrincipal, 'Colaboradores');
 
   // Abas de consulta: os nomes VÁLIDOS que existem na empresa. Copie daqui
   // pra aba principal, exatamente como está, pra não dar "não encontrado".
-  const wsRef = XLSX.utils.aoa_to_sheet([
+  const linhasRef = [
     ['COPIE OS NOMES EXATAMENTE COMO ESTÃO AQUI'],
     [],
     ['CARGOS (publicados)', 'UNIDADES', 'SETORES', 'GESTORES'],
     ...Array.from({ length: Math.max(cargos.length, unidades.length, setores.length, gestores.length, 1) }).map(
       (_, i) => [cargos[i]?.nome || '', unidades[i]?.nome || '', setores[i]?.nome || '', gestores[i]?.nome || '']
     ),
-  ]);
+  ];
+  const wsRef = XLSX.utils.aoa_to_sheet(linhasRef);
+  wsRef['!cols'] = larguraColunas(linhasRef);
   XLSX.utils.book_append_sheet(wb, wsRef, 'Nomes válidos');
 
   XLSX.writeFile(wb, 'modelo-importacao-colaboradores.xlsx');

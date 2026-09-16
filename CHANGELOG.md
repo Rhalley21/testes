@@ -3,6 +3,41 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.77.1 — Correção: mensagem "atualizando" escondida atrás do botão
+As mensagens (toasts), incluindo a de "atualizando dados", apareciam no mesmo
+canto do botão fixo de atualizar e ficavam escondidas atrás dele. Agora o
+toast aparece acima do botão e por cima dele, ficando sempre visível.
+
+## v0.77.0 — Pesquisa de clima anônima
+A pesquisa de clima (eNPS) passou a ser anônima. A nota e o comentário são
+salvos SEM ligação com quem respondeu — o admin/RH vê só as respostas e os
+comentários, nunca o nome de quem escreveu. Para não perder o controle, quem
+já respondeu fica numa lista separada (só IDs, sem nota nem comentário),
+usada apenas para impedir resposta dupla e mostrar a participação (X de Y
+colaboradores). O colaborador vê um aviso de que a resposta é anônima, para
+responder com sinceridade. Sem mudança de banco (a estrutura vive no state).
+
+## v0.76.1 — Dashboard: card de ranking de colaboradores
+Novo card "Ranking de colaboradores" no dashboard, no mesmo estilo do card de
+Ponto: dois mini-cards lado a lado — "Melhores" (top 3, verde) e "Precisam de
+atenção" (os 3 de menor nota, vermelho) — cada um listando nome e nota do
+último diagnóstico. Aparece quando há pelo menos 2 colaboradores avaliados.
+
+## v0.76.0 — Estrutura: cards de resumo clicáveis
+Os quatro cards do topo da Estrutura Organizacional (Unidades, Departamentos,
+Setores, Colaboradores) ficaram clicáveis, como no dashboard. Ao clicar, abre
+logo abaixo uma lista com os detalhes: para Unidades/Departamentos/Setores, o
+nome, código, responsável e quantos colaboradores; para Colaboradores, cada
+pessoa e onde trabalha (unidade e setor). Clicar de novo fecha; o card ativo
+fica destacado.
+
+## v0.75.1 — Planilhas de importação com colunas na largura certa
+Os modelos de importação (colaboradores e cargos) agora têm cada coluna
+ajustada automaticamente à largura do maior nome que ela contém — nomes
+longos (ex: "Coordenador Administrativo") deixam de ficar cortados ou
+espremidos. Colunas curtas respeitam uma largura mínima, e há um teto para
+não ficarem exageradas. A planilha fica limpa e legível.
+
 ## v0.75.0 — Meu Cargo e Meu Desenvolvimento para todos os papéis
 As telas "Meu Cargo" e "Meu Desenvolvimento" passaram a ser acessíveis a
 todos os papéis (Administrador, RH, Líder e Colaborador), não só colaborador

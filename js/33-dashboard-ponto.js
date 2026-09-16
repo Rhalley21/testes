@@ -149,6 +149,61 @@ function renderCardPontoDashboard() {
     </div>`;
 }
 
+// Card de ranking no mesmo estilo do card de ponto: dois mini-cards lado a
+// lado (Melhores / Precisam de atenção), cada um com o top 3 por nota do
+// último diagnóstico de cada colaborador.
+function renderCardRankingDashboard() {
+  // Um resultado por colaborador: o ciclo mais recente com diagnóstico.
+  const porColab = {};
+  state.ciclos
+    .filter((c) => c.diagnostico && c.diagnostico.geralMedia !== null && c.diagnostico.geralMedia !== undefined)
+    .forEach((c) => {
+      const at = porColab[c.colaboradorId];
+      if (!at || (c.dataAbertura || '').localeCompare(at.dataAbertura || '') > 0) porColab[c.colaboradorId] = c;
+    });
+  const ranking = Object.values(porColab)
+    .map((c) => {
+      const p = state.colaboradores.find((x) => x.id === c.colaboradorId);
+      return { nome: p?.nome || '—', nota: c.diagnostico.geralMedia };
+    })
+    .sort((a, b) => b.nota - a.nota);
+
+  let conteudo;
+  if (ranking.length < 2) {
+    conteudo =
+      '<div class="empty">É preciso pelo menos 2 colaboradores com diagnóstico gerado para montar o ranking.</div>';
+  } else {
+    const melhores = ranking.slice(0, 3);
+    const atencao = ranking.slice(-3).reverse();
+    const linha = (r, cor) =>
+      `<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px;">
+        <span>${escaparHtml(r.nome)}</span>
+        <span style="font-family:var(--mono);color:${cor};font-weight:600;">${r.nota.toFixed(2)}</span>
+      </div>`;
+    conteudo = `
+      <div class="kpi-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="kpi-card-inetris" style="flex-direction:column;align-items:stretch;">
+          <div class="kpi-card-label" style="color:var(--alavancar);display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg> Melhores
+          </div>
+          ${melhores.map((r) => linha(r, 'var(--alavancar)')).join('')}
+        </div>
+        <div class="kpi-card-inetris" style="flex-direction:column;align-items:stretch;">
+          <div class="kpi-card-label" style="color:var(--iniciar);display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg> Precisam de atenção
+          </div>
+          ${atencao.map((r) => linha(r, 'var(--iniciar)')).join('')}
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="card">
+      <h3>Ranking de colaboradores <small>por nota do último diagnóstico (0 a 1)</small></h3>
+      ${conteudo}
+    </div>`;
+}
+
 // Card com a contagem de colaboradores e quantos são líderes/gestores.
 // "Líder" = quem tem papel 'lider' na conta de login (_perfisEmpresa).
 function renderCardColaboradores() {
