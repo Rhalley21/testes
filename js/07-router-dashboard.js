@@ -145,6 +145,127 @@ function diasDesdeAbertura(ciclo) {
   const abertura = new Date(ciclo.dataAbertura);
   return Math.round((hoje - abertura) / (1000 * 60 * 60 * 24));
 }
+// Pendências operacionais que vêm de fora dos ciclos de avaliação —
+// justificativas de ponto aguardando decisão (RH e líder aprovam ambos),
+// substituto de aprovador não definido, competência anterior aberta, e o
+// próprio saldo do banco de horas. Carregado uma vez por sessão de
+// dashboard, em segundo plano.
+let _dashPontoPendencias = null; // { total, escalonadas } | null enquanto carrega
+let _dashJustifRaw = null; // lista completa (com nome e perfil_id) das justificativas pendentes — pra contar por pessoa
+let _dashAlertas = null; // { substitutoDefinido, competenciaAnteriorFechada, mesAnteriorLabel } | null
+let _dashSaldoBancoHoras = null; // minutos (pode ser negativo) | null enquanto carrega
+let _dashPontoJaCarregou = false;
+async function carregarDashPontoPendencias() {
+  const hoje = new Date();
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const inicioProxMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+  const [respJustif, respAlertas, respSaldo] = await Promise.all([
+    sb.functions.invoke('ponto', { body: { action: 'justificativa_pendentes', status: 'pendente' } }),
+    sb.functions.invoke('ponto', { body: { action: 'dashboard_alertas' } }),
+    sb.functions.invoke('ponto', {
+      body: { action: 'banco_horas_saldo', inicioISO: inicioMes.toISOString(), fimISO: inicioProxMes.toISOString() },
+    }),
+  ]);
+  if (!respJustif.error && respJustif.data && !respJustif.data.error) {
+    const lista = respJustif.data.justificativas || [];
+    _dashPontoPendencias = { total: lista.length, escalonadas: lista.filter((j) => j.escalonado).length };
+    _dashJustifRaw = lista; // guarda a lista (com perfil_id) pra contar por pessoa na tabela da equipe
+  } else {
+    _dashPontoPendencias = { total: 0, escalonadas: 0 };
+  }
+  if (!respAlertas.error && respAlertas.data && !respAlertas.data.error) _dashAlertas = respAlertas.data;
+  if (!respSaldo.error && respSaldo.data && !respSaldo.data.error && !respSaldo.data.semJornada) {
+    _dashSaldoBancoHoras = respSaldo.data.saldoMin;
+  }
+  render();
+}
+
+// Painel visual com gráficos das áreas operacionais (justificativas de
+// ponto, ciclos por status, riscos NR1) — complementa os cards de texto de
+// pendências com uma visão gráfica, no mesmo estilo dos outros painéis.
+function renderPainelOperacionalRH() {
+  const justif = _dashAlertas?.justificativasPorStatus;
+  const temJustif = justif && justif.pendente + justif.aprovada + justif.rejeitada > 0;
+  const temRiscos = state.nr1?.riscos?.length > 0;
+  const ciclosStatus = _dadosGraficosDashboardRH?.ciclosPorStatus;
+  const totalCiclosRH = ciclosStatus ? Object.values(ciclosStatus).reduce((a, b) => a + b, 0) : 0;
+  if (!temJustif && !temRiscos && !totalCiclosRH) return '';
+  return `
+    <div class="painel-visao-geral" style="grid-template-columns:1fr 1fr 1fr;">
+      ${
+        totalCiclosRH
+          ? `<div class="card" style="margin-bottom:0;">
+        <h3>Ciclos por status</h3>
+        <div class="grafico-donut-canvas"><canvas id="donutCiclosRH" role="img" aria-label="Ciclos de avaliação por status"></canvas>
+          <div class="grafico-donut-centro">${totalCiclosRH}<span class="grafico-donut-centro-legenda">ciclos</span></div>
+        </div>
+        <div class="grafico-legenda">
+          <span><span class="dot" style="background:var(--desenvolver);"></span>Aberto (${ciclosStatus['Aberto']})</span>
+          <span><span class="dot" style="background:var(--iniciar);"></span>Pendência (${ciclosStatus['Pendência de Avaliador']})</span>
+          <span><span class="dot" style="background:var(--alavancar);"></span>Encerrado (${ciclosStatus['Encerrado']})</span>
+        </div>
+      </div>`
+          : ''
+      }
+      ${
+        temJustif
+          ? `<div class="card" style="margin-bottom:0;">
+        <h3>Justificativas de ponto <small>últimos 30 dias</small></h3>
+        <div class="grafico-canvas-lg" style="height:140px;"><canvas id="barJustifRH" role="img" aria-label="Justificativas por status nos últimos 30 dias"></canvas></div>
+      </div>`
+          : ''
+      }
+      ${
+        temRiscos
+          ? `<div class="card" style="margin-bottom:0;">
+        <h3>Riscos NR1 <small>por nível, inventário atual</small></h3>
+        <div class="grafico-donut-canvas"><canvas id="donutRiscosNr1" role="img" aria-label="Riscos NR1 por nível"></canvas>
+          <div class="grafico-donut-centro">${state.nr1.riscos.length}<span class="grafico-donut-centro-legenda">riscos</span></div>
+        </div>
+        <div class="grafico-legenda">
+          <span><span class="dot" style="background:var(--alavancar);"></span>Baixo (${_dadosGraficosDashboardRH?.riscosPorNivel?.Baixo || 0})</span>
+          <span><span class="dot" style="background:var(--desenvolver);"></span>Médio (${_dadosGraficosDashboardRH?.riscosPorNivel?.Médio || 0})</span>
+          <span><span class="dot" style="background:var(--iniciar);"></span>Alto/Crítico (${(_dadosGraficosDashboardRH?.riscosPorNivel?.Alto || 0) + (_dadosGraficosDashboardRH?.riscosPorNivel?.Crítico || 0)})</span>
+        </div>
+      </div>`
+          : ''
+      }
+    </div>`;
+}
+function renderPainelOperacionalGestor() {
+  const justif = _dashAlertas?.justificativasPorStatus;
+  const temJustif = justif && justif.pendente + justif.aprovada + justif.rejeitada > 0;
+  const ciclosStatus = _dadosGraficosDashboardGestor?.ciclosPorStatus;
+  const totalCiclosGestor = ciclosStatus ? Object.values(ciclosStatus).reduce((a, b) => a + b, 0) : 0;
+  if (!temJustif && !totalCiclosGestor) return '';
+  return `
+    <div class="painel-visao-geral" style="grid-template-columns:1fr 1fr;">
+      ${
+        totalCiclosGestor
+          ? `<div class="card" style="margin-bottom:0;">
+        <h3>Ciclos da equipe por status</h3>
+        <div class="grafico-donut-canvas"><canvas id="donutCiclosGestor" role="img" aria-label="Ciclos da equipe por status"></canvas>
+          <div class="grafico-donut-centro">${totalCiclosGestor}<span class="grafico-donut-centro-legenda">ciclos</span></div>
+        </div>
+        <div class="grafico-legenda">
+          <span><span class="dot" style="background:var(--desenvolver);"></span>Aberto (${ciclosStatus['Aberto']})</span>
+          <span><span class="dot" style="background:var(--iniciar);"></span>Pendência (${ciclosStatus['Pendência de Avaliador']})</span>
+          <span><span class="dot" style="background:var(--alavancar);"></span>Encerrado (${ciclosStatus['Encerrado']})</span>
+        </div>
+      </div>`
+          : ''
+      }
+      ${
+        temJustif
+          ? `<div class="card" style="margin-bottom:0;">
+        <h3>Justificativas de ponto <small>últimos 30 dias</small></h3>
+        <div class="grafico-canvas-lg" style="height:140px;"><canvas id="barJustifGestor" role="img" aria-label="Justificativas por status nos últimos 30 dias"></canvas></div>
+      </div>`
+          : ''
+      }
+    </div>`;
+}
+
 function renderPendenciasRH() {
   const aguardandoRH = state.ciclos.filter(
     (c) =>
@@ -175,12 +296,37 @@ function renderPendenciasRH() {
     const dias = diasAteVencimento(c);
     return dias !== null && dias >= 0 && dias <= 7;
   });
+  // Justificativas de ponto pendentes (RH e líder aprovam) — carregado à parte.
+  if (pontoHabilitado && !_dashPontoJaCarregou) {
+    _dashPontoJaCarregou = true;
+    carregarDashPontoPendencias();
+  }
+
+  // NR1: ações atrasadas e ações aguardando verificação de eficácia —
+  // dados já disponíveis no navegador (não é sensível, é gestão de risco).
+  const hojeIso = new Date().toISOString().slice(0, 10);
+  const nr1AcoesAtrasadas = (state.nr1?.acoes || []).filter(
+    (a) => a.status !== 'concluida' && a.status !== 'cancelada' && a.prazo && a.prazo < hojeIso
+  ).length;
+  const nr1AguardandoEficacia = (state.nr1?.acoes || []).filter((a) => a.status === 'concluida' && !a.eficacia).length;
+
+  const competenciaAnteriorPendente =
+    pontoHabilitado && _dashAlertas && _dashAlertas.competenciaAnteriorFechada === false;
+  const substitutoNaoDefinido = pontoHabilitado && _dashAlertas && _dashAlertas.substitutoDefinido === false;
+  const saldoNegativo = pontoHabilitado && typeof _dashSaldoBancoHoras === 'number' && _dashSaldoBancoHoras < 0;
+
   if (
     !aguardandoRH.length &&
     !pendencias.length &&
     !semCiclo.length &&
     !ciclosAntigos.length &&
-    !promocaoVencendo.length
+    !promocaoVencendo.length &&
+    !(pontoHabilitado && _dashPontoPendencias && _dashPontoPendencias.total) &&
+    !nr1AcoesAtrasadas &&
+    !nr1AguardandoEficacia &&
+    !competenciaAnteriorPendente &&
+    !substitutoNaoDefinido &&
+    !saldoNegativo
   )
     return '';
   return `
@@ -191,6 +337,16 @@ function renderPendenciasRH() {
       ${semCiclo.length ? `<div class="pendencia-item"><span><b>${semCiclo.length}</b> colaborador(es) elegível(is) ainda sem ciclo aberto</span><button class="btn btn-sm" onclick="goto('ciclos')">Abrir ciclo →</button></div>` : ''}
       ${ciclosAntigos.length ? `<div class="pendencia-item"><span><b>${ciclosAntigos.length}</b> colaborador(es) estão com Ciclo pendente há mais de 15 dias</span><button class="btn btn-sm" onclick="goto('ciclos')">Ver →</button></div>` : ''}
       ${promocaoVencendo.length ? `<div class="pendencia-item"><span><b>${promocaoVencendo.length}</b> ciclo(s) extraordinário(s) pós-promoção (RN016) vencendo nos próximos 7 dias</span><button class="btn btn-sm" onclick="goto('ciclos')">Ver →</button></div>` : ''}
+      ${
+        pontoHabilitado && _dashPontoPendencias && _dashPontoPendencias.total
+          ? `<div class="pendencia-item"><span><b>${_dashPontoPendencias.total}</b> justificativa(s) de ponto aguardando decisão${_dashPontoPendencias.escalonadas ? ` — <b style="color:var(--iniciar);">${_dashPontoPendencias.escalonadas} escalonada(s)</b> (mais de 3 dias sem resposta)` : ''}</span><button class="btn btn-sm" onclick="goto('conferencia_ponto')">Decidir →</button></div>`
+          : ''
+      }
+      ${nr1AcoesAtrasadas ? `<div class="pendencia-item"><span><b>${nr1AcoesAtrasadas}</b> ação(ões) do plano NR1 com prazo vencido</span><button class="btn btn-sm" onclick="goto('nr1')">Ver →</button></div>` : ''}
+      ${nr1AguardandoEficacia ? `<div class="pendencia-item"><span><b>${nr1AguardandoEficacia}</b> ação(ões) NR1 concluída(s) aguardando verificação de eficácia</span><button class="btn btn-sm" onclick="goto('nr1')">Verificar →</button></div>` : ''}
+      ${competenciaAnteriorPendente ? `<div class="pendencia-item"><span>A competência de <b>${_dashAlertas.mesAnteriorLabel}</b> ainda não foi fechada</span><button class="btn btn-sm" onclick="goto('conferencia_ponto')">Fechar →</button></div>` : ''}
+      ${substitutoNaoDefinido ? `<div class="pendencia-item"><span>Você ainda não definiu um <b>substituto</b> para aprovar no seu lugar quando estiver ausente</span><button class="btn btn-sm" onclick="goto('conferencia_ponto')">Definir →</button></div>` : ''}
+      ${saldoNegativo ? `<div class="pendencia-item"><span>Seu <b>banco de horas</b> está negativo este mês (${Math.floor(Math.abs(_dashSaldoBancoHoras) / 60)}h${String(Math.abs(_dashSaldoBancoHoras) % 60).padStart(2, '0')} a compensar)</span><button class="btn btn-sm" onclick="goto('ponto')">Ver →</button></div>` : ''}
     </div>`;
 }
 function renderPendenciasGestor() {
@@ -220,15 +376,62 @@ function renderPendenciasGestor() {
     }
   }
 
-  if (!aguardandoMim.length && !semFeedback.length && !progressoEquipe) return '';
+  // Justificativas de ponto pendentes (líder também aprova) — carregado à parte.
+  if (pontoHabilitado && !_dashPontoJaCarregou) {
+    _dashPontoJaCarregou = true;
+    carregarDashPontoPendencias();
+  }
+
+  const substitutoNaoDefinidoGestor = pontoHabilitado && _dashAlertas && _dashAlertas.substitutoDefinido === false;
+  const saldoNegativoGestor = pontoHabilitado && typeof _dashSaldoBancoHoras === 'number' && _dashSaldoBancoHoras < 0;
+
+  if (
+    !aguardandoMim.length &&
+    !semFeedback.length &&
+    !progressoEquipe &&
+    !(pontoHabilitado && _dashPontoPendencias && _dashPontoPendencias.total) &&
+    !substitutoNaoDefinidoGestor &&
+    !saldoNegativoGestor
+  )
+    return '';
   return `
     <div class="card" style="border-left:3px solid var(--gold);">
       <h3>Você tem pendências</h3>
       ${progressoEquipe}
       ${aguardandoMim.length ? `<div class="pendencia-item"><span>Você tem <b>${aguardandoMim.length}</b> avaliação(ões) da equipe aguardando você</span><button class="btn btn-sm" onclick="goto('ciclos')">Avaliar →</button></div>` : ''}
       ${semFeedback.length ? `<div class="pendencia-item"><span><b>${semFeedback.length}</b> reunião(ões) de feedback ainda não registrada(s)</span><button class="btn btn-sm" onclick="goto('ciclos')">Registrar →</button></div>` : ''}
+      ${
+        pontoHabilitado && _dashPontoPendencias && _dashPontoPendencias.total
+          ? `<div class="pendencia-item"><span><b>${_dashPontoPendencias.total}</b> justificativa(s) de ponto aguardando decisão${_dashPontoPendencias.escalonadas ? ` — <b style="color:var(--iniciar);">${_dashPontoPendencias.escalonadas} escalonada(s)</b> (mais de 3 dias sem resposta)` : ''}</span><button class="btn btn-sm" onclick="goto('conferencia_ponto')">Decidir →</button></div>`
+          : ''
+      }
+      ${substitutoNaoDefinidoGestor ? `<div class="pendencia-item"><span>Você ainda não definiu um <b>substituto</b> para aprovar no seu lugar quando estiver ausente</span><button class="btn btn-sm" onclick="goto('conferencia_ponto')">Definir →</button></div>` : ''}
+      ${saldoNegativoGestor ? `<div class="pendencia-item"><span>Seu <b>banco de horas</b> está negativo este mês (${Math.floor(Math.abs(_dashSaldoBancoHoras) / 60)}h${String(Math.abs(_dashSaldoBancoHoras) % 60).padStart(2, '0')} a compensar)</span><button class="btn btn-sm" onclick="goto('ponto')">Ver →</button></div>` : ''}
     </div>`;
 }
+// Dados pessoais do colaborador — minhas justificativas de ponto e meu
+// banco de horas. Carregado uma vez por sessão de dashboard.
+let _dashColabJustif = null; // array de justificativas próprias | null enquanto carrega
+let _dashColabSaldo = null; // minutos (pode ser negativo) | null enquanto carrega
+let _dashColabJaCarregou = false;
+async function carregarDashColaboradorExtra() {
+  const hoje = new Date();
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const inicioProxMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+  const [respJustif, respSaldo] = await Promise.all([
+    sb.functions.invoke('ponto', { body: { action: 'justificativa_minhas' } }),
+    sb.functions.invoke('ponto', {
+      body: { action: 'banco_horas_saldo', inicioISO: inicioMes.toISOString(), fimISO: inicioProxMes.toISOString() },
+    }),
+  ]);
+  if (!respJustif.error && respJustif.data && !respJustif.data.error)
+    _dashColabJustif = respJustif.data.justificativas || [];
+  if (!respSaldo.error && respSaldo.data && !respSaldo.data.error && !respSaldo.data.semJornada) {
+    _dashColabSaldo = respSaldo.data.saldoMin;
+  }
+  render();
+}
+
 function renderPendenciasColaborador() {
   const meuRegistro = state.colaboradores.find((c) => c.perfilId === meuPerfilId);
   if (!meuRegistro) return '';
@@ -240,12 +443,35 @@ function renderPendenciasColaborador() {
       (c.estado === 'Aberto' || c.estado === 'Em Consolidação')
   );
   const semFeedback = meusCiclos.filter((c) => c.diagnostico && !c.reuniaoFeedback?.realizada);
-  if (!minhaAutoavaliacao.length && !semFeedback.length) return '';
+
+  if (pontoHabilitado && !_dashColabJaCarregou) {
+    _dashColabJaCarregou = true;
+    carregarDashColaboradorExtra();
+  }
+  const justifPendentesColab = (_dashColabJustif || []).filter((j) => j.status === 'pendente').length;
+
+  // NR1: campanhas ativas que este colaborador ainda não respondeu. Reaproveita
+  // os mesmos carregadores da página NR1 (dados já globais na sessão).
+  if (!_nr1JaCarregouCampanhas) {
+    _nr1JaCarregouCampanhas = true;
+    carregarCampanhasNr1();
+    carregarMeuStatusNr1();
+  }
+  const pesquisasNr1Pendentes = (_nr1Campanhas || []).filter(
+    (c) =>
+      c.status === 'ativa' &&
+      !_nr1MeuStatus.respondidas.includes(c.id) &&
+      nr1ColaboradorElegivel(meuRegistro, c.publico)
+  ).length;
+
+  if (!minhaAutoavaliacao.length && !semFeedback.length && !justifPendentesColab && !pesquisasNr1Pendentes) return '';
   return `
     <div class="card" style="border-left:3px solid var(--gold);">
       <h3>Você tem pendências</h3>
       ${minhaAutoavaliacao.length ? `<div class="pendencia-item"><span>Sua <b>autoavaliação</b> está aguardando você</span><button class="btn btn-sm" onclick="abrirCiclo('${minhaAutoavaliacao[0].id}')">Responder →</button></div>` : ''}
       ${semFeedback.length ? `<div class="pendencia-item"><span>Sua reunião de feedback ainda não foi registrada</span><button class="btn btn-sm" onclick="abrirCiclo('${semFeedback[0].id}')">Ver ciclo →</button></div>` : ''}
+      ${justifPendentesColab ? `<div class="pendencia-item"><span>Você tem <b>${justifPendentesColab}</b> justificativa(s) de ponto aguardando decisão do seu gestor</span><button class="btn btn-sm" onclick="goto('ponto')">Ver →</button></div>` : ''}
+      ${pesquisasNr1Pendentes ? `<div class="pendencia-item"><span>Você tem <b>${pesquisasNr1Pendentes}</b> pesquisa(s) NR1 aguardando sua resposta</span><button class="btn btn-sm" onclick="goto('nr1')">Responder →</button></div>` : ''}
     </div>`;
 }
 
@@ -268,7 +494,11 @@ function pageDashboard() {
   if (state.role === 'colaborador') {
     body = renderPendenciasColaborador() + renderDashboardColaborador();
   } else if (state.role === 'gestor' && !meuEscopoEstendido) {
-    body = renderMinhaAvaliacaoPendente() + renderPendenciasGestor() + renderDashboardGestor();
+    body =
+      renderMinhaAvaliacaoPendente() +
+      renderPendenciasGestor() +
+      renderPainelOperacionalGestor() +
+      renderDashboardGestor();
   } else if (state.role === 'gestor' && meuEscopoEstendido) {
     body =
       `<div class="notice info">Escopo estendido: você tem uma exceção explícita concedida pelo Administrador para ver os dados consolidados de toda a empresa, além da sua própria equipe.</div>` +
@@ -276,7 +506,7 @@ function pageDashboard() {
       renderPendenciasGestor() +
       renderDashboardAdmin(abertos, pdisAtivos, encerrados);
   } else if (state.role === 'rh') {
-    body = renderMinhaAvaliacaoPendente() + renderPendenciasRH() + renderDashboardRH();
+    body = renderMinhaAvaliacaoPendente() + renderPendenciasRH() + renderPainelOperacionalRH() + renderDashboardRH();
   } else {
     body =
       renderMinhaAvaliacaoPendente() + renderPendenciasAdmin() + renderDashboardAdmin(abertos, pdisAtivos, encerrados);
@@ -651,11 +881,26 @@ function renderDashboardRH() {
       : null;
   });
 
+  // Ciclos por status (empresa toda) — pro gráfico de rosca do painel operacional.
+  const ciclosPorStatusRH = { Aberto: 0, 'Em Consolidação': 0, 'Pendência de Avaliador': 0, Encerrado: 0 };
+  state.ciclos.forEach((c) => {
+    const chave = c.estado === 'PDI Gerado' || c.estado === 'Em Acompanhamento' ? 'Encerrado' : c.estado;
+    if (ciclosPorStatusRH[chave] !== undefined) ciclosPorStatusRH[chave]++;
+  });
+  // Riscos NR1 por nível — dados já no navegador (registros de gestão do RH/SST).
+  const riscosPorNivelRH = { Baixo: 0, Médio: 0, Alto: 0, Crítico: 0 };
+  (state.nr1?.riscos || []).forEach((r) => {
+    const nivel = nivelRiscoNr1(r.probabilidade, r.severidade).nivel;
+    riscosPorNivelRH[nivel] = (riscosPorNivelRH[nivel] || 0) + 1;
+  });
+
   _dadosGraficosDashboardRH = {
     ida: [contagemIdaRH.I, contagemIdaRH.D, contagemIdaRH.A],
     criticas: criticasOrdenadas.slice(0, 6),
     pctSemRisco,
     pilares: mediaPorPilarRH,
+    ciclosPorStatus: ciclosPorStatusRH,
+    riscosPorNivel: riscosPorNivelRH,
   };
 
   return `
@@ -834,13 +1079,77 @@ function renderDashboardGestor() {
       : null;
   });
 
+  // Ciclos da equipe por status — pro gráfico de rosca do painel operacional.
+  const ciclosPorStatusEquipe = { Aberto: 0, 'Em Consolidação': 0, 'Pendência de Avaliador': 0, Encerrado: 0 };
+  meusCiclos.forEach((c) => {
+    const chave = c.estado === 'PDI Gerado' || c.estado === 'Em Acompanhamento' ? 'Encerrado' : c.estado;
+    if (ciclosPorStatusEquipe[chave] !== undefined) ciclosPorStatusEquipe[chave]++;
+  });
+
   _dadosGraficosDashboardGestor = {
     ida: [contagemIdaEquipe.I, contagemIdaEquipe.D, contagemIdaEquipe.A],
     potencial: potencialEquipe,
     pilares: mediaPorPilarEquipe,
+    ciclosPorStatus: ciclosPorStatusEquipe,
   };
 
+  // Tabela completa da equipe: cargo, setor, status do ciclo mais recente e
+  // nível de desempenho — tudo num lugar só, sem precisar visitar Colaboradores.
+  const linhasEquipe = minhaEquipe
+    .map((p) => {
+      const cargo = state.cargos.find((c) => c.id === p.cargoId);
+      const setor = state.estrutura.find((n) => n.id === p.setorId);
+      const ciclosDoColaborador = meusCiclos
+        .filter((c) => c.colaboradorId === p.id)
+        .sort((a, b) => (b.dataAbertura || '').localeCompare(a.dataAbertura || ''));
+      const cicloRecente = ciclosDoColaborador[0];
+      let statusCiclo, corStatus;
+      if (!cicloRecente) {
+        statusCiclo = 'Sem ciclo';
+        corStatus = 'pill-neutral';
+      } else if (cicloRecente.estado === 'Encerrado' || cicloRecente.diagnostico) {
+        statusCiclo = 'Avaliado';
+        corStatus = 'pill-alavancar';
+      } else if (cicloRecente.estado === 'Pendência de Avaliador') {
+        statusCiclo = 'Pendência';
+        corStatus = 'pill-iniciar';
+      } else {
+        statusCiclo = 'Em andamento';
+        corStatus = 'pill-desenvolver';
+      }
+      const nivel = cicloRecente?.diagnostico?.geral || null;
+      const justifPendentesPessoa = (_dashJustifRaw || []).filter((j) => j.perfil_id === p.perfilId).length;
+      return {
+        nome: p.nome,
+        cargo: cargo?.nome || '—',
+        setor: setor?.nome || '—',
+        statusCiclo,
+        corStatus,
+        nivel,
+        justifPendentesPessoa,
+      };
+    })
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+
   return `
+    <div class="card">
+      <h3>Minha equipe <small>${minhaEquipe.length} colaborador(es)</small></h3>
+      <table><thead><tr><th>Colaborador</th><th>Cargo</th><th>Setor</th><th>Ciclo atual</th><th>Nível</th><th>Justificativas</th></tr></thead><tbody>
+        ${linhasEquipe
+          .map(
+            (l) => `<tr>
+          <td><b>${escaparHtml(l.nome)}</b></td>
+          <td class="small-muted">${escaparHtml(l.cargo)}</td>
+          <td class="small-muted">${escaparHtml(l.setor)}</td>
+          <td><span class="pill ${l.corStatus}">${l.statusCiclo}</span></td>
+          <td>${l.nivel ? `<span class="pill ${pillClass(l.nivel)}">${pillLabel(l.nivel)}</span>` : '<span class="small-muted">—</span>'}</td>
+          <td>${l.justifPendentesPessoa ? `<span class="pill pill-desenvolver">${l.justifPendentesPessoa} pendente(s)</span>` : '<span class="small-muted">—</span>'}</td>
+        </tr>`
+          )
+          .join('')}
+      </tbody></table>
+    </div>
+
     <div class="painel-kpi-inetris">
       <div class="kpi-card-inetris">
         <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
@@ -956,7 +1265,16 @@ function renderDashboardColaborador() {
     const concluidas = cicloAtual.pdiDesenvolvimento.filter((a) => !!a.validadoEm).length;
     pctPdiPessoal = Math.round((concluidas / cicloAtual.pdiDesenvolvimento.length) * 100);
   }
-  _dadosGraficosDashboardColaborador = { pctPdiPessoal };
+  _dadosGraficosDashboardColaborador = {
+    pctPdiPessoal,
+    justifPorStatus: _dashColabJustif
+      ? {
+          pendente: _dashColabJustif.filter((j) => j.status === 'pendente').length,
+          aprovada: _dashColabJustif.filter((j) => j.status === 'aprovada').length,
+          rejeitada: _dashColabJustif.filter((j) => j.status === 'rejeitada').length,
+        }
+      : null,
+  };
 
   return `
     <div class="card">
@@ -979,6 +1297,40 @@ function renderDashboardColaborador() {
       <div class="grafico-gauge-wrap"><canvas id="colabGaugePdi" role="img" aria-label="Medidor mostrando ${pctPdiPessoal}% das ações do meu PDI já concluídas"></canvas>
         <div class="grafico-gauge-numero">${pctPdiPessoal}%</div>
       </div>
+    </div>`
+        : ''
+    }
+    ${
+      pontoHabilitado && (_dashColabJustif?.length || typeof _dashColabSaldo === 'number')
+        ? `
+    <div class="painel-visao-geral" style="grid-template-columns:1fr 1fr;">
+      ${
+        _dashColabJustif?.length
+          ? `<div class="card" style="margin-bottom:0;">
+        <h3>Minhas justificativas <small>histórico de pedidos de ponto</small></h3>
+        <div class="grafico-donut-canvas"><canvas id="donutJustifColab" role="img" aria-label="Minhas justificativas por status"></canvas>
+          <div class="grafico-donut-centro">${_dashColabJustif.length}<span class="grafico-donut-centro-legenda">pedidos</span></div>
+        </div>
+        <div class="grafico-legenda">
+          <span><span class="dot" style="background:var(--desenvolver);"></span>Pendente (${_dadosGraficosDashboardColaborador.justifPorStatus.pendente})</span>
+          <span><span class="dot" style="background:var(--alavancar);"></span>Aprovada (${_dadosGraficosDashboardColaborador.justifPorStatus.aprovada})</span>
+          <span><span class="dot" style="background:var(--iniciar);"></span>Rejeitada (${_dadosGraficosDashboardColaborador.justifPorStatus.rejeitada})</span>
+        </div>
+      </div>`
+          : ''
+      }
+      ${
+        typeof _dashColabSaldo === 'number'
+          ? `<div class="card" style="margin-bottom:0;">
+        <h3>Meu banco de horas <small>saldo deste mês</small></h3>
+        <div style="display:flex;align-items:baseline;gap:8px;margin-top:10px;">
+          <div style="font-family:var(--mono);font-size:30px;font-weight:600;color:${_dashColabSaldo >= 0 ? 'var(--alavancar)' : 'var(--iniciar)'};">${_dashColabSaldo >= 0 ? '+' : '−'}${Math.floor(Math.abs(_dashColabSaldo) / 60)}h${String(Math.abs(_dashColabSaldo) % 60).padStart(2, '0')}</div>
+          <div class="small-muted">${_dashColabSaldo >= 0 ? 'de saldo' : 'a compensar'}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="goto('ponto')">Ver detalhes →</button>
+      </div>`
+          : ''
+      }
     </div>`
         : ''
     }

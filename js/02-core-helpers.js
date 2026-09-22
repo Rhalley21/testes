@@ -1125,6 +1125,12 @@ function inicializarGraficosDashboard() {
     document.getElementById('rhDonutIda') ||
     document.getElementById('gestorDonutIda') ||
     document.getElementById('colabGaugePdi') ||
+    document.getElementById('donutCiclosRH') ||
+    document.getElementById('donutCiclosGestor') ||
+    document.getElementById('barJustifRH') ||
+    document.getElementById('barJustifGestor') ||
+    document.getElementById('donutRiscosNr1') ||
+    document.getElementById('donutJustifColab') ||
     document.querySelector('[id^="radar_"]');
   if (temTelaComGrafico && !window.Chart) {
     garantirChart().then(() => inicializarGraficosDashboard());
@@ -1330,8 +1336,94 @@ function inicializarGraficosDashboard() {
         );
       }
     }
+    if (document.getElementById('donutCiclosRH') && d.ciclosPorStatus) {
+      const cs = d.ciclosPorStatus;
+      _chartsAtivos.push(
+        new Chart(document.getElementById('donutCiclosRH'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Aberto', 'Pendência de Avaliador', 'Encerrado'],
+            datasets: [
+              {
+                data: [cs['Aberto'] + cs['Em Consolidação'], cs['Pendência de Avaliador'], cs['Encerrado']],
+                backgroundColor: ['#f59e0b', '#ef4444', '#16a34a'],
+                borderWidth: 0,
+                borderRadius: 6,
+                spacing: 3,
+                hoverOffset: 6,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: { legend: { display: false } },
+          },
+        })
+      );
+    }
+    if (document.getElementById('donutRiscosNr1') && d.riscosPorNivel) {
+      const r = d.riscosPorNivel;
+      _chartsAtivos.push(
+        new Chart(document.getElementById('donutRiscosNr1'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Baixo', 'Médio', 'Alto/Crítico'],
+            datasets: [
+              {
+                data: [r.Baixo, r.Médio, r.Alto + r.Crítico],
+                backgroundColor: ['#16a34a', '#f59e0b', '#ef4444'],
+                borderWidth: 0,
+                borderRadius: 6,
+                spacing: 3,
+                hoverOffset: 6,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: { legend: { display: false } },
+          },
+        })
+      );
+    }
   }
-
+  if (document.getElementById('barJustifRH') && _dashAlertas?.justificativasPorStatus) {
+    const j = _dashAlertas.justificativasPorStatus;
+    _chartsAtivos.push(
+      new Chart(document.getElementById('barJustifRH'), {
+        type: 'bar',
+        data: {
+          labels: ['Pendente', 'Aprovada', 'Rejeitada'],
+          datasets: [
+            {
+              data: [j.pendente, j.aprovada, j.rejeitada],
+              backgroundColor: ['#f59e0b', '#16a34a', '#ef4444'],
+              borderRadius: 4,
+              maxBarThickness: 34,
+            },
+          ],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: { color: corEixo, font: { size: 10 }, precision: 0 },
+              grid: { color: corGrade },
+            },
+            y: { ticks: { color: corTexto, font: { size: 11 } }, grid: { display: false } },
+          },
+        },
+      })
+    );
+  }
   if (_dadosGraficosDashboardGestor) {
     const d = _dadosGraficosDashboardGestor;
     if (document.getElementById('gestorDonutIda')) {
@@ -1433,6 +1525,66 @@ function inicializarGraficosDashboard() {
         })
       );
     }
+    if (document.getElementById('donutCiclosGestor') && d.ciclosPorStatus) {
+      const cs = d.ciclosPorStatus;
+      _chartsAtivos.push(
+        new Chart(document.getElementById('donutCiclosGestor'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Aberto', 'Pendência de Avaliador', 'Encerrado'],
+            datasets: [
+              {
+                data: [cs['Aberto'] + cs['Em Consolidação'], cs['Pendência de Avaliador'], cs['Encerrado']],
+                backgroundColor: ['#f59e0b', '#ef4444', '#16a34a'],
+                borderWidth: 0,
+                borderRadius: 6,
+                spacing: 3,
+                hoverOffset: 6,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: { legend: { display: false } },
+          },
+        })
+      );
+    }
+  }
+  if (document.getElementById('barJustifGestor') && _dashAlertas?.justificativasPorStatus) {
+    const j = _dashAlertas.justificativasPorStatus;
+    _chartsAtivos.push(
+      new Chart(document.getElementById('barJustifGestor'), {
+        type: 'bar',
+        data: {
+          labels: ['Pendente', 'Aprovada', 'Rejeitada'],
+          datasets: [
+            {
+              data: [j.pendente, j.aprovada, j.rejeitada],
+              backgroundColor: ['#f59e0b', '#16a34a', '#ef4444'],
+              borderRadius: 4,
+              maxBarThickness: 34,
+            },
+          ],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: { color: corEixo, font: { size: 10 }, precision: 0 },
+              grid: { color: corGrade },
+            },
+            y: { ticks: { color: corTexto, font: { size: 11 } }, grid: { display: false } },
+          },
+        },
+      })
+    );
   }
 
   if (_dadosGraficosDashboardColaborador?.pctPdiPessoal !== null && document.getElementById('colabGaugePdi')) {
@@ -1456,6 +1608,34 @@ function inicializarGraficosDashboard() {
           maintainAspectRatio: false,
           cutout: '75%',
           plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        },
+      })
+    );
+  }
+
+  if (document.getElementById('donutJustifColab') && _dadosGraficosDashboardColaborador?.justifPorStatus) {
+    const j = _dadosGraficosDashboardColaborador.justifPorStatus;
+    _chartsAtivos.push(
+      new Chart(document.getElementById('donutJustifColab'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Pendente', 'Aprovada', 'Rejeitada'],
+          datasets: [
+            {
+              data: [j.pendente, j.aprovada, j.rejeitada],
+              backgroundColor: ['#f59e0b', '#16a34a', '#ef4444'],
+              borderWidth: 0,
+              borderRadius: 6,
+              spacing: 3,
+              hoverOffset: 6,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '70%',
+          plugins: { legend: { display: false } },
         },
       })
     );

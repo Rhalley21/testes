@@ -3,6 +3,43 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.89.2 — Dashboards do RH, Líder e Colaborador muito mais completos
+Os três dashboards passaram a reunir tudo que foi construído nas últimas
+sessões (justificativas de ponto, banco de horas, competência, substituto
+de aprovador, NR1), que antes ficava "escondido" em telas que só apareciam
+se a pessoa lembrasse de checar.
+
+**RH — "Suas pendências agora" ganhou:** justificativas de ponto
+aguardando decisão (com as escalonadas em destaque), ações do NR1 com
+prazo vencido, ações NR1 aguardando verificação de eficácia, aviso de
+competência do mês anterior não fechada, aviso de substituto de aprovador
+não definido, e alerta de banco de horas próprio negativo.
+
+**RH — novo "Painel operacional" com 3 gráficos:** ciclos por status
+(rosca), justificativas dos últimos 30 dias por status (barras), riscos
+NR1 por nível (rosca) — cada um só aparece se houver dado real.
+
+**Líder — pendências ganharam:** justificativas de ponto da equipe,
+substituto não definido, banco de horas próprio negativo.
+
+**Líder — nova tabela "Minha equipe":** cada colaborador com cargo, setor,
+status do ciclo atual, nível de desempenho e justificativas de ponto
+pendentes — tudo num lugar só, sem precisar visitar outras telas.
+
+**Líder — novo painel com 2 gráficos:** ciclos da equipe por status
+(rosca), justificativas da equipe por status (barras).
+
+**Colaborador — pendências ganharam:** justificativas de ponto próprias
+aguardando decisão, pesquisas NR1 aguardando resposta.
+
+**Colaborador — novo painel com gráfico + saldo:** rosca "Minhas
+justificativas" (histórico por status) e card do saldo do banco de horas
+do mês (colorido, verde se positivo, vermelho se negativo).
+
+Requer rodar reimplantar a Edge Function "ponto" (nova ação
+`dashboard_alertas`, que verifica substituto, competência anterior e conta
+justificativas por status). Sem mudança de banco.
+
 ## v0.88.1 — NR1: removido o campo "Origem" do SST
 O cadastro do responsável técnico (SST) tinha um campo "Origem" (nomeado
 pelo cliente / serviço contratado do INETRIS). Removido — o cadastro agora

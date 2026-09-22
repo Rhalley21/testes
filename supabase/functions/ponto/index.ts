@@ -411,6 +411,45 @@ serve(async (req: Request) => {
       return jsonResponse({ justificativas: data || [] });
     }
 
+    // ---- Alertas do dashboard: substituto de aprovador não definido, e
+    //      competência do mês anterior ainda não fechada. Uma chamada só,
+    //      pra não multiplicar ida-e-volta no carregamento do painel. ----
+    if (action === 'dashboard_alertas') {
+      if (!['owner', 'rh', 'lider'].includes(perfil.papel)) {
+        return jsonResponse({ error: 'Sem permissão.' }, 403);
+      }
+      const { data: meuPerfilRow } = await principalAdmin.from('perfis').select('substituto_perfil_id').eq('id', perfil.id).maybeSingle();
+      const substitutoDefinido = !!meuPerfilRow?.substituto_perfil_id;
+
+      const hoje = new Date();
+      const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+      const competenciaAnteriorStr = mesAnterior.toISOString().slice(0, 10);
+      const { data: fechadaRow } = await ponto
+        .from('competencias_fechadas')
+        .select('reaberto')
+        .eq('empresa_id', perfil.empresa_id)
+        .eq('competencia', competenciaAnteriorStr)
+        .maybeSingle();
+      const competenciaAnteriorFechada = !!fechadaRow && !fechadaRow.reaberto;
+      const mesAnteriorLabel = mesAnterior.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+      // Justificativas por status nos últimos 30 dias — pro gráfico do painel.
+      const ha30dias = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: justif30d } = await ponto
+        .from('justificativas_ponto')
+        .select('status')
+        .eq('empresa_id', perfil.empresa_id)
+        .gte('criado_em', ha30dias);
+      const justificativasPorStatus = { pendente: 0, aprovada: 0, rejeitada: 0 };
+      (justif30d || []).forEach((j: { status: string }) => {
+        if (justificativasPorStatus[j.status as keyof typeof justificativasPorStatus] !== undefined) {
+          justificativasPorStatus[j.status as keyof typeof justificativasPorStatus]++;
+        }
+      });
+
+      return jsonResponse({ substitutoDefinido, competenciaAnteriorFechada, mesAnteriorLabel, justificativasPorStatus });
+    }
+
     // ---- Substituto de aprovador: lista colegas líder/RH da empresa (pro
     //      dropdown) e permite ao líder/RH definir/trocar o próprio substituto. ----
     if (action === 'substituto_listar_candidatos') {
