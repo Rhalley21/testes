@@ -340,6 +340,407 @@ serve(async (req: Request) => {
       return jsonResponse({ registros: comFoto });
     }
 
+    // ---- Justificativas / abonos ----
+    if (action === 'justificativa_criar') {
+      // Bloqueia se a data pedida cair numa competência fechada e não reaberta.
+      if (body.dataRef) {
+        const competenciaDoDia = `${String(body.dataRef).slice(0, 7)}-01`;
+        const { data: fechada } = await ponto
+          .from('competencias_fechadas')
+          .select('reaberto')
+          .eq('empresa_id', perfil.empresa_id)
+          .eq('competencia', competenciaDoDia)
+          .maybeSingle();
+        if (fechada && !fechada.reaberto) {
+          return jsonResponse(
+            { error: 'Esta competência já está fechada. Peça ao RH/Administrador para reabri-la antes de enviar esta justificativa.' },
+            409
+          );
+        }
+      }
+      // Colaborador cria um pedido. Se veio foto de atestado, sobe pro bucket.
+      let atestadoPath: string | null = null;
+      if (body.atestadoBase64) {
+        try {
+          const base64 = String(body.atestadoBase64).split(',').pop() || '';
+          const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+          const nome = `${perfil.empresa_id}/${perfil.id}/${Date.now()}.jpg`;
+          const up = await ponto.storage.from('atestados-ponto').upload(nome, bytes, {
+            contentType: 'image/jpeg',
+            upsert: false,
+          });
+          if (!up.error) atestadoPath = nome;
+          else console.error('Falha ao subir atestado', up.error);
+        } catch (e) {
+          console.error('Erro processando atestado', e);
+        }
+      }
+      const colaborador = body.colaboradorId || null;
+      const { data, error } = await ponto
+        .from('justificativas_ponto')
+        .insert({
+          empresa_id: perfil.empresa_id,
+          perfil_id: perfil.id,
+          colaborador_id: colaborador,
+          tipo: body.tipo,
+          data_ref: body.dataRef,
+          motivo: body.motivo || '',
+          hora_ajuste: body.horaAjuste || null,
+          qtd_dias: body.qtdDias || 1,
+          atestado_path: atestadoPath,
+          // Atestado médico abona automaticamente (é um direito, não conta como
+          // falta): já nasce aprovado. O RH ainda vê na lista pra conferir a
+          // foto e pode reverter se for inválido. Os demais tipos ficam
+          // pendentes, aguardando decisão do gestor/RH.
+          status: body.tipo === 'atestado' ? 'aprovada' : 'pendente',
+        })
+        .select('id')
+        .single();
+      if (error) return jsonResponse({ error: error.message }, 500);
+      return jsonResponse({ id: data.id });
+    }
+
+    if (action === 'justificativa_minhas') {
+      // O colaborador vê as próprias justificativas.
+      const { data, error } = await ponto
+        .from('justificativas_ponto')
+        .select('id, tipo, data_ref, motivo, hora_ajuste, qtd_dias, status, motivo_decisao, atestado_path, criado_em')
+        .eq('perfil_id', perfil.id)
+        .order('criado_em', { ascending: false });
+      if (error) return jsonResponse({ error: error.message }, 500);
+      return jsonResponse({ justificativas: data || [] });
+    }
+
+    // ---- Substituto de aprovador: lista colegas líder/RH da empresa (pro
+    //      dropdown) e permite ao líder/RH definir/trocar o próprio substituto. ----
+    if (action === 'substituto_listar_candidatos') {
+      const { data: colegas } = await principalAdmin
+        .from('perfis')
+        .select('id, nome, papel')
+        .eq('empresa_id', perfil.empresa_id)
+        .in('papel', ['lider', 'rh', 'owner'])
+        .neq('id', perfil.id);
+      return jsonResponse({ candidatos: colegas || [] });
+    }
+
+    if (action === 'substituto_definir') {
+      if (!['owner', 'rh', 'lider'].includes(perfil.papel)) {
+        return jsonResponse({ error: 'Sem permissão.' }, 403);
+      }
+      const substitutoId = body.substitutoPerfilId || null;
+      if (substitutoId) {
+        // Confirma que o substituto é da mesma empresa antes de gravar.
+        const { data: subPerfil } = await principalAdmin
+          .from('perfis')
+          .select('id, empresa_id')
+          .eq('id', substitutoId)
+          .maybeSingle();
+        if (!subPerfil || subPerfil.empresa_id !== perfil.empresa_id) {
+          return jsonResponse({ error: 'Substituto inválido.' }, 400);
+        }
+      }
+      const { error } = await principalAdmin
+        .from('perfis')
+        .update({ substituto_perfil_id: substitutoId })
+        .eq('id', perfil.id);
+      if (error) return jsonResponse({ error: error.message }, 500);
+      return jsonResponse({ ok: true });
+    }
+
+    if (action === 'justificativa_pendentes') {
+      // Gestor/RH vê as pendentes da empresa pra aprovar. (owner/rh/lider)
+      if (!['owner', 'rh', 'lider'].includes(perfil.papel)) {
+        return jsonResponse({ error: 'Sem permissão para ver justificativas da equipe.' }, 403);
+      }
+      const filtro = body.status || 'pendente';
+      let q = ponto
+        .from('justificativas_ponto')
+        .select('id, perfil_id, tipo, data_ref, motivo, hora_ajuste, qtd_dias, status, atestado_path, criado_em, escalonado')
+        .eq('empresa_id', perfil.empresa_id)
+        .order('criado_em', { ascending: false });
+      if (filtro !== 'todas') q = q.eq('status', filtro);
+      const { data: js, error } = await q;
+      if (error) return jsonResponse({ error: error.message }, 500);
+
+      // Resolve nomes e, se houver atestado, uma URL assinada temporária.
+      const ids = [...new Set((js || []).map((j) => j.perfil_id))];
+      const { data: perfis } = await principalAdmin.from('perfis').select('id, nome').in('id', ids);
+      const nomePorId = Object.fromEntries((perfis || []).map((p) => [p.id, p.nome]));
+
+      // Colaboradores (pro gestor de cada um) vêm do blob principal.
+      const { data: dadosRow } = await principalAdmin
+        .from('dados_sistema')
+        .select('payload')
+        .eq('empresa_id', perfil.empresa_id)
+        .maybeSingle();
+      const colaboradores = dadosRow?.payload?.colaboradores || [];
+
+      const MS_POR_DIA = 24 * 60 * 60 * 1000;
+      const LIMITE_DIAS_ESCALONA = 3;
+      const agora = Date.now();
+
+      const comExtras = await Promise.all(
+        (js || []).map(async (j) => {
+          let atestadoUrl = null;
+          if (j.atestado_path) {
+            const { data: assinada } = await ponto.storage.from('atestados-ponto').createSignedUrl(j.atestado_path, 3600);
+            atestadoUrl = assinada?.signedUrl || null;
+          }
+          const diasPendente = Math.floor((agora - new Date(j.criado_em).getTime()) / MS_POR_DIA);
+          const deveEscalonar = j.status === 'pendente' && diasPendente >= LIMITE_DIAS_ESCALONA;
+
+          // Na primeira vez que cruza o limite: marca e avisa por e-mail o
+          // substituto do gestor do colaborador (se tiver) e o RH. Melhor
+          // esforço — se o e-mail falhar, a escalação já foi marcada e a
+          // tela mostra o atraso de qualquer forma.
+          if (deveEscalonar && !j.escalonado) {
+            await ponto.from('justificativas_ponto').update({ escalonado: true, escalonado_em: new Date().toISOString() }).eq('id', j.id);
+            try {
+              const colaborador = colaboradores.find((c: { perfilId: string }) => c.perfilId === j.perfil_id);
+              const gestorId = colaborador?.gestorPerfilId;
+              let destinatarios: string[] = [];
+              if (gestorId) {
+                const { data: gestorPerfil } = await principalAdmin
+                  .from('perfis')
+                  .select('email, substituto_perfil_id')
+                  .eq('id', gestorId)
+                  .maybeSingle();
+                if (gestorPerfil?.substituto_perfil_id) {
+                  const { data: substitutoPerfil } = await principalAdmin
+                    .from('perfis')
+                    .select('email')
+                    .eq('id', gestorPerfil.substituto_perfil_id)
+                    .maybeSingle();
+                  if (substitutoPerfil?.email) destinatarios.push(substitutoPerfil.email);
+                }
+              }
+              const { data: rhPerfis } = await principalAdmin
+                .from('perfis')
+                .select('email')
+                .eq('empresa_id', perfil.empresa_id)
+                .in('papel', ['rh', 'owner']);
+              (rhPerfis || []).forEach((p: { email: string | null }) => {
+                if (p.email && !destinatarios.includes(p.email)) destinatarios.push(p.email);
+              });
+              if (destinatarios.length) {
+                await Promise.all(
+                  destinatarios.map((email) =>
+                    fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/enviar-email`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+                      body: JSON.stringify({
+                        destinatario: email,
+                        assunto: `Justificativa parada há ${diasPendente} dias — ${nomePorId[j.perfil_id] || 'colaborador'}`,
+                        corpoHtml: `<p>Uma justificativa de <b>${nomePorId[j.perfil_id] || 'um colaborador'}</b> está aguardando decisão há ${diasPendente} dias sem resposta do aprovador original.</p><p>Acesse a Conferência de Ponto para decidir.</p>`,
+                      }),
+                    }).catch(() => {})
+                  )
+                );
+              }
+            } catch (e) {
+              console.error('Falha ao notificar escalonamento', e);
+            }
+          }
+
+          return { ...j, nome: nomePorId[j.perfil_id] || 'Colaborador', atestadoUrl, diasPendente, escalonado: j.escalonado || deveEscalonar };
+        })
+      );
+      return jsonResponse({ justificativas: comExtras });
+    }
+
+    if (action === 'justificativa_decidir') {
+      // Gestor/RH aprova ou rejeita.
+      if (!['owner', 'rh', 'lider'].includes(perfil.papel)) {
+        return jsonResponse({ error: 'Sem permissão para decidir justificativas.' }, 403);
+      }
+      const novoStatus = body.aprovar ? 'aprovada' : 'rejeitada';
+      const { error } = await ponto
+        .from('justificativas_ponto')
+        .update({
+          status: novoStatus,
+          motivo_decisao: body.motivoDecisao || null,
+          decidido_por: perfil.id,
+          decidido_em: new Date().toISOString(),
+        })
+        .eq('id', body.justificativaId)
+        .eq('empresa_id', perfil.empresa_id);
+      if (error) return jsonResponse({ error: error.message }, 500);
+      return jsonResponse({ status: novoStatus });
+    }
+
+    // ---- Dias abonados (justificativas aprovadas) de uma pessoa num período,
+    //      pra o cálculo de horas/atrasos ignorar esses dias. ----
+    if (action === 'justificativa_abonos') {
+      const inicio = body.inicioISO;
+      const fim = body.fimISO;
+      if (!inicio || !fim) return jsonResponse({ error: 'inicioISO e fimISO são obrigatórios.' }, 400);
+
+      // Relatório semanal (RH/owner): todos os abonos da empresa no período,
+      // com o perfil_id de cada um, pra casar com cada pessoa da grade.
+      if (body.todaEmpresa) {
+        if (!['owner', 'rh'].includes(perfil.papel)) {
+          return jsonResponse({ error: 'Sem permissão.' }, 403);
+        }
+        const { data, error } = await ponto
+          .from('justificativas_ponto')
+          .select('data_ref, tipo, perfil_id')
+          .eq('empresa_id', perfil.empresa_id)
+          .eq('status', 'aprovada')
+          .gte('data_ref', inicio.slice(0, 10))
+          .lte('data_ref', fim.slice(0, 10));
+        if (error) return jsonResponse({ error: error.message }, 500);
+        return jsonResponse({ abonos: data || [] });
+      }
+
+      // Se pediu de um perfil específico, precisa ser owner/rh; senão, retorna os do próprio.
+      let alvoPerfil = perfil.id;
+      if (body.perfilId && body.perfilId !== perfil.id) {
+        if (!['owner', 'rh'].includes(perfil.papel)) {
+          return jsonResponse({ error: 'Sem permissão.' }, 403);
+        }
+        alvoPerfil = body.perfilId;
+      }
+      const { data, error } = await ponto
+        .from('justificativas_ponto')
+        .select('data_ref, tipo')
+        .eq('empresa_id', perfil.empresa_id)
+        .eq('status', 'aprovada')
+        .gte('data_ref', inicio.slice(0, 10))
+        .lte('data_ref', fim.slice(0, 10))
+        .eq('perfil_id', alvoPerfil);
+      if (error) return jsonResponse({ error: error.message }, 500);
+      return jsonResponse({ abonos: data || [] });
+    }
+
+    // ---- Banco de horas: saldo acumulado (positivo ou negativo) de um
+    //      colaborador num período, somando (extra - atraso) de cada dia com
+    //      jornada, ignorando dias abonados. A jornada vive no cadastro do
+    //      colaborador (payload.colaboradores, no banco principal). ----
+    if (action === 'banco_horas_saldo') {
+      const inicio = body.inicioISO;
+      const fim = body.fimISO;
+      if (!inicio || !fim) return jsonResponse({ error: 'inicioISO e fimISO são obrigatórios.' }, 400);
+      let alvoPerfil = perfil.id;
+      if (body.perfilId && body.perfilId !== perfil.id) {
+        if (!['owner', 'rh'].includes(perfil.papel)) {
+          return jsonResponse({ error: 'Sem permissão.' }, 403);
+        }
+        alvoPerfil = body.perfilId;
+      }
+
+      // Jornada do colaborador (vem do blob principal).
+      const { data: dadosRow } = await principalAdmin
+        .from('dados_sistema')
+        .select('payload')
+        .eq('empresa_id', perfil.empresa_id)
+        .maybeSingle();
+      const colaboradores = dadosRow?.payload?.colaboradores || [];
+      const colaborador = colaboradores.find((c: { perfilId: string }) => c.perfilId === alvoPerfil);
+      const jornada = colaborador?.jornada || null;
+      if (!jornada) return jsonResponse({ saldoMin: 0, semJornada: true });
+
+      const { data: registros, error: errReg } = await ponto
+        .from('registros_ponto')
+        .select('tipo, registrado_em')
+        .eq('empresa_id', perfil.empresa_id)
+        .eq('perfil_id', alvoPerfil)
+        .gte('registrado_em', inicio)
+        .lt('registrado_em', fim)
+        .order('registrado_em', { ascending: true });
+      if (errReg) return jsonResponse({ error: errReg.message }, 500);
+
+      const { data: abonos } = await ponto
+        .from('justificativas_ponto')
+        .select('data_ref')
+        .eq('empresa_id', perfil.empresa_id)
+        .eq('perfil_id', alvoPerfil)
+        .eq('status', 'aprovada')
+        .gte('data_ref', String(inicio).slice(0, 10))
+        .lt('data_ref', String(fim).slice(0, 10));
+      const diasAbonados = new Set((abonos || []).map((a: { data_ref: string }) => a.data_ref));
+
+      const porDia: Record<string, { tipo: string; registrado_em: string }[]> = {};
+      (registros || []).forEach((r: { tipo: string; registrado_em: string }) => {
+        const dia = r.registrado_em.slice(0, 10);
+        (porDia[dia] = porDia[dia] || []).push(r);
+      });
+      const tol = jornada.toleranciaMin || 0;
+      const horarioParaMinutos = (h: string) => {
+        const [a, b] = h.split(':').map(Number);
+        return a * 60 + b;
+      };
+      const minutosDoDia = (iso: string) => {
+        const d = new Date(iso);
+        return d.getHours() * 60 + d.getMinutes();
+      };
+      let saldoMin = 0;
+      Object.entries(porDia).forEach(([dia, regs]) => {
+        if (diasAbonados.has(dia)) return; // dia abonado não entra no saldo
+        const entradas = regs.filter((r) => r.tipo === 'entrada');
+        const saidas = regs.filter((r) => r.tipo === 'saida');
+        const primeira = entradas[0];
+        const ultima = saidas[saidas.length - 1];
+        let atraso = 0;
+        if (primeira && jornada.entrada) {
+          atraso = Math.max(0, minutosDoDia(primeira.registrado_em) - horarioParaMinutos(jornada.entrada) - tol);
+        }
+        let extra = 0;
+        if (ultima && jornada.saida) {
+          extra = Math.max(0, minutosDoDia(ultima.registrado_em) - horarioParaMinutos(jornada.saida) - tol);
+        }
+        saldoMin += extra - atraso;
+      });
+      return jsonResponse({ saldoMin: Math.round(saldoMin) });
+    }
+
+    // ---- Fechamento de competência (mês) — trava o período para
+    //      justificativas/ajustes; só owner/rh fecha ou reabre. ----
+    if (action === 'competencia_fechar') {
+      if (!['owner', 'rh'].includes(perfil.papel)) {
+        return jsonResponse({ error: 'Sem permissão para fechar competência.' }, 403);
+      }
+      const competencia = body.competencia; // 'AAAA-MM-01'
+      if (!competencia) return jsonResponse({ error: 'competencia é obrigatória.' }, 400);
+      const { error } = await ponto
+        .from('competencias_fechadas')
+        .insert({ empresa_id: perfil.empresa_id, competencia, fechado_por: perfil.id });
+      if (error) {
+        if (String(error.message).includes('duplicate') || String(error.code) === '23505') {
+          return jsonResponse({ error: 'Esta competência já está fechada.' }, 409);
+        }
+        return jsonResponse({ error: error.message }, 500);
+      }
+      return jsonResponse({ ok: true });
+    }
+
+    if (action === 'competencia_reabrir') {
+      if (!['owner', 'rh'].includes(perfil.papel)) {
+        return jsonResponse({ error: 'Sem permissão para reabrir competência.' }, 403);
+      }
+      const { error } = await ponto
+        .from('competencias_fechadas')
+        .update({
+          reaberto: true,
+          reaberto_em: new Date().toISOString(),
+          reaberto_por: perfil.id,
+          motivo_reabertura: body.motivo || null,
+        })
+        .eq('empresa_id', perfil.empresa_id)
+        .eq('competencia', body.competencia);
+      if (error) return jsonResponse({ error: error.message }, 500);
+      return jsonResponse({ ok: true });
+    }
+
+    if (action === 'competencia_status') {
+      const { data, error } = await ponto
+        .from('competencias_fechadas')
+        .select('competencia, fechado_em, reaberto, reaberto_em, motivo_reabertura')
+        .eq('empresa_id', perfil.empresa_id)
+        .order('competencia', { ascending: false });
+      if (error) return jsonResponse({ error: error.message }, 500);
+      return jsonResponse({ competencias: data || [] });
+    }
+
     return jsonResponse({ error: `Ação desconhecida: "${action}".` }, 400);
   } catch (e) {
     return jsonResponse({ error: String(e) }, 500);

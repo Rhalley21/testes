@@ -3,6 +3,290 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.87.1 — Correções de segurança encontradas na revisão (NR1)
+Revisão do código da Edge Function "nr1" encontrou e corrigiu dois problemas
+reais:
+- **Vazamento entre empresas**: a ação de ver o log de visualização de uma
+  campanha não conferia se a campanha pertencia à empresa de quem
+  perguntava — em teoria, alguém sabendo o id de uma campanha de outra
+  empresa poderia consultar quem viu o resultado dela. Corrigido: agora
+  confirma que a campanha é da mesma empresa antes de responder.
+- **Elegibilidade não validada no servidor**: a segmentação de público
+  (por unidade/setor/cargo/lista) só era conferida na tela — o servidor
+  aceitava qualquer resposta de qualquer pessoa da empresa. Corrigido:
+  agora o servidor confere a elegibilidade antes de aceitar a resposta.
+
+Também corrigido: a lista de campanhas mostrava "Nenhuma campanha criada
+ainda" por um instante enquanto ainda carregava do servidor, antes de
+aparecer a lista real — agora mostra "Carregando campanhas…" nesse meio-tempo.
+
+## v0.87.0 — NR1: campanhas e respostas movidas para o servidor
+Corrige a limitação de privacidade apontada: até aqui, campanhas, respostas
+e a lista de quem já respondeu viviam no mesmo bloco de dados que qualquer
+usuário logado da empresa baixa no navegador — tecnicamente dava para ver
+no Console quem participou (não o quê) de uma campanha NR1.
+
+Agora essas partes vivem só no **servidor**, numa Edge Function nova
+("nr1") com 5 tabelas próprias, sem nenhuma política de acesso direto do
+navegador — só a função (com a chave de serviço) toca nesses dados:
+- Campanhas, respostas (sem ligação com quem respondeu — nem o servidor
+  sabe), participação (quem já respondeu, separado do conteúdo),
+  consentimento de privacidade, e o log de visualização do resultado.
+- O navegador só recebe o que cada ação decide devolver: números
+  consolidados, ou "só sobre a própria pessoa" (se ela já respondeu/
+  aceitou) — nunca um despejo bruto das listas.
+- Toda a experiência (criar/publicar/encerrar campanha, responder, aceitar
+  o aviso de privacidade, ver resultado consolidado, salvar rascunho,
+  fechamento automático) continua igual — só a forma como os dados viajam
+  e são guardados mudou.
+
+SST, dimensões/perguntas, inventário de risco e plano de ação continuam no
+navegador (não são dados sensíveis de resposta anônima — são registros de
+gestão do RH/SST), sem mudança.
+
+Requer rodar sql/27-nr1-servidor.sql no projeto principal e implantar a
+nova Edge Function "nr1" (arquivo à parte).
+
+## v0.86.1 — NR1: aviso de privacidade e log de visualização
+- **Aviso de privacidade**: antes de responder, aparece um aviso explicando
+  a finalidade da coleta (avaliar condições de trabalho, nunca a pessoa) e
+  a garantia de anonimato. É preciso aceitar para continuar. O aceite fica
+  registrado (quem e quando) — separado da resposta em si, então não quebra
+  o anonimato, no mesmo princípio de "quem já respondeu" que já existia.
+- **Log de visualização do resultado**: toda vez que um owner/rh abre o
+  resultado consolidado de uma campanha, fica registrado quem viu e quando
+  — exigência de auditoria da norma. Fechar e reabrir gera um novo
+  registro; só reabrir sem fechar (nova renderização) não duplica. As
+  últimas 5 visualizações aparecem no rodapé do card de resultado.
+
+Sem mudança de banco.
+
+## v0.86.0 — NR1: público segmentado, salvar rascunho, fechamento automático
+- **Público segmentado**: ao criar uma campanha, escolha se ela vai para
+  todos os colaboradores, uma unidade, um setor, um cargo, ou uma lista
+  específica de pessoas — com a **quantidade de elegíveis mostrada em tempo
+  real** antes de publicar. A lista de campanhas mostra o público e quantos
+  são elegíveis; "Minhas pesquisas" só mostra campanhas para as quais a
+  pessoa é elegível. A adesão do painel executivo passou a considerar o
+  público de cada campanha, não mais o total de colaboradores da empresa.
+- **Salvar e continuar**: ao responder, o progresso é salvo automaticamente
+  no navegador da própria pessoa (nunca no servidor — não afeta o
+  anonimato). Se ela saltar fora, a lista mostra "(rascunho salvo)" e o
+  botão muda para "Continuar", retomando de onde parou. O rascunho é
+  apagado ao enviar a resposta.
+- **Fechamento automático**: campanhas ativas cuja data de fim já passou
+  são encerradas automaticamente ao abrir a tela, sem depender de alguém
+  lembrar — a lista sinaliza quando isso aconteceu.
+
+Sem mudança de banco.
+
+## v0.85.2 — Agregação hierárquica de grupos pequenos (NR1)
+Setores com menos respostas que o mínimo de anonimato deixaram de ser só
+ocultados: agora sobem para o nível de cima na Estrutura (ex: a Unidade) e
+se juntam com outros setores pequenos do mesmo pai. Se a soma atingir o
+mínimo, mostra o resultado agregado nesse nível ("Setor X (agregado dos
+setores menores)"); se ainda não atingir, sobe mais um nível, até "toda a
+empresa" como último recurso — em vez de descartar o dado, como o
+documento recomendava. Testado com um cenário de dois setores pequenos que
+se combinam corretamente.
+
+## v0.85.1 — Resultado da pesquisa ligado à matriz de risco
+Corrige a desconexão entre o resultado da pesquisa (média com cor) e o
+inventário de riscos (matriz probabilidade × severidade) — eram dois
+sistemas que não se falavam. Agora, toda dimensão com resultado abaixo do
+esperado (média < 3,5), tanto na visão "empresa toda" quanto por setor,
+ganha um botão **"+ Registrar risco"** que abre o formulário do inventário
+já com a descrição, a dimensão e o grupo preenchidos — e uma probabilidade
+sugerida conforme a gravidade da média (só sugestão; a probabilidade e a
+severidade continuam sendo definidas por julgamento humano do responsável
+técnico, nunca calculadas automaticamente pela pesquisa).
+
+## v0.85.0 — Módulo NR1 (Fases 3 e 4: risco, plano de ação e painel)
+- **Inventário de riscos**: registre um risco (descrição, dimensão
+  relacionada, grupo afetado, decisão) e defina probabilidade e severidade
+  (1 a 5 cada) — o sistema calcula o **nível** pela matriz de risco
+  (Baixo/Médio/Alto/Crítico). É julgamento humano do responsável técnico; o
+  sistema só organiza e calcula, não decide.
+- **Plano de ação**: cada risco pode ter várias ações (tipo, responsável,
+  prazo). Status calculado automaticamente — uma ação com prazo vencido e
+  não concluída aparece como "Atrasada". Ações concluídas ganham um botão
+  **"Verificar eficácia"**: registra se realmente funcionou (melhorou /
+  parcial / não melhorou) — concluir a tarefa não fecha o risco
+  automaticamente, como a norma exige.
+- **Painel executivo**: contagem de riscos por nível, ações atrasadas,
+  ações aguardando verificação de eficácia, e a adesão média das campanhas
+  publicadas.
+
+Com isso, o ciclo completo do NR1 está fechado: campanha → coleta anônima →
+resultado consolidado → risco → ação → verificação de eficácia → painel.
+Sem mudança de banco. Continua valendo: conteúdo e anonimato precisam de
+validação por SST antes de uso com cliente real.
+
+## v0.84.0 — Módulo NR1 (Fase 2: coleta anônima e consolidação)
+- **"Minhas pesquisas"**: todo colaborador (qualquer papel) vê as campanhas
+  ativas que ainda não respondeu, e responde direto no sistema — escala de
+  1 a 5 por afirmação. A resposta **não leva o nome de quem respondeu**, só
+  o setor/unidade (pra permitir agrupar sem identificar a pessoa), seguindo
+  o mesmo princípio de anonimato da Pesquisa de Clima.
+- **Resultado consolidado** (owner/rh): botão "Ver resultado" em cada
+  campanha publicada, mostrando a média por dimensão — para a empresa toda,
+  e também por setor. **Grupos com menos respostas que o mínimo definido
+  ficam ocultos** ("dados insuficientes"), protegendo o anonimato mesmo em
+  setores pequenos. Cores indicam o nível: vermelho (risco), laranja
+  (atenção), verde (adequado).
+
+Ainda faltam (próxima fase): registro formal de risco a partir do
+resultado, plano de ação e verificação de eficácia. Continua valendo o
+aviso: conteúdo e regras de anonimato precisam de validação por SST antes
+de uso com cliente real. Sem mudança de banco.
+
+## v0.83.0 — Módulo NR1 (Fase 1: fundação)
+Início do módulo de Riscos Psicossociais (NR1), no menu "Pessoas" (owner/rh):
+- **Responsável técnico (SST)**: cadastro simples (nome, contato, se é do
+  cliente ou serviço contratado do INETRIS). **Sem SST nomeado, nenhuma
+  campanha pode ser publicada** — só fica em rascunho.
+- **Dimensões e perguntas**: modelo genérico com 9 dimensões (demandas e
+  carga, autonomia, clareza de papel, apoio e liderança, reconhecimento,
+  relações e violência, mudanças e segurança, trabalho e vida, condições de
+  execução), com perguntas redigidas do zero pelo INETRIS — não é cópia de
+  nenhum instrumento comercial/protegido.
+- **Campanhas**: criar (nome, período, mínimo de respondentes por grupo —
+  padrão 5), publicar (trava sem SST) e encerrar. As perguntas ficam
+  "congeladas" no momento da publicação, então editar o modelo depois não
+  afeta campanhas já publicadas.
+
+⚠️ Fase 1 é só a fundação: a coleta anônima de respostas, a consolidação por
+grupo com a trava de anonimato, e o registro de risco/plano de ação ainda
+não existem — entram nas próximas fases. Este módulo ainda não deve ser
+usado com um cliente real: o conteúdo das perguntas e as regras de
+anonimato precisam de homologação por um profissional de SST antes disso
+(aviso também exibido na própria tela). Sem mudança de banco — vive no
+mesmo blob por empresa (dados_sistema), com compatibilidade automática para
+empresas já existentes.
+
+## v0.82.0 — Substituto de aprovador e escalonamento
+Resolve o risco de justificativas ficarem paradas quando o gestor está
+ausente:
+- Na Conferência de Ponto, uma seção **"Meu substituto"** onde o líder/RH
+  escolhe outro líder ou RH da empresa que também pode aprovar por ele.
+- Uma justificativa **pendente há 3 dias ou mais** é marcada como
+  **escalonada**: aparece destacada (fundo vermelho claro, selo "⚠ Atrasado
+  (Xd) — escalonado") na lista, e dispara um e-mail avisando o substituto do
+  gestor do colaborador (se definido) e o RH/Admin da empresa — best-effort,
+  não bloqueia a tela se o e-mail falhar.
+
+Requer rodar sql/26-substituto-aprovador.sql (principal) e
+sql-ponto-db/06-escalonamento.sql (ponto), e reimplantar a Edge Function
+"ponto".
+
+## v0.81.0 — Acesso sem e-mail (para quem não tem e-mail/celular corporativo)
+Na tela de Colaboradores, quem ainda não tem conta vinculada ganhou o botão
+"Criar acesso sem e-mail". O RH informa um login (matrícula) e o papel
+(colaborador/líder/RH); o sistema gera um identificador técnico interno (não
+é um e-mail de verdade — nunca é enviado a lugar nenhum) e uma senha
+provisória, mostrados **uma única vez** para o RH copiar e entregar à
+pessoa. No primeiro login com a senha provisória, o sistema obriga a criar
+uma senha própria antes de continuar. Reaproveita o mecanismo de convites já
+existente — a trigger de cadastro não foi alterada. Nova Edge Function
+"acesso-sem-email".
+
+Requer rodar sql/25-acesso-sem-email.sql no projeto principal e implantar a
+nova Edge Function "acesso-sem-email" (arquivo à parte).
+
+## v0.80.0 — Banco de horas e fechamento de competência
+Motor de ponto mais completo:
+- **Banco de horas**: card na tela de Ponto mostrando o saldo acumulado do
+  mês (positivo = fez mais horas, verde; negativo = a compensar, vermelho).
+  Calculado a partir do atraso/extra de cada dia com jornada, ignorando dias
+  abonados por justificativa aprovada.
+- **Fechamento de competência**: na Conferência de Ponto, o RH/Admin escolhe
+  um mês e fecha. Depois de fechada, novas justificativas (inclusive ajuste
+  de ponto) para datas daquele mês são bloqueadas, com aviso claro. Reabrir
+  é possível (só owner/rh), pedindo um motivo que fica registrado. A lista
+  mostra todas as competências fechadas/reabertas.
+
+Requer rodar sql-ponto-db/05-banco-horas-competencia.sql no banco de PONTO e
+reimplantar a Edge Function "ponto".
+
+## v0.79.0 — Relatório semanal de ponto reflete os abonos
+O PDF do relatório semanal agora considera as justificativas aprovadas: um
+dia abonado (atestado, falta justificada, etc.) deixa de contar atraso ou
+saída antecipada no cálculo daquela pessoa — igual já acontecia na tela de
+Ponto do colaborador. Dias sem batida mas abonados aparecem marcados como
+"abon." na grade, em vez de "·" (que passa a significar só ausência não
+justificada). A hora extra, se houver, continua contando normalmente.
+
+Requer reimplantar a Edge Function "ponto" (nova opção todaEmpresa na ação
+justificativa_abonos, para o relatório buscar os abonos de todos de uma vez).
+
+## v0.78.4 — Correção: seleção do tipo de justificativa ficava bagunçada
+Ao trocar o "Tipo" na tela de Justificativas, o select não guardava a
+seleção: a cada re-renderização voltava para a primeira opção, mesmo com os
+campos abaixo já tendo mudado — dando a impressão de bagunça. Corrigido: o
+tipo escolhido agora fica guardado corretamente, e o select mostra a opção
+certa sempre.
+
+## v0.78.3 — Atestado médico abona automaticamente
+Justificativa do tipo atestado médico agora é aprovada automaticamente ao
+enviar (não conta como falta e não espera decisão do gestor) — é um direito,
+não uma falta a julgar. O RH/gestor continua vendo o atestado na lista, com o
+selo "Abonado", e pode reverter (rejeitar) caso a foto seja inválida. Os
+demais tipos (falta, atraso, ajuste) seguem precisando de aprovação.
+
+Requer reimplantar a Edge Function "ponto".
+
+## v0.78.2 — Justificativas: quantidade de dias + foto simplificada
+- Novo campo "Quantos dias?" (digitável) nas justificativas de falta e
+  atestado — permite justificar um período (ex: viagem de 3 dias) num pedido
+  só. A quantidade aparece nas listas do colaborador e do gestor.
+- A foto do atestado passou a ter só o botão "Tirar foto ou escolher da
+  galeria" (o seletor nativo, que funciona bem no celular). O botão de câmera
+  ao vivo, que estava com bug, foi removido.
+
+Requer rodar sql-ponto-db/04-justificativas-dias.sql no banco de PONTO (só
+adiciona a coluna qtd_dias) e reimplantar a Edge Function "ponto".
+
+## v0.78.1 — Correção: foto do atestado não abria a câmera
+O botão "Tirar foto do atestado" não fazia nada: a câmera era acionada antes
+do elemento de vídeo existir na tela (a ordem estava trocada). Corrigido — a
+câmera abre em vez de travar, com botão Cancelar e o mesmo plano B de câmera
+do ponto (tenta traseira, depois qualquer câmera). Também foi adicionada a
+opção "Escolher da galeria" (o seletor de arquivo, que no celular abre a
+câmera nativa ou a galeria) como alternativa mais confiável.
+
+## v0.78.0 — Justificativas e abonos de ponto
+Funcionalidade completa de justificativas/abonos:
+- Na tela de **Ponto**, o colaborador tem um card "Justificativas e abonos"
+  onde cria pedidos: falta (dia inteiro), atraso/saída antecipada,
+  esquecimento de bater ponto (com o horário correto), ou atestado médico
+  (com foto do documento pela câmera). Ele acompanha o status de cada pedido.
+- Na **Conferência de Ponto** (RH/gestor), uma seção lista os pedidos, mostra
+  o atestado (clicável para ampliar) e permite aprovar ou rejeitar, com
+  filtro por status.
+- Quando **aprovada**, a justificativa **abona o dia**: o cálculo de atraso na
+  tela de Ponto passa a ignorar aquele dia (a hora extra, se houver, continua
+  contando a favor). Aprovar/rejeitar é permitido a owner, RH e gestor.
+
+Requer: rodar sql-ponto-db/03-justificativas.sql no banco de PONTO, criar o
+bucket privado "atestados-ponto" nesse projeto, e reimplantar a Edge Function
+"ponto". Observação: o abono já vale na tela de Ponto do colaborador; refletir
+o abono também no relatório semanal (por empresa) fica para um ajuste seguinte.
+
+## v0.77.3 — Câmera do ponto mais robusta (plano B de câmera)
+O scanner de QR exigia estritamente a câmera traseira, o que fazia alguns
+celulares/navegadores falharem por completo (dando "câmera ocupada" mesmo sem
+estar). Agora, se a câmera traseira não abrir na primeira tentativa, o sistema
+lista as câmeras do aparelho e usa a traseira pelo nome — ou a primeira
+disponível — em vez de desistir. Isso resolve casos em que a câmera não abria
+mesmo após fechar apps e reiniciar.
+
+## v0.77.2 — Mensagem de câmera ocupada mais clara
+Quando a câmera do ponto (QR/selfie) não abre por estar ocupada por outro app
+(WhatsApp, Zoom, Meet, outra aba), a mensagem agora diz isso claramente e
+orienta a fechar esses apps ou reiniciar o aparelho — em vez do genérico "não
+foi possível abrir a câmera". Também melhora as mensagens de permissão negada.
+(As telas de Justificativas estão em desenvolvimento e ainda desativadas.)
+
 ## v0.77.1 — Correção: mensagem "atualizando" escondida atrás do botão
 As mensagens (toasts), incluindo a de "atualizando dados", apareciam no mesmo
 canto do botão fixo de atualizar e ficavam escondidas atrás dele. Agora o

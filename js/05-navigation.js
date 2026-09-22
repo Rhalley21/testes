@@ -30,6 +30,7 @@ const STEPS_BASE = [
     apenasSePontoHabilitado: true,
   }, // RH/Admin conferem as batidas com as fotos
   { id: 'clima', label: 'Pesquisa de Clima / eNPS', group: 'Pessoas' },
+  { id: 'nr1', label: 'NR1 — Riscos Psicossociais', group: 'Pessoas' }, // todo mundo responde a própria pesquisa; owner/rh veem a gestão dentro da página
   { id: 'sucessao', label: 'Mapa de Sucessão', group: 'Pessoas', papeis: ['owner', 'rh'] },
   { id: 'ciclos', label: 'Ciclos de Avaliação', group: 'Ciclo NORTE' },
   { id: 'diagnostico', label: 'Diagnóstico & PDI', group: 'Ciclo NORTE' },

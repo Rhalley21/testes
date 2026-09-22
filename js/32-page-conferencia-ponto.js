@@ -129,6 +129,10 @@ function pageConferenciaPonto() {
       ${corpo}
     </div>
 
+    ${renderSecaoAprovacaoJustificativas()}
+    ${renderSecaoSubstituto()}
+    ${renderSecaoCompetencias()}
+
     ${
       _confFotoAmpliada
         ? `

@@ -42,6 +42,13 @@ const state = {
   bancoAcoes: [],
   feedbackContinuo: [], // check-ins 1:1 fora do ciclo formal — RN003 não é afetada (não pontua)
   pesquisasClima: [], // pesquisas de clima/eNPS, módulo separado da avaliação de desempenho
+  nr1: {
+    sst: null, // { nome, contato, origem: 'cliente'|'inetris', definidoEm } — sem isso, não publica campanha
+    dimensoes: null, // preenchido com DIMENSOES_NR1_PADRAO na primeira vez que a empresa abre o módulo; editável
+    campanhas: [],
+    riscos: [],
+    acoes: [],
+  },
   ciclos: [], // {id,colaboradorId,cargoId,estado,dataAbertura,notas:{colaborador:{},gestor:{},rh:{}},diagnostico,pdiDesenvolvimento,pdiMentalidade}
   ciclosSelecionado: null,
   avaliadorAtivo: 'colaborador',

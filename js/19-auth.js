@@ -62,6 +62,48 @@ function limparTentativasLogin(email) {
   salvarTentativasLogin(email, { count: 0, bloqueadoAte: null });
 }
 
+// Tela de troca de senha obrigatória — mostrada quando a conta foi criada
+// com senha provisória (acesso sem e-mail, gerado pelo RH). A pessoa só
+// segue pro sistema depois de definir a própria senha.
+function renderTrocaSenhaObrigatoria() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:36px 32px;">
+        <div class="brand-name" style="font-size:20px;margin-bottom:4px;">Defina sua senha</div>
+        <p class="page-desc" style="margin-bottom:20px;">Esta conta foi criada com uma senha provisória. Escolha uma senha própria para continuar.</p>
+        <div class="field"><label>Nova senha <small>(mínimo 6 caracteres)</small></label><input id="tf_nova_senha" type="password"></div>
+        <div class="field"><label>Confirme a nova senha</label><input id="tf_confirma_senha" type="password"></div>
+        ${erroLogin ? `<p style="color:var(--iniciar);font-size:13px;margin:8px 0;">${escaparHtml(erroLogin)}</p>` : ''}
+        <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="trocarSenhaObrigatoria()">Definir senha e entrar</button>
+      </div>
+    </div>`;
+}
+
+async function trocarSenhaObrigatoria() {
+  const nova = document.getElementById('tf_nova_senha').value;
+  const confirma = document.getElementById('tf_confirma_senha').value;
+  if (!nova || nova.length < 6) {
+    erroLogin = 'A senha precisa ter pelo menos 6 caracteres.';
+    renderTrocaSenhaObrigatoria();
+    return;
+  }
+  if (nova !== confirma) {
+    erroLogin = 'As senhas não coincidem.';
+    renderTrocaSenhaObrigatoria();
+    return;
+  }
+  const { error: erroSenha } = await sb.auth.updateUser({ password: nova });
+  if (erroSenha) {
+    erroLogin = 'Não foi possível trocar a senha: ' + erroSenha.message;
+    renderTrocaSenhaObrigatoria();
+    return;
+  }
+  await sb.from('perfis').update({ senha_provisoria: false }).eq('id', meuPerfilId);
+  erroLogin = null;
+  location.reload(); // reinicia o login normal, agora sem a senha provisória
+}
+
 function renderLogin() {
   const statusAtual = valorEmailLogin ? statusBloqueioLogin(valorEmailLogin) : { bloqueado: false };
   const app = document.getElementById('app');
@@ -275,7 +317,7 @@ async function iniciarComSessao(sessao) {
   sessaoAtual = sessao;
   const { data: perfil, error } = await sb
     .from('perfis')
-    .select('id, empresa_id, papel, nome, desativado, escopo_estendido')
+    .select('id, empresa_id, papel, nome, desativado, escopo_estendido, senha_provisoria')
     .eq('id', sessao.user.id)
     .single();
   if (error || !perfil) {
@@ -287,6 +329,14 @@ async function iniciarComSessao(sessao) {
     await sb.auth.signOut();
     erroLogin = 'Esta conta foi desativada. Entre em contato com o administrador da sua empresa.';
     renderLogin();
+    return;
+  }
+
+  // Senha provisória (acesso criado sem e-mail): força a troca antes de
+  // entrar no sistema. A troca em si acontece em renderTrocaSenhaObrigatoria.
+  if (perfil.senha_provisoria) {
+    meuPerfilId = perfil.id;
+    renderTrocaSenhaObrigatoria();
     return;
   }
 

@@ -15,6 +15,9 @@ const PONTO_DIAS_HISTORICO = 7;
 
 let _meusRegistrosPontoHoje = [];
 let _meuHistoricoPonto = []; // últimos PONTO_DIAS_HISTORICO dias, incluindo hoje
+let _meusDiasAbonados = new Set(); // datas (AAAA-MM-DD) com justificativa aprovada — abonam atraso/falta
+let _saldoBancoHoras = null; // minutos (positivo ou negativo) do mês atual; null = ainda não carregou
+let _saldoBancoHorasCarregando = false;
 let _pontoCarregando = false;
 let _pontoBatendoAgora = false;
 let _pontoJaCarregouUmaVez = false;
@@ -51,21 +54,44 @@ function inicioDoDiaISO(data) {
   return d.toISOString();
 }
 
+// Saldo do banco de horas do mês atual (positivo ou negativo). Carregado
+// separado do resto pra não travar a tela principal se demorar.
+async function carregarSaldoBancoHoras() {
+  _saldoBancoHorasCarregando = true;
+  const hoje = new Date();
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const inicioProxMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+  const { data, error } = await sb.functions.invoke('ponto', {
+    body: { action: 'banco_horas_saldo', inicioISO: inicioMes.toISOString(), fimISO: inicioProxMes.toISOString() },
+  });
+  _saldoBancoHorasCarregando = false;
+  if (!error && data && !data.error) _saldoBancoHoras = data.saldoMin ?? 0;
+  render();
+}
+
 async function carregarDadosPonto() {
   _pontoCarregando = true;
   const hoje = new Date();
   const desde = new Date(hoje);
   desde.setDate(desde.getDate() - (PONTO_DIAS_HISTORICO - 1));
 
-  const [respHoje, respHistorico, respSeg] = await Promise.all([
+  const [respHoje, respHistorico, respSeg, respAbonos] = await Promise.all([
     sb.functions.invoke('ponto', { body: { action: 'hoje', inicioDoDiaISO: inicioDoDiaISO(hoje) } }),
     sb.functions.invoke('ponto', {
       body: { action: 'periodo', desdeISO: inicioDoDiaISO(desde), ateISO: new Date().toISOString() },
     }),
     sb.functions.invoke('ponto', { body: { action: 'seguranca_ler' } }),
+    sb.functions.invoke('ponto', {
+      body: { action: 'justificativa_abonos', inicioISO: inicioDoDiaISO(desde), fimISO: new Date().toISOString() },
+    }),
   ]);
   if (!respSeg.error && respSeg.data && !respSeg.data.error) {
     _pontoSeguranca = { exigeQr: !!respSeg.data.exigeQr, exigeSelfie: !!respSeg.data.exigeSelfie };
+  }
+  // Dias abonados (justificativas aprovadas): guarda um conjunto de datas
+  // (AAAA-MM-DD) que o cálculo deve ignorar pra atraso/falta.
+  if (!respAbonos.error && respAbonos.data && !respAbonos.data.error) {
+    _meusDiasAbonados = new Set((respAbonos.data.abonos || []).map((a) => a.data_ref));
   }
   _pontoCarregando = false;
 
@@ -160,8 +186,10 @@ function minutosDoDia(iso) {
 // Compara as batidas de UM dia com a jornada prevista. Retorna atraso na
 // entrada e hora extra / saída antecipada na saída, já descontada a
 // tolerância. Se não houver jornada definida, devolve null (a tela/relatório
-// simplesmente não mostram a coluna de saldo).
-function analisarDiaVsJornada(registrosDoDia, jornada) {
+// simplesmente não mostram a coluna de saldo). Se o dia estiver ABONADO
+// (justificativa aprovada), zera atraso e saída antecipada — mas mantém a
+// hora extra (se a pessoa trabalhou além, conta a favor dela).
+function analisarDiaVsJornada(registrosDoDia, jornada, diaAbonado) {
   if (!jornada) return null;
   const tol = jornada.toleranciaMin || 0;
   const entradas = registrosDoDia.filter((r) => r.tipo === 'entrada');
@@ -170,7 +198,7 @@ function analisarDiaVsJornada(registrosDoDia, jornada) {
   const ultimaSaida = saidas[saidas.length - 1];
 
   let atrasoMin = 0;
-  if (primeiraEntrada) {
+  if (primeiraEntrada && !diaAbonado) {
     const previsto = horarioParaMinutos(jornada.entrada);
     const real = minutosDoDia(primeiraEntrada.registrado_em);
     atrasoMin = Math.max(0, real - previsto - tol);
@@ -182,7 +210,7 @@ function analisarDiaVsJornada(registrosDoDia, jornada) {
     const previsto = horarioParaMinutos(jornada.saida);
     const real = minutosDoDia(ultimaSaida.registrado_em);
     extraMin = Math.max(0, real - previsto - tol);
-    saidaAntecipadaMin = Math.max(0, previsto - real - tol);
+    saidaAntecipadaMin = diaAbonado ? 0 : Math.max(0, previsto - real - tol);
   }
   return { atrasoMin, extraMin, saidaAntecipadaMin, primeiraEntrada, ultimaSaida };
 }
@@ -250,38 +278,60 @@ function iniciarLeitorQr() {
     mostrarErroLeitor('Não foi possível iniciar o leitor de QR.');
     return;
   }
+  const aoLerQr = (texto) => {
+    _pontoQrLido = texto;
+    pararLeitorQr();
+    // Com o QR lido: se ainda precisa de selfie, vai pra câmera frontal; senão já bate.
+    if (_pontoSeguranca.exigeSelfie) {
+      render();
+      setTimeout(iniciarCameraSelfie, 60);
+    } else {
+      baterPonto();
+    }
+  };
+  const config = { fps: 10, qrbox: 220 };
+  const tratarErro = (e) => {
+    console.error('Falha ao abrir a câmera para QR', e);
+    const nome = e && (e.name || e.toString());
+    let msg = 'Não foi possível abrir a câmera.';
+    if (String(nome).includes('NotAllowed') || String(nome).includes('Permission')) {
+      msg =
+        'Permissão de câmera negada. Toque no cadeado ao lado do endereço do site → Câmera → Permitir, e tente de novo.';
+    } else if (String(nome).includes('NotFound') || String(nome).includes('Devices')) {
+      msg = 'Nenhuma câmera encontrada neste aparelho.';
+    } else if (
+      String(nome).includes('NotReadable') ||
+      String(nome).includes('Track') ||
+      String(nome).includes('AbortError') ||
+      String(nome).includes('in use')
+    ) {
+      msg =
+        'A câmera está ocupada por outro app (WhatsApp, Zoom, Meet, ou outra aba). Feche esses apps/abas — ou reinicie o aparelho — e tente de novo.';
+    }
+    mostrarErroLeitor(msg);
+  };
+
+  // 1ª tentativa: câmera traseira (ideal pra QR). Se falhar — comum em alguns
+  // celulares/navegadores que recusam o modo estrito — 2ª tentativa: lista as
+  // câmeras do aparelho e usa a traseira pelo nome, ou a última disponível.
   _pontoScanner
-    .start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: 220 },
-      (texto) => {
-        _pontoQrLido = texto;
-        pararLeitorQr();
-        // Com o QR lido: se ainda precisa de selfie, vai pra câmera frontal;
-        // senão já bate.
-        if (_pontoSeguranca.exigeSelfie) {
-          render();
-          setTimeout(iniciarCameraSelfie, 60);
-        } else {
-          baterPonto();
-        }
-      },
-      () => {} // ignora erros de frame sem QR
-    )
-    .catch((e) => {
-      console.error('Falha ao abrir a câmera para QR', e);
-      // Mensagem específica conforme o motivo, pra ajudar o usuário.
-      const nome = e && (e.name || e.toString());
-      let msg = 'Não foi possível abrir a câmera.';
-      if (String(nome).includes('NotAllowed') || String(nome).includes('Permission')) {
-        msg =
-          'Permissão de câmera negada. Autorize a câmera para este site nas configurações do navegador e tente de novo.';
-      } else if (String(nome).includes('NotFound') || String(nome).includes('Devices')) {
-        msg = 'Nenhuma câmera encontrada neste aparelho.';
-      } else if (String(nome).includes('NotReadable') || String(nome).includes('Track')) {
-        msg = 'A câmera está sendo usada por outro app. Feche os outros apps de câmera e tente de novo.';
+    .start({ facingMode: 'environment' }, config, aoLerQr, () => {})
+    .catch(() => {
+      if (typeof Html5Qrcode.getCameras !== 'function') {
+        tratarErro({ name: 'NotFoundError' });
+        return;
       }
-      mostrarErroLeitor(msg);
+      Html5Qrcode.getCameras()
+        .then((cameras) => {
+          if (!cameras || !cameras.length) {
+            tratarErro({ name: 'NotFoundError' });
+            return;
+          }
+          const traseira = cameras.find((c) => /back|traseira|rear|environment/i.test(c.label || ''));
+          const escolhida = traseira?.id || cameras[cameras.length - 1].id;
+          _pontoScanner.start(escolhida, config, aoLerQr, () => {}).catch(tratarErro);
+        })
+        .catch(tratarErro);
     });
 }
 function pararLeitorQr() {
@@ -308,7 +358,18 @@ function iniciarCameraSelfie() {
     })
     .catch((e) => {
       console.error('Falha na câmera frontal', e);
-      showToast('Não foi possível abrir a câmera frontal.');
+      const nome = e && (e.name || e.toString());
+      if (
+        String(nome).includes('NotReadable') ||
+        String(nome).includes('AbortError') ||
+        String(nome).includes('Track')
+      ) {
+        showToast('Câmera ocupada por outro app (WhatsApp, Zoom...). Feche-os e tente de novo.');
+      } else if (String(nome).includes('NotAllowed') || String(nome).includes('Permission')) {
+        showToast('Permissão de câmera negada. Autorize no cadeado ao lado do endereço e tente de novo.');
+      } else {
+        showToast('Não foi possível abrir a câmera frontal.');
+      }
     });
 }
 function pararCameraSelfie() {
@@ -425,6 +486,7 @@ function pagePonto() {
   if (!_pontoJaCarregouUmaVez) {
     _pontoJaCarregouUmaVez = true;
     carregarDadosPonto();
+    carregarSaldoBancoHoras();
   }
 
   // O render() monta o HTML na tela de forma síncrona logo após esta função
@@ -441,7 +503,8 @@ function pagePonto() {
   const maxMinutosGrafico = Math.max(480, ...dias.map((d) => d.minutos)); // piso de 8h pra escala não ficar exagerada em dias curtos
 
   const jornada = minhaJornada();
-  const analiseHoje = analisarDiaVsJornada(_meusRegistrosPontoHoje, jornada);
+  const hojeChave = new Date().toISOString().slice(0, 10);
+  const analiseHoje = analisarDiaVsJornada(_meusRegistrosPontoHoje, jornada, _meusDiasAbonados.has(hojeChave));
 
   return `
     <div class="page-head">
@@ -589,5 +652,32 @@ function pagePonto() {
       `
       }
     </div>
+
+    ${renderCardSaldoBancoHoras()}
+    ${renderCardJustificativas()}
   `;
+}
+
+// Card com o saldo do banco de horas do mês atual — positivo (fez mais) em
+// verde, negativo (deve horas) em vermelho.
+function renderCardSaldoBancoHoras() {
+  const mesAtual = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  let conteudo;
+  if (_saldoBancoHorasCarregando || _saldoBancoHoras === null) {
+    conteudo = '<div class="empty">Carregando…</div>';
+  } else {
+    const positivo = _saldoBancoHoras >= 0;
+    const h = Math.floor(Math.abs(_saldoBancoHoras) / 60);
+    const m = Math.abs(_saldoBancoHoras) % 60;
+    conteudo = `
+      <div style="display:flex;align-items:baseline;gap:8px;">
+        <div style="font-family:var(--mono);font-size:26px;font-weight:600;color:${positivo ? 'var(--alavancar)' : 'var(--iniciar)'};">${positivo ? '+' : '−'}${h}h${String(m).padStart(2, '0')}</div>
+        <div class="small-muted">${positivo ? 'de saldo' : 'a compensar'}</div>
+      </div>`;
+  }
+  return `
+    <div class="card">
+      <h3>Banco de horas <small>saldo de ${mesAtual}, sem contar dias abonados</small></h3>
+      ${conteudo}
+    </div>`;
 }

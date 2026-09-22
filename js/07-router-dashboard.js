@@ -48,6 +48,8 @@ function renderRoute() {
       return pageAuditoria();
     case 'clima':
       return pageClima();
+    case 'nr1':
+      return pageNr1();
     case 'sucessao':
       return pageMapaSucessao();
     case 'webhooks':
