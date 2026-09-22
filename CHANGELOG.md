@@ -3,6 +3,22 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.88.1 — NR1: removido o campo "Origem" do SST
+O cadastro do responsável técnico (SST) tinha um campo "Origem" (nomeado
+pelo cliente / serviço contratado do INETRIS). Removido — o cadastro agora
+é só nome e contato.
+
+## v0.88.0 — Indicadores dos pilares NORTE agora podem ser removidos
+Até aqui, uma vez que um indicador era adicionado a um pilar (N/O/R/T/E) —
+tanto no Desenho de Cargo quanto na Cultura Organizacional — não havia
+como removê-lo. Agora cada indicador tem um botão "×" pra remover, com
+confirmação. Na Cultura Organizacional, remover um indicador padrão da
+metodologia é permitido (é uma escolha da empresa), mas com aviso — e,
+diferente de antes, a remoção não é desfeita automaticamente na próxima
+vez que o sistema abrir (havia uma proteção pra empresas antigas que
+recolocava os indicadores padrão sozinha; agora ela respeita quando a
+remoção foi intencional). Sem mudança de banco.
+
 ## v0.87.1 — Correções de segurança encontradas na revisão (NR1)
 Revisão do código da Edge Function "nr1" encontrou e corrigiu dois problemas
 reais:

@@ -62,10 +62,10 @@ function garantirIndicadoresPadraoCultura() {
     { id: 'e-padrao-1', nome: 'Interesse em aprender e se desenvolver continuamente', origem: 'padrão' },
     { id: 'e-padrao-2', nome: 'Disposição para assumir novos desafios', origem: 'padrão' },
   ];
-  if (!state.cultura.indicadoresT.some((i) => i.origem === 'padrão')) {
+  if (!state.cultura.indicadoresT.some((i) => i.origem === 'padrão') && !state.cultura.indicadoresPadraoRemovidosT) {
     state.cultura.indicadoresT = [...padroesT, ...state.cultura.indicadoresT];
   }
-  if (!state.cultura.indicadoresE.some((i) => i.origem === 'padrão')) {
+  if (!state.cultura.indicadoresE.some((i) => i.origem === 'padrão') && !state.cultura.indicadoresPadraoRemovidosE) {
     state.cultura.indicadoresE = [...padroesE, ...state.cultura.indicadoresE];
   }
 }

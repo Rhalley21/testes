@@ -105,12 +105,11 @@ function nr1TemSstNomeado() {
 function salvarSst() {
   const nome = document.getElementById('nr1_sst_nome').value.trim();
   const contato = document.getElementById('nr1_sst_contato').value.trim();
-  const origem = document.getElementById('nr1_sst_origem').value;
   if (!nome) {
     showToast('Informe o nome do responsável técnico (SST).');
     return;
   }
-  state.nr1.sst = { nome, contato, origem, definidoEm: new Date().toISOString() };
+  state.nr1.sst = { nome, contato, definidoEm: new Date().toISOString() };
   showToast('Responsável técnico (SST) definido. Já é possível publicar campanhas.');
   render();
 }
@@ -1049,18 +1048,12 @@ function pageNr1() {
       <h3>Responsável técnico (SST) <small>obrigatório para publicar qualquer campanha</small></h3>
       ${
         temSst
-          ? `<div class="notice info">✅ <b>${escaparHtml(state.nr1.sst.nome)}</b>${state.nr1.sst.contato ? ` · ${escaparHtml(state.nr1.sst.contato)}` : ''} (${state.nr1.sst.origem === 'inetris' ? 'serviço INETRIS' : 'nomeado pelo cliente'})</div>
+          ? `<div class="notice info">✅ <b>${escaparHtml(state.nr1.sst.nome)}</b>${state.nr1.sst.contato ? ` · ${escaparHtml(state.nr1.sst.contato)}` : ''}</div>
          <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="state.nr1.sst=null;render();">Remover / trocar responsável</button>`
           : `<div class="notice info">⚠️ Sem responsável técnico nomeado — a publicação de campanhas está bloqueada.</div>
-         <div class="grid3" style="margin-top:10px;">
+         <div class="grid2" style="margin-top:10px;">
            <div class="field"><label>Nome</label><input id="nr1_sst_nome" type="text" placeholder="Nome do profissional/serviço de SST"></div>
            <div class="field"><label>Contato</label><input id="nr1_sst_contato" type="text" placeholder="E-mail ou telefone"></div>
-           <div class="field"><label>Origem</label>
-             <select id="nr1_sst_origem">
-               <option value="cliente">Nomeado pelo cliente</option>
-               <option value="inetris">Serviço contratado do INETRIS</option>
-             </select>
-           </div>
          </div>
          <button class="btn btn-primary" onclick="salvarSst()">Definir responsável técnico</button>`
       }

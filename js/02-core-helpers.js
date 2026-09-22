@@ -36,6 +36,11 @@ const state = {
       { id: 'e-padrao-1', nome: 'Interesse em aprender e se desenvolver continuamente', origem: 'padrão' },
       { id: 'e-padrao-2', nome: 'Disposição para assumir novos desafios', origem: 'padrão' },
     ],
+    // Marca quando a empresa removeu DE PROPÓSITO todos os indicadores
+    // padrão de um pilar — sem isso, o auto-preenchimento (ver
+    // garantirIndicadoresPadraoCultura) recolocaria os padrão de volta.
+    indicadoresPadraoRemovidosT: false,
+    indicadoresPadraoRemovidosE: false,
   },
   cargos: [], // {id,nome,familia,natureza,cbo,indicadoresN:[],indicadoresO:[],desenho:{versao,atividades,aprovado}}
   colaboradores: [], // {id,nome,cargoId,setorId,gestorNome,admissao}

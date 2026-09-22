@@ -31,9 +31,6 @@ create index if not exists idx_competencias_empresa on competencias_fechadas (em
 alter table competencias_fechadas enable row level security;
 -- Sem políticas: só a Edge Function (service_role) acessa.
 
-insert into migrations_aplicadas (arquivo) values ('05-banco-horas-competencia.sql')
-  on conflict (arquivo) do nothing;
-
 -- =========================================================================
 -- Observação: o SALDO do banco de horas não precisa de uma tabela própria —
 -- é calculado a partir de registros_ponto + jornada (que vive no cadastro do
