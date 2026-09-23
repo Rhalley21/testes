@@ -3,6 +3,16 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.90.0 — Dashboards reorganizados: pendências → gráficos → resto
+Os três dashboards (RH, Líder e Colaborador) passaram a seguir a mesma
+ordem visual em todos: primeiro as pendências, depois todos os gráficos
+juntos, e por último as tabelas/listas/informações complementares. Antes
+os gráficos apareciam espalhados entre KPIs e tabelas; agora ficam
+concentrados logo após as pendências, e "Minha equipe" (líder), "Meu
+cargo/ciclo" (colaborador) e as tabelas de competências/risco (RH) vêm
+depois, todos juntos. Nenhum gráfico ou informação foi removido — só a
+ordem mudou. Sem mudança de banco nem de Edge Function.
+
 ## v0.89.2 — Dashboards do RH, Líder e Colaborador muito mais completos
 Os três dashboards passaram a reunir tudo que foi construído nas últimas
 sessões (justificativas de ponto, banco de horas, competência, substituto

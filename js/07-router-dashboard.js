@@ -189,8 +189,32 @@ function renderPainelOperacionalRH() {
   const temRiscos = state.nr1?.riscos?.length > 0;
   const ciclosStatus = _dadosGraficosDashboardRH?.ciclosPorStatus;
   const totalCiclosRH = ciclosStatus ? Object.values(ciclosStatus).reduce((a, b) => a + b, 0) : 0;
-  if (!temJustif && !temRiscos && !totalCiclosRH) return '';
+  const d = _dadosGraficosDashboardRH;
+  if (!temJustif && !temRiscos && !totalCiclosRH && !d?.temPilares && !d?.totalIda) return '';
   return `
+    <div class="painel-visao-geral" style="grid-template-columns:1.2fr 0.8fr;">
+      <div class="grafico-card">
+        <h4>Desempenho por dimensão <small>Média da empresa, escala 0 a 1</small></h4>
+        ${d?.temPilares ? `<div style="position:relative;width:100%;height:260px;"><canvas id="radarRH" role="img" aria-label="Radar de 5 pilares da empresa"></canvas></div>` : '<div class="empty">Sem diagnósticos ainda.</div>'}
+      </div>
+      <div class="grafico-card">
+        <h4>Classificação geral <small>${d?.totalIda || 0} colaboradores com diagnóstico</small></h4>
+        ${
+          d?.totalIda
+            ? `<div class="grafico-donut-wrap">
+          <div class="grafico-donut-canvas"><canvas id="rhDonutIda" role="img" aria-label="Rosca com a distribuição geral: ${d.ida[0]} Iniciar, ${d.ida[1]} Desenvolver, ${d.ida[2]} Alavancar"></canvas>
+            <div class="grafico-donut-centro">${d.totalColabAtivos}<span class="grafico-donut-centro-legenda">colaboradores</span></div>
+          </div>
+          <div class="grafico-legenda">
+            <span><span class="dot" style="background:var(--iniciar);"></span>Iniciar ${Math.round((d.ida[0] / d.totalIda) * 100)}%</span>
+            <span><span class="dot" style="background:var(--desenvolver);"></span>Desenvolver ${Math.round((d.ida[1] / d.totalIda) * 100)}%</span>
+            <span><span class="dot" style="background:var(--alavancar);"></span>Alavancar ${Math.round((d.ida[2] / d.totalIda) * 100)}%</span>
+          </div>
+        </div>`
+            : '<div class="empty">Sem diagnósticos ainda.</div>'
+        }
+      </div>
+    </div>
     <div class="painel-visao-geral" style="grid-template-columns:1fr 1fr 1fr;">
       ${
         totalCiclosRH
@@ -237,8 +261,40 @@ function renderPainelOperacionalGestor() {
   const temJustif = justif && justif.pendente + justif.aprovada + justif.rejeitada > 0;
   const ciclosStatus = _dadosGraficosDashboardGestor?.ciclosPorStatus;
   const totalCiclosGestor = ciclosStatus ? Object.values(ciclosStatus).reduce((a, b) => a + b, 0) : 0;
-  if (!temJustif && !totalCiclosGestor) return '';
+  const d = _dadosGraficosDashboardGestor;
+  if (!temJustif && !totalCiclosGestor && !d?.temPilares && !d?.totalIda && !d?.potencial?.length) return '';
   return `
+    <div class="painel-visao-geral" style="grid-template-columns:1.2fr 0.8fr;">
+      <div class="grafico-card">
+        <h4>Desempenho por dimensão <small>Média da equipe, escala 0 a 1</small></h4>
+        ${d?.temPilares ? `<div style="position:relative;width:100%;height:260px;"><canvas id="radarGestor" role="img" aria-label="Radar de 5 pilares da equipe"></canvas></div>` : '<div class="empty">Sem diagnósticos ainda.</div>'}
+      </div>
+      <div class="grafico-card">
+        <h4>Classificação da minha equipe <small>${d?.totalIda || 0} avaliações com diagnóstico</small></h4>
+        ${
+          d?.totalIda
+            ? `<div class="grafico-donut-wrap">
+          <div class="grafico-donut-canvas"><canvas id="gestorDonutIda" role="img" aria-label="Rosca com a distribuição da equipe: ${d.ida[0]} Iniciar, ${d.ida[1]} Desenvolver, ${d.ida[2]} Alavancar"></canvas>
+            <div class="grafico-donut-centro">${d.totalEquipe}<span class="grafico-donut-centro-legenda">na equipe</span></div>
+          </div>
+          <div class="grafico-legenda">
+            <span><span class="dot" style="background:var(--iniciar);"></span>Iniciar ${Math.round((d.ida[0] / d.totalIda) * 100)}%</span>
+            <span><span class="dot" style="background:var(--desenvolver);"></span>Desenvolver ${Math.round((d.ida[1] / d.totalIda) * 100)}%</span>
+            <span><span class="dot" style="background:var(--alavancar);"></span>Alavancar ${Math.round((d.ida[2] / d.totalIda) * 100)}%</span>
+          </div>
+        </div>`
+            : '<div class="empty">Sem diagnósticos ainda.</div>'
+        }
+      </div>
+    </div>
+    ${
+      d?.potencial?.length
+        ? `<div class="card">
+      <h3>Potencial da equipe <small>Ranking pela última Dimensão de Potencial medida</small></h3>
+      <div class="grafico-canvas-lg" style="height:${Math.max(110, d.potencial.length * 34)}px;"><canvas id="gestorBarPotencial" role="img" aria-label="Ranking dos colaboradores da equipe por Potencial"></canvas></div>
+    </div>`
+        : ''
+    }
     <div class="painel-visao-geral" style="grid-template-columns:1fr 1fr;">
       ${
         totalCiclosGestor
@@ -494,11 +550,8 @@ function pageDashboard() {
   if (state.role === 'colaborador') {
     body = renderPendenciasColaborador() + renderDashboardColaborador();
   } else if (state.role === 'gestor' && !meuEscopoEstendido) {
-    body =
-      renderMinhaAvaliacaoPendente() +
-      renderPendenciasGestor() +
-      renderPainelOperacionalGestor() +
-      renderDashboardGestor();
+    const corpoGestor = renderDashboardGestor(); // roda primeiro pra calcular os dados que o painel de gráficos usa
+    body = renderMinhaAvaliacaoPendente() + renderPendenciasGestor() + renderPainelOperacionalGestor() + corpoGestor;
   } else if (state.role === 'gestor' && meuEscopoEstendido) {
     body =
       `<div class="notice info">Escopo estendido: você tem uma exceção explícita concedida pelo Administrador para ver os dados consolidados de toda a empresa, além da sua própria equipe.</div>` +
@@ -506,7 +559,8 @@ function pageDashboard() {
       renderPendenciasGestor() +
       renderDashboardAdmin(abertos, pdisAtivos, encerrados);
   } else if (state.role === 'rh') {
-    body = renderMinhaAvaliacaoPendente() + renderPendenciasRH() + renderPainelOperacionalRH() + renderDashboardRH();
+    const corpoRH = renderDashboardRH(); // roda primeiro pra calcular os dados que o painel de gráficos usa
+    body = renderMinhaAvaliacaoPendente() + renderPendenciasRH() + renderPainelOperacionalRH() + corpoRH;
   } else {
     body =
       renderMinhaAvaliacaoPendente() + renderPendenciasAdmin() + renderDashboardAdmin(abertos, pdisAtivos, encerrados);
@@ -896,6 +950,9 @@ function renderDashboardRH() {
 
   _dadosGraficosDashboardRH = {
     ida: [contagemIdaRH.I, contagemIdaRH.D, contagemIdaRH.A],
+    totalIda: totalIdaRH,
+    totalColabAtivos,
+    temPilares: somaPorPilarRH.N.length > 0,
     criticas: criticasOrdenadas.slice(0, 6),
     pctSemRisco,
     pilares: mediaPorPilarRH,
@@ -933,30 +990,6 @@ function renderDashboardRH() {
           <div class="kpi-card-valor">${pctSemRisco}%</div>
           <div class="kpi-card-nota">Fora do critério 7.2</div>
         </div>
-      </div>
-    </div>
-
-    <div class="painel-visao-geral" style="grid-template-columns:1.2fr 0.8fr;">
-      <div class="grafico-card">
-        <h4>Desempenho por dimensão <small>Média da empresa, escala 0 a 1</small></h4>
-        ${somaPorPilarRH.N.length ? `<div style="position:relative;width:100%;height:260px;"><canvas id="radarRH" role="img" aria-label="Radar de 5 pilares da empresa"></canvas></div>` : '<div class="empty">Sem diagnósticos ainda.</div>'}
-      </div>
-      <div class="grafico-card">
-        <h4>Classificação geral <small>${totalIdaRH} colaboradores com diagnóstico</small></h4>
-        ${
-          totalIdaRH
-            ? `<div class="grafico-donut-wrap">
-          <div class="grafico-donut-canvas"><canvas id="rhDonutIda" role="img" aria-label="Rosca com a distribuição geral: ${contagemIdaRH.I} Iniciar, ${contagemIdaRH.D} Desenvolver, ${contagemIdaRH.A} Alavancar"></canvas>
-            <div class="grafico-donut-centro">${totalColabAtivos}<span class="grafico-donut-centro-legenda">colaboradores</span></div>
-          </div>
-          <div class="grafico-legenda">
-            <span><span class="dot" style="background:var(--iniciar);"></span>Iniciar ${Math.round((contagemIdaRH.I / totalIdaRH) * 100)}%</span>
-            <span><span class="dot" style="background:var(--desenvolver);"></span>Desenvolver ${Math.round((contagemIdaRH.D / totalIdaRH) * 100)}%</span>
-            <span><span class="dot" style="background:var(--alavancar);"></span>Alavancar ${Math.round((contagemIdaRH.A / totalIdaRH) * 100)}%</span>
-          </div>
-        </div>`
-            : '<div class="empty">Sem diagnósticos ainda.</div>'
-        }
       </div>
     </div>
 
@@ -1088,6 +1121,9 @@ function renderDashboardGestor() {
 
   _dadosGraficosDashboardGestor = {
     ida: [contagemIdaEquipe.I, contagemIdaEquipe.D, contagemIdaEquipe.A],
+    totalIda: totalIdaEquipe,
+    totalEquipe: minhaEquipe.length,
+    temPilares: somaPorPilarEquipe.N.length > 0,
     potencial: potencialEquipe,
     pilares: mediaPorPilarEquipe,
     ciclosPorStatus: ciclosPorStatusEquipe,
@@ -1174,35 +1210,6 @@ function renderDashboardGestor() {
       </div>
     </div>
 
-    <div class="painel-visao-geral" style="grid-template-columns:1.2fr 0.8fr;">
-      <div class="grafico-card">
-        <h4>Desempenho por dimensão <small>Média da equipe, escala 0 a 1</small></h4>
-        ${somaPorPilarEquipe.N.length ? `<div style="position:relative;width:100%;height:260px;"><canvas id="radarGestor" role="img" aria-label="Radar de 5 pilares da equipe"></canvas></div>` : '<div class="empty">Sem diagnósticos ainda.</div>'}
-      </div>
-      <div class="grafico-card">
-        <h4>Classificação da minha equipe <small>${totalIdaEquipe} avaliações com diagnóstico</small></h4>
-        ${
-          totalIdaEquipe
-            ? `<div class="grafico-donut-wrap">
-          <div class="grafico-donut-canvas"><canvas id="gestorDonutIda" role="img" aria-label="Rosca com a distribuição da equipe: ${contagemIdaEquipe.I} Iniciar, ${contagemIdaEquipe.D} Desenvolver, ${contagemIdaEquipe.A} Alavancar"></canvas>
-            <div class="grafico-donut-centro">${minhaEquipe.length}<span class="grafico-donut-centro-legenda">na equipe</span></div>
-          </div>
-          <div class="grafico-legenda">
-            <span><span class="dot" style="background:var(--iniciar);"></span>Iniciar ${Math.round((contagemIdaEquipe.I / totalIdaEquipe) * 100)}%</span>
-            <span><span class="dot" style="background:var(--desenvolver);"></span>Desenvolver ${Math.round((contagemIdaEquipe.D / totalIdaEquipe) * 100)}%</span>
-            <span><span class="dot" style="background:var(--alavancar);"></span>Alavancar ${Math.round((contagemIdaEquipe.A / totalIdaEquipe) * 100)}%</span>
-          </div>
-        </div>`
-            : '<div class="empty">Sem diagnósticos ainda.</div>'
-        }
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>Potencial da equipe <small>Ranking pela última Dimensão de Potencial medida</small></h3>
-      ${potencialEquipe.length ? `<div class="grafico-canvas-lg" style="height:${Math.max(110, potencialEquipe.length * 34)}px;"><canvas id="gestorBarPotencial" role="img" aria-label="Ranking dos colaboradores da equipe por Potencial"></canvas></div>` : '<div class="empty">Nenhum colaborador da equipe com diagnóstico ainda.</div>'}
-    </div>
-
     <div class="card">
       <h3>Desempenho e evolução da equipe <small>Última classificação de cada colaborador, comparada com o ciclo anterior</small></h3>
       <table><thead><tr><th>Colaborador</th><th>Cargo</th><th>Ciclo anterior</th><th>Ciclo atual</th><th>Evolução</th><th>PDI</th></tr></thead><tbody>
@@ -1277,18 +1284,6 @@ function renderDashboardColaborador() {
   };
 
   return `
-    <div class="card">
-      <h3>${escaparHtml(meuRegistro.nome)} <small>${meuCargo ? escaparHtml(meuCargo.nome) : '—'}</small></h3>
-      ${
-        cicloAtual
-          ? `
-        <p class="page-desc">Ciclo atual: <b>${cicloAtual.estado}</b></p>
-        ${cicloAtual.diagnostico ? diagnosticoSummaryHTML(cicloAtual) : '<p class="small-muted">Sua primeira avaliação ainda não foi concluída.</p>'}
-        ${cicloAtual.diagnostico ? `<button class="btn btn-sm" style="margin-top:10px;" onclick="abrirCiclo('${cicloAtual.id}')">Ver meu PDI completo →</button>` : ''}
-      `
-          : '<div class="empty">Nenhum ciclo de avaliação aberto no momento.</div>'
-      }
-    </div>
     ${
       pctPdiPessoal !== null
         ? `
@@ -1340,7 +1335,25 @@ function renderDashboardColaborador() {
     <div class="card">
       <h3>Minha trajetória <small>Resultado, Comportamento e Potencial ao longo dos ciclos</small></h3>
       ${renderGraficoTrajetoriaIDA(historico)}
+    </div>`
+        : ''
+    }
+
+    <div class="card">
+      <h3>${escaparHtml(meuRegistro.nome)} <small>${meuCargo ? escaparHtml(meuCargo.nome) : '—'}</small></h3>
+      ${
+        cicloAtual
+          ? `
+        <p class="page-desc">Ciclo atual: <b>${cicloAtual.estado}</b></p>
+        ${cicloAtual.diagnostico ? diagnosticoSummaryHTML(cicloAtual) : '<p class="small-muted">Sua primeira avaliação ainda não foi concluída.</p>'}
+        ${cicloAtual.diagnostico ? `<button class="btn btn-sm" style="margin-top:10px;" onclick="abrirCiclo('${cicloAtual.id}')">Ver meu PDI completo →</button>` : ''}
+      `
+          : '<div class="empty">Nenhum ciclo de avaliação aberto no momento.</div>'
+      }
     </div>
+    ${
+      historico.length > 1
+        ? `
     <div class="card">
       <h3>Minha evolução ao longo do tempo</h3>
       <table><thead><tr><th>Data</th><th>Classificação geral</th></tr></thead><tbody>
