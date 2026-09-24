@@ -103,22 +103,76 @@ function decidirRequisicaoRS(id, aprovar) {
   render();
 }
 
-function publicarVagaRS(id) {
-  const r = state.rs.requisicoes.find((x) => x.id === id);
-  if (!r || r.status !== 'aprovada') return;
-  r.publicada = true;
-  r.publicadaEm = new Date().toISOString();
-  showToast('Vaga publicada — já pode receber candidatos.');
+let _rsConfigurarPublicaAberta = null; // id da requisição com o formulário de página pública aberto
+
+function abrirConfigurarPaginaPublicaRS(id) {
+  _rsConfigurarPublicaAberta = id;
   render();
 }
 
-function encerrarVagaRS(id) {
+async function publicarVagaRS(id) {
+  const r = state.rs.requisicoes.find((x) => x.id === id);
+  if (!r || r.status !== 'aprovada') return;
+  const cargo = state.cargos.find((c) => c.id === r.cargoId);
+  const titulo = document.getElementById('rs_pub_titulo').value.trim() || cargo?.nome || 'Vaga';
+  const descricao = document.getElementById('rs_pub_descricao').value.trim();
+  const requisitos = document.getElementById('rs_pub_requisitos').value.trim();
+  const local = document.getElementById('rs_pub_local').value.trim();
+  const modalidade = document.getElementById('rs_pub_modalidade').value;
+  const mostrarSalario = document.getElementById('rs_pub_mostrar_salario').checked;
+  const faixaSalarial = document.getElementById('rs_pub_faixa').value.trim();
+  const mostrarEmpresa = document.getElementById('rs_pub_mostrar_empresa').checked;
+
+  const { data, error } = await sb.functions.invoke('rs', {
+    body: {
+      action: 'sync_vaga_publica',
+      requisicaoId: r.id,
+      titulo,
+      descricao,
+      requisitos,
+      local,
+      modalidade,
+      mostrarSalario,
+      faixaSalarial,
+      mostrarEmpresa,
+      nomeEmpresaExibicao: state.empresa?.nomeFantasia || '',
+    },
+  });
+  if (error || data?.error) {
+    showToast((data && data.error) || 'Não foi possível publicar a página pública.');
+    return;
+  }
+  r.publicada = true;
+  r.publicadaEm = new Date().toISOString();
+  r.vagaPublicaId = data.vagaPublicaId;
+  _rsConfigurarPublicaAberta = null;
+  showToast('Vaga publicada! Copie o link abaixo pra divulgar.');
+  render();
+}
+
+function linkPublicoRS(r) {
+  if (!r.vagaPublicaId) return '';
+  return `${location.origin}${location.pathname.replace('index.html', '')}vaga.html?v=${r.vagaPublicaId}`;
+}
+
+function copiarLinkPublicoRS(id) {
+  const r = state.rs.requisicoes.find((x) => x.id === id);
+  if (!r) return;
+  const link = linkPublicoRS(r);
+  navigator.clipboard?.writeText(link);
+  showToast('Link copiado! Cole onde quiser divulgar a vaga.');
+}
+
+async function encerrarVagaRS(id) {
   const r = state.rs.requisicoes.find((x) => x.id === id);
   if (!r) return;
   const motivo = prompt('Motivo do encerramento (ex: vaga preenchida, cancelada, congelada):') || '';
   r.encerrada = true;
   r.motivoEncerramento = motivo;
   r.encerradaEm = new Date().toISOString();
+  if (r.vagaPublicaId) {
+    await sb.functions.invoke('rs', { body: { action: 'desativar_vaga_publica', requisicaoId: r.id } }).catch(() => {});
+  }
   render();
 }
 
@@ -297,7 +351,7 @@ function pageRS() {
                       ? `<button class="btn btn-sm btn-primary" onclick="decidirRequisicaoRS('${r.id}',true)">Aprovar</button><button class="btn btn-sm btn-ghost" onclick="decidirRequisicaoRS('${r.id}',false)">Reprovar</button>`
                       : ''
                   }
-                  ${r.status === 'aprovada' && !r.publicada ? `<button class="btn btn-sm btn-primary" onclick="publicarVagaRS('${r.id}')">Publicar</button>` : ''}
+                  ${r.status === 'aprovada' && !r.publicada ? `<button class="btn btn-sm btn-primary" onclick="abrirConfigurarPaginaPublicaRS('${r.id}')">Publicar</button>` : ''}
                   ${r.publicada && !r.encerrada ? `<button class="btn btn-sm btn-ghost" onclick="encerrarVagaRS('${r.id}')">Encerrar</button>` : ''}
                   ${
                     r.publicada
@@ -306,6 +360,34 @@ function pageRS() {
                   }
                 </td>
               </tr>
+              ${
+                r.publicada && !r.encerrada && r.vagaPublicaId
+                  ? `<tr><td colspan="5" class="small-muted" style="padding-top:0;">🔗 Link público: <code style="font-size:11px;">${linkPublicoRS(r)}</code> <button class="btn btn-ghost btn-sm" onclick="copiarLinkPublicoRS('${r.id}')">Copiar</button></td></tr>`
+                  : ''
+              }
+              ${
+                _rsConfigurarPublicaAberta === r.id
+                  ? `<tr><td colspan="5">
+                <div class="card" style="background:var(--surface-2);margin-top:0;">
+                  <h3 style="font-size:14px;">Configurar página pública — ${escaparHtml(r.codigo)}</h3>
+                  <div class="field"><label>Título da vaga (como candidatos verão)</label><input id="rs_pub_titulo" type="text" value="${escaparHtml(cargo?.nome || '')}"></div>
+                  <div class="field"><label>Descrição</label><textarea id="rs_pub_descricao">${escaparHtml(r.missaoHerdada || '')}</textarea></div>
+                  <div class="field"><label>Requisitos</label><textarea id="rs_pub_requisitos">${(r.responsabilidadesHerdadas || []).map((x) => (typeof x === 'string' ? x : x.nome || '')).join('\n')}</textarea></div>
+                  <div class="grid2">
+                    <div class="field"><label>Local</label><input id="rs_pub_local" type="text"></div>
+                    <div class="field"><label>Modalidade</label>
+                      <select id="rs_pub_modalidade"><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Remoto">Remoto</option></select>
+                    </div>
+                  </div>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:6px 0;"><input id="rs_pub_mostrar_salario" type="checkbox"> Mostrar faixa salarial na página pública</label>
+                  <div class="field"><label>Faixa salarial <small>(só aparece se marcado acima)</small></label><input id="rs_pub_faixa" type="text" placeholder="Ex: R$ 2.500 a R$ 3.200"></div>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:6px 0;"><input id="rs_pub_mostrar_empresa" type="checkbox" checked> Mostrar o nome da empresa (desmarque para vaga confidencial)</label>
+                  <button class="btn btn-primary btn-sm" onclick="publicarVagaRS('${r.id}')">Publicar vaga</button>
+                  <button class="btn btn-ghost btn-sm" onclick="_rsConfigurarPublicaAberta=null;render();">Cancelar</button>
+                </div>
+              </td></tr>`
+                  : ''
+              }
               ${_rsRequisicaoExpandida === r.id ? `<tr><td colspan="5">${renderPipelineCandidatosRS(r)}</td></tr>` : ''}`;
               })
               .join('')}
@@ -316,13 +398,79 @@ function pageRS() {
   `;
 }
 
+let _rsCandidaturasPendentes = {}; // vagaId -> array | undefined (ainda não carregou)
+let _rsCandidaturasCarregando = {};
+
+async function carregarCandidaturasPendentesRS(vaga) {
+  _rsCandidaturasCarregando[vaga.id] = true;
+  const { data, error } = await sb.functions.invoke('rs', {
+    body: { action: 'listar_candidaturas_pendentes', requisicaoId: vaga.id },
+  });
+  _rsCandidaturasCarregando[vaga.id] = false;
+  if (!error && data && !data.error) _rsCandidaturasPendentes[vaga.id] = data.candidaturas || [];
+  render();
+}
+
+async function importarCandidaturaRS(candidaturaId, vagaId) {
+  const { data, error } = await sb.functions.invoke('rs', { body: { action: 'importar_candidatura', candidaturaId } });
+  if (error || data?.error) {
+    showToast((data && data.error) || 'Não foi possível importar.');
+    return;
+  }
+  const c = data.candidato;
+  state.rs.candidatos.push({
+    id: uid(),
+    vagaId,
+    nome: c.nome,
+    email: c.email,
+    telefone: c.telefone,
+    origem: 'Página pública',
+    curriculo: '',
+    etapa: 'nova',
+    reprovado: false,
+    historico: [
+      {
+        de: null,
+        para: 'nova',
+        autorId: meuPerfilId,
+        em: new Date().toISOString(),
+        observacao: 'Candidatura recebida pela página pública',
+      },
+    ],
+    ...novoCarimbo(),
+  });
+  await carregarCandidaturasPendentesRS(state.rs.requisicoes.find((r) => r.id === vagaId));
+  showToast(`"${c.nome}" importado(a) para o pipeline.`);
+}
+
 function renderPipelineCandidatosRS(vaga) {
   const candidatos = state.rs.candidatos
     .filter((c) => c.vagaId === vaga.id)
     .sort((a, b) => (b.criadoEm || '').localeCompare(a.criadoEm || ''));
 
+  if (_rsCandidaturasPendentes[vaga.id] === undefined && !_rsCandidaturasCarregando[vaga.id]) {
+    carregarCandidaturasPendentesRS(vaga);
+  }
+  const pendentes = _rsCandidaturasPendentes[vaga.id] || [];
+
   return `
     <div class="card" style="background:var(--surface-2);margin-top:8px;">
+      ${
+        pendentes.length
+          ? `<div class="notice info" style="margin-bottom:12px;">📥 <b>${pendentes.length} candidatura(s) nova(s)</b> recebida(s) pela página pública, aguardando importar pro pipeline:
+        ${pendentes
+          .map(
+            (
+              p
+            ) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line);">
+          <span>${escaparHtml(p.nome)} <span class="small-muted">(${escaparHtml(p.email)})</span>${p.curriculoUrl ? ` · <a href="${p.curriculoUrl}" target="_blank" rel="noopener">ver currículo</a>` : ''}</span>
+          <button class="btn btn-sm btn-primary" onclick="importarCandidaturaRS('${p.id}','${vaga.id}')">Importar</button>
+        </div>`
+          )
+          .join('')}
+      </div>`
+          : ''
+      }
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
         <h3 style="margin:0;font-size:14px;">Candidatos — ${escaparHtml(vaga.codigo)}</h3>
         <button class="btn btn-sm btn-primary" onclick="abrirNovoCandidatoRS('${vaga.id}')">+ Candidato</button>

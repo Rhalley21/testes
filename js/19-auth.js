@@ -351,24 +351,37 @@ async function iniciarComSessao(sessao) {
   // todas de uma vez com Promise.all — o tempo passa a ser o da mais lenta, não
   // a soma de todas. seed() roda antes pois carregarEstado preenche o state.
   seed(); // estado em branco antes de carregar
-  const [empresaCheck] = await Promise.all([
-    sb
-      .from('empresas')
-      .select('acesso_suspenso, ponto_habilitado, trial_ate, is_pagante')
-      .eq('id', perfil.empresa_id)
-      .maybeSingle()
-      .then((r) => r.data),
-    sb
-      .from('super_admins')
-      .select('id')
-      .eq('id', sessao.user.id)
-      .maybeSingle()
-      .then((r) => {
-        souSuperAdmin = !!r.data;
-      }),
-    carregarEstado(),
-    carregarUsuarios(), // popula _perfisEmpresa/_convitesEmpresa, usados também fora da aba Usuários
-  ]);
+  let empresaCheck;
+  try {
+    [empresaCheck] = await Promise.all([
+      sb
+        .from('empresas')
+        .select('acesso_suspenso, ponto_habilitado, trial_ate, is_pagante')
+        .eq('id', perfil.empresa_id)
+        .maybeSingle()
+        .then((r) => r.data),
+      sb
+        .from('super_admins')
+        .select('id')
+        .eq('id', sessao.user.id)
+        .maybeSingle()
+        .then((r) => {
+          souSuperAdmin = !!r.data;
+        }),
+      carregarEstado(),
+      carregarUsuarios(), // popula _perfisEmpresa/_convitesEmpresa, usados também fora da aba Usuários
+    ]);
+  } catch (erroCarga) {
+    // PROTEÇÃO CRÍTICA: se os dados não puderem ser confirmados como
+    // carregados, NÃO seguimos como se estivesse tudo certo — isso é
+    // exatamente o que causava perda de dados antes (ver 18-persistence.js).
+    console.error('Falha ao carregar dados no login', erroCarga);
+    empresaIdAtual = null; // desarma qualquer salvamento acidental
+    erroLogin =
+      'Não foi possível carregar os dados da sua empresa. Tente entrar novamente em alguns instantes — por segurança, nada foi alterado.';
+    renderLogin();
+    return;
+  }
 
   if (empresaCheck?.acesso_suspenso) {
     await sb.auth.signOut();
@@ -452,6 +465,7 @@ sb.auth.onAuthStateChange((evento, sessao) => {
   } else {
     sessaoAtual = null;
     empresaIdAtual = null;
+    _cargaInicialOk = false;
     renderLogin();
   }
 });

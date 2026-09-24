@@ -306,7 +306,13 @@ async function atualizarDadosAoVivo(silencioso) {
   // estava com a tela aberta, o RH continuava vendo a versão antiga do
   // ciclo (ainda na etapa do Líder) até dar um F5 na página inteira.
   if (!silencioso) showToast('Atualizando dados…');
-  await carregarEstado();
+  try {
+    await carregarEstado();
+  } catch (erro) {
+    console.error('Falha ao atualizar dados', erro);
+    if (!silencioso) showToast('Não foi possível atualizar agora. Tente de novo em alguns instantes.');
+    return; // não renderiza nem prossegue com dados possivelmente incompletos
+  }
   esconderAvisoAtualizacao();
   render();
 }

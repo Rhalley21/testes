@@ -3,6 +3,65 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.93.2 — CORREÇÃO CRÍTICA: risco real de perda de dados no login
+Encontrada a causa provável de um incidente real onde os dados de uma
+empresa foram substituídos por um estado vazio.
+
+**O bug:** se `carregarEstado()` falhasse silenciosamente (instabilidade de
+rede, timeout, etc. — algo mais provável de acontecer com várias pessoas
+logando ao mesmo tempo), o erro era só registrado no console e o app
+seguia normalmente, como se os dados tivessem carregado. O `state` ficava
+nos valores vazios do `seed()`, e o próximo `render()` agendava um
+salvamento automático — que **gravava esse estado vazio por cima dos
+dados reais da empresa**, sem nenhum aviso.
+
+**A correção (duas camadas):**
+1. `carregarEstado()` agora lança um erro explícito se a leitura falhar,
+   em vez de retornar em silêncio.
+2. Uma trava nova (`_cargaInicialOk`) bloqueia **qualquer** salvamento
+   automático até que a carga tenha sido confirmada como bem-sucedida
+   nesta sessão — tanto no login quanto no botão de atualizar. Se a carga
+   falhar, aparece um aviso claro ("não foi possível carregar, tente de
+   novo — nada foi alterado") em vez de deixar o app seguir com dados
+   incompletos.
+
+Testado o cenário exato do incidente: com a trava, uma falha de carga
+agora bloqueia o salvamento (nada é perdido); só depois de uma carga
+confirmada é que o salvamento volta a funcionar normalmente.
+
+**Aplicar com urgência** — sem SQL, é só o novo `norte-organizado.zip`.
+
+## v0.93.1 — R&S: chave pública do reCAPTCHA configurada
+A Site Key do reCAPTCHA já está no `vaga.html`. Falta só configurar a
+Secret Key como segredo (`RECAPTCHA_SECRET_KEY`) na Edge Function "rs", no
+painel do Supabase — sem isso, toda candidatura continua sendo rejeitada.
+
+## v0.93.0 — R&S: página pública de candidatura
+Quem se candidata a uma vaga não precisa mais ser cadastrado manualmente:
+- **Página pública nova** (`vaga.html?v=<id>`), fora do app logado — sem
+  exigir login. Mostra título, descrição, requisitos, local, modalidade, e
+  opcionalmente salário e nome da empresa (configurável por vaga, incluindo
+  vaga confidencial). Formulário com nome, e-mail, telefone, upload de
+  currículo em PDF (até 5MB), aviso de privacidade (aceite obrigatório),
+  consentimento separado para banco de talentos, e reCAPTCHA do Google.
+- **Ao publicar uma vaga** (RH), agora abre um formulário pra configurar o
+  conteúdo público, e o sistema gera um **link único** pra divulgar — com
+  botão de copiar.
+- **Candidaturas recebidas** aparecem destacadas na tela do RH, com botão
+  "Importar" que traz pro pipeline normal (mesma esteira dos candidatos
+  cadastrados manualmente).
+- **Arquitetura de segurança**: como no NR1, os dados públicos (vaga
+  espelhada, candidaturas, banco de talentos) vivem em tabelas próprias,
+  sem nenhuma política de acesso direto — só a Edge Function nova "rs"
+  (com a chave de serviço) toca nelas. Isso evita expor o resto dos dados
+  da empresa pra internet e evita duas candidaturas simultâneas se
+  atropelarem.
+
+Requer rodar sql/28-rs-pagina-publica.sql, criar o bucket privado
+"curriculos-rs", implantar a Edge Function "rs", e configurar o secret
+RECAPTCHA_SECRET_KEY (sem isso, toda candidatura é rejeitada). Também é
+necessário editar vaga.html e colocar a Site Key pública do reCAPTCHA.
+
 ## v0.92.0 — Módulo R&S (Fase 1: requisição, aprovação, pipeline)
 Início do módulo de Recrutamento e Seleção, no menu "Pessoas":
 - **Requisição de vaga**: vinculada a um cargo já publicado — a vaga herda
