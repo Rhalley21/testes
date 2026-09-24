@@ -3,6 +3,51 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.92.0 — Módulo R&S (Fase 1: requisição, aprovação, pipeline)
+Início do módulo de Recrutamento e Seleção, no menu "Pessoas":
+- **Requisição de vaga**: vinculada a um cargo já publicado — a vaga herda
+  missão e responsabilidades do desenho de cargo, sem alterar o cargo
+  original. Campos: unidade, setor, quantidade, motivo, prazo,
+  confidencialidade.
+- **Aprovação**: toda requisição nasce "pendente"; owner/rh aprovam ou
+  reprovam antes de qualquer publicação — nenhuma vaga abre sem passar por
+  aprovação.
+- **Publicação e encerramento**: depois de aprovada, a vaga é publicada
+  (cadastro manual de candidatos — ainda sem página pública) e pode ser
+  encerrada com motivo registrado.
+- **Pipeline de candidatos**: cadastro manual (nome, contato, origem,
+  currículo/resumo), com aviso de possível duplicidade por e-mail/telefone
+  sem apagar histórico. Etapas fixas (Nova candidatura → Triagem → Contato
+  inicial → Avaliação → Entrevista → Finalista → Proposta → Aprovado), com
+  histórico completo de cada mudança (quem, quando, de onde pra onde).
+  Reprovação com motivo registrado, reversível.
+- **Conversão em colaborador**: candidato aprovado gera um novo cadastro em
+  Colaboradores, reaproveitando cargo/unidade/setor da vaga.
+
+Fase 1 é a fundação — scorecards de entrevista, comunicação por e-mail,
+página pública de candidatura e indicadores ainda não existem nesta versão.
+Sem mudança de banco — vive no mesmo blob por empresa, com compatibilidade
+automática para empresas já existentes.
+
+## v0.91.0 — NR1: exportar relatório em PDF (para enviar ao SST)
+Como o SST não tem conta no sistema, agora há um botão **"Exportar PDF"**
+em cada campanha publicada, que gera um relatório com: resultado
+consolidado por dimensão (empresa toda e por grupo, já respeitando o
+mínimo de anonimato e a agregação hierárquica de grupos pequenos),
+inventário de riscos, e plano de ação com status e eficácia. O RH baixa e
+envia ao profissional de SST por fora do sistema. Segue o mesmo padrão
+visual dos outros relatórios em PDF (logo, cores da identidade visual).
+Sem mudança de banco.
+
+## v0.90.1 — RH: KPIs acima dos gráficos, com detalhe extra (como no Admin)
+Os 4 cards do topo do dashboard do RH (Avaliações em andamento, Pendências
+de avaliador, PDIs ativos, Colaboradores sem risco) subiram para ANTES dos
+gráficos (ficavam depois) e ganharam uma linha extra de contexto em cada
+um, no mesmo padrão do dashboard do Admin: "Avaliações em andamento" mostra
+quantas estão abertas vs em consolidação; "Pendências de avaliador" e "PDIs
+ativos" ficaram clicáveis, levando direto para resolver; "Colaboradores sem
+risco" mostra a proporção (ex: 23 de 25). Sem mudança de banco.
+
 ## v0.90.0 — Dashboards reorganizados: pendências → gráficos → resto
 Os três dashboards (RH, Líder e Colaborador) passaram a seguir a mesma
 ordem visual em todos: primeiro as pendências, depois todos os gráficos

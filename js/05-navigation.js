@@ -31,6 +31,7 @@ const STEPS_BASE = [
   }, // RH/Admin conferem as batidas com as fotos
   { id: 'clima', label: 'Pesquisa de Clima / eNPS', group: 'Pessoas' },
   { id: 'nr1', label: 'NR1 — Riscos Psicossociais', group: 'Pessoas' }, // todo mundo responde a própria pesquisa; owner/rh veem a gestão dentro da página
+  { id: 'rs', label: 'R&S — Recrutamento', group: 'Pessoas', papeis: ['owner', 'rh', 'lider'] }, // requisição, aprovação e pipeline de candidatos
   { id: 'sucessao', label: 'Mapa de Sucessão', group: 'Pessoas', papeis: ['owner', 'rh'] },
   { id: 'ciclos', label: 'Ciclos de Avaliação', group: 'Ciclo NORTE' },
   { id: 'diagnostico', label: 'Diagnóstico & PDI', group: 'Ciclo NORTE' },

@@ -50,6 +50,8 @@ function renderRoute() {
       return pageClima();
     case 'nr1':
       return pageNr1();
+    case 'rs':
+      return pageRS();
     case 'sucessao':
       return pageMapaSucessao();
     case 'webhooks':
@@ -183,6 +185,57 @@ async function carregarDashPontoPendencias() {
 // Painel visual com gráficos das áreas operacionais (justificativas de
 // ponto, ciclos por status, riscos NR1) — complementa os cards de texto de
 // pendências com uma visão gráfica, no mesmo estilo dos outros painéis.
+// KPIs do RH — mesmo padrão do dashboard do Admin: cada card com uma nota
+// extra de contexto, e clicável quando faz sentido. Aparece ANTES dos
+// gráficos (o dado calculado dentro de renderDashboardRH, lido daqui).
+function renderKpisRH() {
+  const k = _dadosGraficosDashboardRH?.kpis;
+  if (!k) return '';
+  return `
+    <div class="painel-kpi-inetris">
+      <div class="kpi-card-inetris" style="flex-direction:column;align-items:stretch;">
+        <div style="display:flex;gap:12px;">
+          <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M9 12l2 2 4-4"/></svg></div>
+          <div>
+            <div class="kpi-card-label">Avaliações em andamento</div>
+            <div class="kpi-card-valor">${k.emAndamentoTotal}</div>
+            <div class="kpi-card-nota">${k.emAndamentoAbertos} aberta(s) · ${k.emAndamentoConsolidacao} em consolidação</div>
+          </div>
+        </div>
+      </div>
+      <div class="kpi-card-inetris kpi-clicavel" style="flex-direction:column;align-items:stretch;cursor:pointer;" onclick="goto('ciclos')" title="Ver ciclos com pendência de avaliador">
+        <div style="display:flex;gap:12px;">
+          <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+          <div>
+            <div class="kpi-card-label">Pendências de avaliador</div>
+            <div class="kpi-card-valor">${k.pendentesTotal}</div>
+            <div class="kpi-card-nota">${k.pendentesTotal ? '<span style="color:var(--iniciar);">Precisam de decisão</span> · ver →' : 'Nenhuma pendência agora'}</div>
+          </div>
+        </div>
+      </div>
+      <div class="kpi-card-inetris kpi-clicavel" style="flex-direction:column;align-items:stretch;cursor:pointer;" onclick="_acompAba='pdi';goto('acompanhamento')" title="Ver todos os colaboradores e o status do PDI">
+        <div style="display:flex;gap:12px;">
+          <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg></div>
+          <div>
+            <div class="kpi-card-label">PDIs ativos</div>
+            <div class="kpi-card-valor">${k.pdisAtivosTotal}</div>
+            <div class="kpi-card-nota">${k.comDiagTotal ? Math.round((k.pdisAtivosTotal / k.comDiagTotal) * 100) : 0}% dos ${k.comDiagTotal} avaliados · ver →</div>
+          </div>
+        </div>
+      </div>
+      <div class="kpi-card-inetris" style="flex-direction:column;align-items:stretch;">
+        <div style="display:flex;gap:12px;">
+          <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg></div>
+          <div>
+            <div class="kpi-card-label">Colaboradores sem risco</div>
+            <div class="kpi-card-valor">${k.pctSemRisco}%</div>
+            <div class="kpi-card-nota">${k.totalColabAtivos - k.colaboradoresEmRiscoTotal} de ${k.totalColabAtivos} · fora do critério 7.2</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderPainelOperacionalRH() {
   const justif = _dashAlertas?.justificativasPorStatus;
   const temJustif = justif && justif.pendente + justif.aprovada + justif.rejeitada > 0;
@@ -559,8 +612,9 @@ function pageDashboard() {
       renderPendenciasGestor() +
       renderDashboardAdmin(abertos, pdisAtivos, encerrados);
   } else if (state.role === 'rh') {
-    const corpoRH = renderDashboardRH(); // roda primeiro pra calcular os dados que o painel de gráficos usa
-    body = renderMinhaAvaliacaoPendente() + renderPendenciasRH() + renderPainelOperacionalRH() + corpoRH;
+    const corpoRH = renderDashboardRH(); // roda primeiro pra calcular os dados que os KPIs e o painel de gráficos usam
+    body =
+      renderMinhaAvaliacaoPendente() + renderPendenciasRH() + renderKpisRH() + renderPainelOperacionalRH() + corpoRH;
   } else {
     body =
       renderMinhaAvaliacaoPendente() + renderPendenciasAdmin() + renderDashboardAdmin(abertos, pdisAtivos, encerrados);
@@ -958,41 +1012,20 @@ function renderDashboardRH() {
     pilares: mediaPorPilarRH,
     ciclosPorStatus: ciclosPorStatusRH,
     riscosPorNivel: riscosPorNivelRH,
+    kpis: {
+      emAndamentoAbertos: state.ciclos.filter((c) => c.estado === 'Aberto').length,
+      emAndamentoConsolidacao: state.ciclos.filter((c) => c.estado === 'Em Consolidação').length,
+      emAndamentoTotal: emAndamento.length,
+      pendentesTotal: pendentes.length,
+      pdisAtivosTotal: pdisAtivos.length,
+      comDiagTotal: comDiagRH.length,
+      colaboradoresEmRiscoTotal: colaboradoresEmRisco.length,
+      totalColabAtivos,
+      pctSemRisco,
+    },
   };
 
   return `
-    <div class="painel-kpi-inetris">
-      <div class="kpi-card-inetris">
-        <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M9 12l2 2 4-4"/></svg></div>
-        <div>
-          <div class="kpi-card-label">Avaliações em andamento</div>
-          <div class="kpi-card-valor">${emAndamento.length}</div>
-        </div>
-      </div>
-      <div class="kpi-card-inetris">
-        <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
-        <div>
-          <div class="kpi-card-label">Pendências de avaliador</div>
-          <div class="kpi-card-valor">${pendentes.length}</div>
-        </div>
-      </div>
-      <div class="kpi-card-inetris">
-        <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg></div>
-        <div>
-          <div class="kpi-card-label">PDIs ativos</div>
-          <div class="kpi-card-valor">${pdisAtivos.length}</div>
-        </div>
-      </div>
-      <div class="kpi-card-inetris">
-        <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg></div>
-        <div>
-          <div class="kpi-card-label">Colaboradores sem risco</div>
-          <div class="kpi-card-valor">${pctSemRisco}%</div>
-          <div class="kpi-card-nota">Fora do critério 7.2</div>
-        </div>
-      </div>
-    </div>
-
     <div class="card">
       <h3>Competências críticas mais recorrentes <small>Base pra priorizar ações de desenvolvimento</small></h3>
       ${

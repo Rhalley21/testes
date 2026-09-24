@@ -14,6 +14,7 @@ const PERSIST_KEYS = [
   'feedbackContinuo',
   'pesquisasClima',
   'nr1',
+  'rs',
 ];
 
 let _salvarTimer = null;

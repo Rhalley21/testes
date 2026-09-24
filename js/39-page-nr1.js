@@ -479,6 +479,197 @@ function alternarResultadoNr1(campanhaId) {
   }
 }
 
+// Exporta um PDF com o resultado consolidado, o inventário de riscos e o
+// plano de ação — pro RH baixar e enviar ao profissional de SST por fora
+// do sistema (o SST não tem conta/login aqui). Segue o mesmo padrão visual
+// dos outros relatórios em PDF do sistema.
+async function exportarRelatorioNr1PDF(campanhaId) {
+  const c = _nr1Campanhas.find((x) => x.id === campanhaId);
+  if (!c) return;
+  if (!_nr1ResultadosCache[campanhaId] || _nr1ResultadosCache[campanhaId].loading) {
+    showToast('Carregando dados do resultado…');
+    await carregarResultadoNr1(campanhaId);
+  }
+  const cache = _nr1ResultadosCache[campanhaId];
+  if (!cache || cache.erro) {
+    showToast('Não foi possível carregar o resultado para exportar.');
+    return;
+  }
+  await garantirJsPDF();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const corPrimaria = hexParaRgb(state.configuracoes?.identidadeVisual?.corPrimaria);
+
+  doc.setFontSize(16);
+  doc.text('Relatório NR1 — Riscos Psicossociais', 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text(state.empresa?.nomeFantasia || '', 14, 24);
+  doc.setTextColor(0);
+  if (typeof desenharLogoNoPDF === 'function') desenharLogoNoPDF(doc, 165, 8, 32, 18);
+
+  doc.setFontSize(12);
+  doc.text(c.nome, 14, 34);
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text(
+    `Período: ${new Date(`${c.dataInicio}T00:00:00`).toLocaleDateString('pt-BR')} a ${new Date(`${c.dataFim}T00:00:00`).toLocaleDateString('pt-BR')}    Mínimo de anonimato: ${cache.anonimatoMinimo} respostas por grupo`,
+    14,
+    40
+  );
+  const sst = state.nr1.sst;
+  doc.text(
+    `Responsável técnico (SST): ${sst?.nome ? sst.nome : 'NÃO DEFINIDO'}${sst?.contato ? ' · ' + sst.contato : ''}`,
+    14,
+    45
+  );
+  doc.setTextColor(0);
+
+  const dimensoes = cache.dimensoesSnapshot || [];
+  const respostas = cache.respostas || [];
+  const totalOk = respostas.length >= cache.anonimatoMinimo;
+  const geral = totalOk ? _nr1MediasPorDimensao(respostas, dimensoes) : null;
+
+  let y = 55;
+  doc.setFontSize(11);
+  doc.text(`Resultado consolidado — empresa toda (${respostas.length} respostas)`, 14, y);
+  y += 4;
+  if (totalOk) {
+    doc.autoTable({
+      startY: y,
+      head: [['Dimensão', 'Média (0-5)', 'Nível']],
+      body: dimensoes.map((d) => {
+        const v = geral[d.id];
+        return [d.nome, v !== null ? v.toFixed(1) : '—', _nr1CorMedia(v).label];
+      }),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: corPrimaria },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  } else {
+    doc.setFontSize(9);
+    doc.text('Dados insuficientes para exibir (mínimo de anonimato não atingido).', 14, y + 4);
+    y += 14;
+  }
+
+  // Resultado por grupo, incluindo grupos pequenos agregados hierarquicamente
+  // (mesma regra de anonimato usada na tela).
+  const porSetor = {};
+  respostas.forEach((r) => {
+    const key = r.setorId || '__sem_setor__';
+    (porSetor[key] = porSetor[key] || []).push(r);
+  });
+  const setoresOk = [];
+  const pequenas = [];
+  Object.entries(porSetor).forEach(([id, resp]) => {
+    if (resp.length >= cache.anonimatoMinimo) setoresOk.push([id, resp]);
+    else pequenas.push(...resp);
+  });
+  const agregados = pequenas.length ? _nr1AgregarGruposPequenos(pequenas, cache.anonimatoMinimo) : [];
+  const linhasGrupo = [];
+  setoresOk.forEach(([id, resp]) => {
+    const nome = id === '__sem_setor__' ? 'Sem setor definido' : nomeSetorNr1(id);
+    const medias = _nr1MediasPorDimensao(resp, dimensoes);
+    dimensoes.forEach((d) => {
+      const v = medias[d.id];
+      linhasGrupo.push([nome, d.nome, v !== null ? v.toFixed(1) : '—', _nr1CorMedia(v).label]);
+    });
+  });
+  agregados
+    .filter((a) => a.atingiuMinimo)
+    .forEach((g) => {
+      const nome = _nr1NomeGrupoAgregado(g.key);
+      const medias = _nr1MediasPorDimensao(g.respostas, dimensoes);
+      dimensoes.forEach((d) => {
+        const v = medias[d.id];
+        linhasGrupo.push([nome, d.nome, v !== null ? v.toFixed(1) : '—', _nr1CorMedia(v).label]);
+      });
+    });
+  if (linhasGrupo.length) {
+    doc.setFontSize(11);
+    doc.text('Resultado por grupo', 14, y);
+    y += 4;
+    doc.autoTable({
+      startY: y,
+      head: [['Grupo', 'Dimensão', 'Média', 'Nível']],
+      body: linhasGrupo,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: corPrimaria },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
+
+  // Inventário de riscos (todos os registrados — o modelo atual não separa
+  // riscos por campanha).
+  if (state.nr1.riscos.length) {
+    if (y > 240) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFontSize(11);
+    doc.text('Inventário de riscos', 14, y);
+    y += 4;
+    doc.autoTable({
+      startY: y,
+      head: [['Descrição', 'Grupo', 'Prob.', 'Sev.', 'Nível', 'Decisão']],
+      body: state.nr1.riscos.map((r) => {
+        const niv = nivelRiscoNr1(r.probabilidade, r.severidade);
+        return [r.descricao, r.grupoAfetado, r.probabilidade, r.severidade, niv.nivel, r.decisao];
+      }),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: corPrimaria },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
+
+  // Plano de ação.
+  if (state.nr1.acoes.length) {
+    if (y > 240) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFontSize(11);
+    doc.text('Plano de ação', 14, y);
+    y += 4;
+    doc.autoTable({
+      startY: y,
+      head: [['Ação', 'Responsável', 'Prazo', 'Status', 'Eficácia']],
+      body: state.nr1.acoes.map((a) => {
+        const resp = (_perfisEmpresa || []).find((p) => p.id === a.responsavelId);
+        const st = _nr1AcaoStatusExibicao(a);
+        const efic = a.eficacia
+          ? a.eficacia.resultado === 'melhorou'
+            ? 'Eficaz'
+            : a.eficacia.resultado === 'parcial'
+              ? 'Parcial'
+              : 'Não eficaz'
+          : 'Pendente';
+        return [
+          a.titulo,
+          resp ? resp.nome : '—',
+          a.prazo ? new Date(`${a.prazo}T00:00:00`).toLocaleDateString('pt-BR') : '—',
+          st.label,
+          efic,
+        ];
+      }),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: corPrimaria },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
+
+  doc.setFontSize(8);
+  doc.setTextColor(150);
+  doc.text(
+    `Gerado pelo INETRIS em ${new Date().toLocaleString('pt-BR')}. Este relatório organiza dados coletados; a classificação de risco e a validação técnica são de responsabilidade do profissional de SST nomeado.`,
+    14,
+    285,
+    { maxWidth: 180 }
+  );
+
+  doc.save(`relatorio-nr1-${c.nome.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`);
+}
+
 function nomeSetorNr1(setorId) {
   if (!setorId) return 'Sem setor definido';
   return state.estrutura.find((n) => n.id === setorId)?.nome || 'Sem setor definido';
@@ -1161,7 +1352,8 @@ function pageNr1() {
                   ${c.status === 'ativa' ? `<button class="btn btn-sm btn-ghost" onclick="encerrarCampanhaNr1('${c.id}')">Encerrar</button>` : ''}
                   ${
                     c.status !== 'rascunho'
-                      ? `<button class="btn btn-sm btn-ghost" onclick="alternarResultadoNr1('${c.id}')">${_nr1CampanhaResultadoAberta === c.id ? 'Ocultar resultado' : 'Ver resultado'}</button>`
+                      ? `<button class="btn btn-sm btn-ghost" onclick="alternarResultadoNr1('${c.id}')">${_nr1CampanhaResultadoAberta === c.id ? 'Ocultar resultado' : 'Ver resultado'}</button>
+                         <button class="btn btn-sm btn-ghost" onclick="exportarRelatorioNr1PDF('${c.id}')" title="Baixar relatório em PDF para enviar ao SST">Exportar PDF</button>`
                       : ''
                   }
                 </td>

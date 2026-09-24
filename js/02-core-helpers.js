@@ -54,6 +54,12 @@ const state = {
     riscos: [],
     acoes: [],
   },
+  rs: {
+    // Recrutamento e Seleção. Fase 1: requisição de vaga (com aprovação) +
+    // pipeline de candidatos (cadastro manual — sem página pública ainda).
+    requisicoes: [], // cada uma é a "vaga" depois de aprovada/publicada
+    candidatos: [],
+  },
   ciclos: [], // {id,colaboradorId,cargoId,estado,dataAbertura,notas:{colaborador:{},gestor:{},rh:{}},diagnostico,pdiDesenvolvimento,pdiMentalidade}
   ciclosSelecionado: null,
   avaliadorAtivo: 'colaborador',
