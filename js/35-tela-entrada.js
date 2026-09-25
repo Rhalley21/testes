@@ -66,9 +66,9 @@ async function enviarSolicitacaoTeste() {
   sb.functions
     .invoke('enviar-email', {
       body: {
-        para: 'inetris25@gmail.com',
+        destinatario: 'inetris25@gmail.com',
         assunto: `Nova solicitação de teste grátis — ${empresa}`,
-        html: `<p><b>${nome}</b> (${email}) solicitou um teste grátis para a empresa <b>${empresa}</b>.${telefone ? `<br>Telefone: ${telefone}` : ''}</p><p>Aprove no painel Super Admin → Solicitações de teste.</p>`,
+        corpoHtml: `<p><b>${nome}</b> (${email}) solicitou um teste grátis para a empresa <b>${empresa}</b>.${telefone ? `<br>Telefone: ${telefone}` : ''}</p><p>Aprove no painel Super Admin → Solicitações de teste.</p>`,
       },
     })
     .catch(() => {});

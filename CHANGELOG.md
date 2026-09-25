@@ -3,6 +3,24 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.96.0 — Reativada a tela de entrada comercial (landing + teste grátis)
+Antes de logar, o sistema volta a mostrar a landing comercial (hero, planos
+com preços reais vindos de `PLANOS_NORTE`, formulário de solicitação de
+teste grátis de 7 dias) — em vez de abrir direto na tela de login. Quem já
+é cliente clica em "Entrar" e vai pro login normal.
+
+No processo de reativar, encontrei e corrigi um bug real que essa tela
+tinha desde que foi construída (só nunca tinha sido notado, porque estava
+desativada): o aviso por e-mail pro Instituto sobre uma nova solicitação
+usava nomes de campo errados (`para`/`html` em vez de
+`destinatario`/`corpoHtml`) — a solicitação era salva certinho, mas o
+e-mail de aviso falhava **em silêncio**, sem avisar ninguém. Corrigido.
+
+Conferido: a tabela `solicitacoes_teste` e as políticas de acesso público
+(sql/24-teste-gratis.sql) já existiam e continuam corretas — sem mudança
+de banco necessária, contanto que esse arquivo já tenha sido aplicado
+antes.
+
 ## v0.95.1 — Trocar o plano da empresa: agora tem tela, sem precisar de SQL
 Corrige a falta que causou o bloqueio ao cadastrar colaboradores: até aqui,
 o plano de uma empresa (Essencial/Gestão/Estratégico, que define o limite

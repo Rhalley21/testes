@@ -510,10 +510,7 @@ sb.auth.onAuthStateChange((evento, sessao) => {
   if (data.session) {
     iniciarComSessao(data.session);
   } else {
-    // Abre direto no login (a landing comercial com planos/teste grátis está
-    // pronta em js/35-tela-entrada.js, mas desativada por ora — pra religar,
-    // troque renderLogin() por renderTelaAuth() aqui).
-    renderLogin();
+    renderTelaAuth();
   }
 })();
 
