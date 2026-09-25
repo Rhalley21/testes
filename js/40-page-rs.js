@@ -343,6 +343,26 @@ function reabrirCandidatoRS(candidatoId) {
 
 // Converte um candidato Aprovado em colaborador — reaproveita só os dados
 // necessários (nome e contato), preservando o histórico do processo seletivo.
+function converterCandidatoEmColaboradorRS(candidatoId) {
+  const cand = state.rs.candidatos.find((c) => c.id === candidatoId);
+  if (!cand || cand.etapa !== 'aprovado') return;
+  const vaga = state.rs.requisicoes.find((r) => r.id === cand.vagaId);
+  if (!confirm(`Converter "${cand.nome}" em colaborador? Isso cria um novo cadastro em Colaboradores.`)) return;
+  state.colaboradores.push({
+    id: uid(),
+    nome: cand.nome,
+    cargoId: vaga?.cargoId || null,
+    unidadeId: vaga?.unidadeId || null,
+    setorId: vaga?.setorId || null,
+    admissao: new Date().toISOString().slice(0, 10),
+    perfilId: null,
+    inativo: false,
+  });
+  cand.convertidoEm = new Date().toISOString();
+  showToast(`"${cand.nome}" convertido em colaborador. Complete o cadastro em Colaboradores se necessário.`);
+  render();
+}
+
 function pageRS() {
   garantirRS();
   const souGestor = ['owner', 'rh'].includes(meuPapelReal);

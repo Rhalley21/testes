@@ -3,6 +3,15 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.94.3 — Correção: "Converter em colaborador" não fazia nada
+A função inteira tinha sido apagada por acidente numa edição anterior
+(mesma classe de erro que já aconteceu antes nesta sessão: só o botão
+sobrou, chamando uma função que não existia mais no arquivo — por isso
+não dava erro visível, só não fazia nada). Restaurada, e fiz uma varredura
+em **todo o projeto** cruzando toda função chamada em onclick/onchange
+contra toda função declarada — confirmando que não sobrou mais nenhuma
+faltando em lugar nenhum.
+
 ## v0.94.2 — Correção: reCAPTCHA travava o envio ("No reCAPTCHA clients exist")
 O formulário da página pública é montado depois que os dados da vaga
 carregam — mas o reCAPTCHA só escaneia a página automaticamente uma vez,
