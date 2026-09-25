@@ -77,6 +77,57 @@ serve(async (req: Request) => {
       return jsonResponse({ id: data.id });
     }
 
+    if (action === 'seed_demo') {
+      // Só pra demonstração/apresentação: cria uma campanha ENCERRADA com
+      // respostas sintéticas já distribuídas por setor, pra mostrar o
+      // resultado consolidado funcionando sem precisar de gente real
+      // respondendo. Só owner/rh, mesma trava das outras ações administrativas.
+      if (!souGestor) return jsonResponse({ error: 'Sem permissão.' }, 403);
+      const dimensoes = body.dimensoesSnapshot || [];
+      const setoresIds: (string | null)[] = body.setoresIds && body.setoresIds.length ? body.setoresIds : [null];
+      const hoje = new Date();
+      const { data: campanha, error: erroCamp } = await admin
+        .from('nr1_campanhas')
+        .insert({
+          empresa_id: perfil.empresa_id,
+          nome: 'Avaliação de riscos psicossociais — Demonstração',
+          data_inicio: new Date(hoje.getTime() - 20 * 86400000).toISOString().slice(0, 10),
+          data_fim: new Date(hoje.getTime() - 5 * 86400000).toISOString().slice(0, 10),
+          anonimato_minimo: 5,
+          publico: { tipo: 'todos', valor: null },
+          dimensoes_snapshot: dimensoes,
+          status: 'encerrada',
+          publicada_em: new Date(hoje.getTime() - 20 * 86400000).toISOString(),
+          encerrada_em: new Date(hoje.getTime() - 5 * 86400000).toISOString(),
+        })
+        .select('id')
+        .single();
+      if (erroCamp) return jsonResponse({ error: erroCamp.message }, 500);
+
+      // Distribui respostas: o 1º setor da lista sempre ganha volume (>=6),
+      // pra mostrar resultado "por setor" liberado; os demais ficam com
+      // pouca gente, pra mostrar a agregação de grupos pequenos em ação.
+      const respostas: { campanha_id: string; setor_id: string | null; por_dimensao: Record<string, number[]> }[] = [];
+      setoresIds.forEach((setorId, idx) => {
+        const qtd = idx === 0 ? 7 : 2;
+        for (let i = 0; i < qtd; i++) {
+          const porDimensao: Record<string, number[]> = {};
+          dimensoes.forEach((d: { id: string; perguntas: string[] }) => {
+            // Um setor sai "ruim" de propósito (nota baixa), o resto neutro/bom —
+            // pra já nascer com algo pra registrar como risco na demonstração.
+            const baseRuim = idx === 0 && i % 2 === 0;
+            porDimensao[d.id] = d.perguntas.map(() => (baseRuim ? 1 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * 3)));
+          });
+          respostas.push({ campanha_id: campanha.id, setor_id: setorId, por_dimensao: porDimensao });
+        }
+      });
+      if (respostas.length) {
+        const { error: erroResp } = await admin.from('nr1_respostas').insert(respostas);
+        if (erroResp) return jsonResponse({ error: erroResp.message }, 500);
+      }
+      return jsonResponse({ ok: true, campanhaId: campanha.id, respostas: respostas.length });
+    }
+
     if (action === 'campanha_publicar') {
       if (!souGestor) return jsonResponse({ error: 'Sem permissão.' }, 403);
       const { error } = await admin

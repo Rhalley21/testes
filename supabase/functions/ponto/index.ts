@@ -230,6 +230,56 @@ serve(async (req: Request) => {
       return jsonResponse({ registro: data });
     }
 
+    if (action === 'gerar_dados_teste') {
+      // Só pra demonstração/apresentação: cria alguns registros de ponto e
+      // justificativas de exemplo pra ESTA pessoa logada (owner/rh) — não
+      // dá pra fabricar registros de outras pessoas porque elas precisam
+      // de uma conta de login de verdade (perfil_id real).
+      if (!['owner', 'rh'].includes(perfil.papel)) return jsonResponse({ error: 'Sem permissão.' }, 403);
+      const hoje = new Date();
+      const registros = [];
+      for (let diasAtras = 6; diasAtras >= 1; diasAtras--) {
+        const dia = new Date(hoje);
+        dia.setDate(dia.getDate() - diasAtras);
+        if (dia.getDay() === 0 || dia.getDay() === 6) continue; // pula fim de semana
+        const atraso = diasAtras === 3 ? 22 : 0; // um dia com atraso, pra aparecer no banco de horas
+        const entrada = new Date(dia);
+        entrada.setHours(8, atraso, 0, 0);
+        const saida = new Date(dia);
+        saida.setHours(17, 5, 0, 0);
+        registros.push(
+          { empresa_id: perfil.empresa_id, perfil_id: perfil.id, tipo: 'entrada', registrado_em: entrada.toISOString() },
+          { empresa_id: perfil.empresa_id, perfil_id: perfil.id, tipo: 'saida', registrado_em: saida.toISOString() }
+        );
+      }
+      if (registros.length) await ponto.from('registros_ponto').insert(registros);
+
+      const dataJustifPendente = new Date(hoje);
+      dataJustifPendente.setDate(dataJustifPendente.getDate() - 2);
+      const dataJustifAprovada = new Date(hoje);
+      dataJustifAprovada.setDate(dataJustifAprovada.getDate() - 10);
+      await ponto.from('justificativas_ponto').insert([
+        {
+          empresa_id: perfil.empresa_id,
+          perfil_id: perfil.id,
+          tipo: 'atraso',
+          data_ref: dataJustifPendente.toISOString().slice(0, 10),
+          motivo: 'Consulta médica pela manhã (exemplo de demonstração)',
+          status: 'pendente',
+        },
+        {
+          empresa_id: perfil.empresa_id,
+          perfil_id: perfil.id,
+          tipo: 'atestado',
+          data_ref: dataJustifAprovada.toISOString().slice(0, 10),
+          motivo: 'Atestado médico (exemplo de demonstração)',
+          status: 'aprovada',
+          qtd_dias: 1,
+        },
+      ]);
+      return jsonResponse({ ok: true });
+    }
+
     if (action === 'hoje') {
       const inicioDoDia = body.inicioDoDiaISO;
       if (!inicioDoDia) return jsonResponse({ error: 'inicioDoDiaISO é obrigatório.' }, 400);

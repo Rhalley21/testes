@@ -3,6 +3,39 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.94.0 — "Gerar dados de teste" agora cobre o sistema inteiro
+Pra usar em apresentações, sem faltar nada. Antes gerava só o básico
+(estrutura mínima, 2 cargos, 2 colaboradores, 1 ciclo aberto). Agora gera:
+- **Estrutura** com 7 níveis (unidade, 2 departamentos, 2 setores, 2 equipes).
+- **7 cargos** publicados, de famílias variadas (Liderança, Comercial,
+  Administrativo/Financeiro, Coordenação, Operacional).
+- **10 colaboradores**, distribuídos pela estrutura e pelos cargos.
+- **10 ciclos de avaliação em estados variados**: 2 abertos, 2 com
+  pendência de avaliador, e 6 **consolidados de verdade** — reaproveitando
+  a função real de cálculo do sistema (`consolidarCiclo`), com resultados
+  variados (bom/misto/fraco) pra popular os gráficos do dashboard com
+  distribuição realista. Metade já tem reunião de feedback registrada e
+  uma ação do PDI marcada como concluída.
+- **3 check-ins** de feedback contínuo.
+- **1 pesquisa de clima encerrada**, com 12 respostas anônimas de exemplo.
+- **NR1**: SST cadastrado, 1 risco + 1 ação de exemplo, e (via Edge
+  Function, melhor esforço) uma campanha encerrada com respostas reais no
+  servidor — um setor com volume suficiente pra mostrar resultado, outros
+  pequenos pra mostrar a agregação em ação.
+- **R&S**: 1 requisição aprovada e publicada, com 4 candidatos em etapas
+  diferentes do pipeline.
+- **Ponto** (se o módulo estiver habilitado): uma semana de registros
+  (com um dia de atraso de propósito, pra aparecer no banco de horas) e 2
+  justificativas de exemplo (uma pendente, uma já aprovada).
+
+Continua sem apagar nada que já exista — só adiciona por cima. As partes
+de NR1 e Ponto são melhor esforço: se a Edge Function correspondente ainda
+não estiver implantada, essa parte é só ignorada (com aviso no console),
+sem quebrar o resto da geração.
+
+Requer reimplantar as Edge Functions "nr1" e "ponto" (ambas ganharam uma
+ação nova de seed). Sem mudança de SQL.
+
 ## v0.93.2 — CORREÇÃO CRÍTICA: risco real de perda de dados no login
 Encontrada a causa provável de um incidente real onde os dados de uma
 empresa foram substituídos por um estado vazio.
