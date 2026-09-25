@@ -45,6 +45,16 @@ function formatarValorMensal(v) {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+// Cliente pede a troca de plano — não muda sozinho (a cobrança ainda é
+// manual, ver nota no topo do arquivo). Fica registrado na auditoria pra
+// o Instituto INETRIS ver e providenciar o ajuste + cobrança.
+function solicitarMudancaPlano(nomePlano) {
+  registrarAuditoria('empresa.solicitou_mudanca_plano', { planoSolicitado: nomePlano });
+  showToast(
+    `Solicitação registrada para o plano ${nomePlano}. O Instituto INETRIS vai entrar em contato para confirmar e ajustar sua cobrança.`
+  );
+}
+
 function pagePagamento() {
   const f = state.empresa?.faturamento || {};
   const planoAtual = f.plano || '—';
@@ -72,6 +82,7 @@ function pagePagamento() {
             <div class="small-muted">${p.nome}</div>
             <div style="font-size:24px;font-weight:600;margin:4px 0;">${formatarPrecoPlano(p.precoNovo)}<span class="small-muted" style="font-size:13px;font-weight:400;">/mês</span></div>
             <div class="small-muted" style="font-size:12px;">${p.detalhe}</div>
+            ${p.nome !== planoAtual ? `<button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%;" onclick="solicitarMudancaPlano('${p.nome}')">Solicitar este plano</button>` : ''}
           </div>
         `
         ).join('')}

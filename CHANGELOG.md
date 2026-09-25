@@ -3,6 +3,23 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.95.1 — Trocar o plano da empresa: agora tem tela, sem precisar de SQL
+Corrige a falta que causou o bloqueio ao cadastrar colaboradores: até aqui,
+o plano de uma empresa (Essencial/Gestão/Estratégico, que define o limite
+de colaboradores) só podia ser ajustado direto no banco.
+
+- **Super Admin**: nova coluna "Plano" na tabela de Cobrança por WhatsApp —
+  escolhe o plano de qualquer empresa e salva. Segue o mesmo padrão de
+  segurança já usado pro link de pagamento: uma função SQL que só mexe
+  nesse campo específico, e só roda se quem chamou for Super Admin (nunca
+  dá acesso de escrita a mais nada da empresa).
+- **Cliente**: na tela de Pagamento, cada plano que não é o atual ganhou o
+  botão "Solicitar este plano" — registra o pedido na auditoria (a
+  cobrança continua manual, então não muda sozinho; o Instituto INETRIS
+  vê o pedido e ajusta).
+
+Requer rodar sql/29-super-admin-definir-plano.sql no projeto principal.
+
 ## v0.95.0 — R&S completo: scorecard de entrevista e indicadores
 Fecha os dois itens que faltavam do módulo de Recrutamento e Seleção:
 

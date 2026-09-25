@@ -419,11 +419,12 @@ function pageSuperAdmin() {
             link: f.linkPagamento || null,
             status: f.statusPagamento || 'Pendente',
             valor: f.valorMensal || null,
+            plano: f.plano || null,
           };
         });
         if (!linhas.length) return '<div class="empty">Nenhuma empresa cadastrada ainda.</div>';
         return `
-        <table><thead><tr><th>Empresa</th><th>WhatsApp <small>(dono edita)</small></th><th>Status</th><th>Link de pagamento <small>(você edita)</small></th><th></th></tr></thead><tbody>
+        <table><thead><tr><th>Empresa</th><th>WhatsApp <small>(dono edita)</small></th><th>Status</th><th>Plano <small>(você define)</small></th><th>Link de pagamento <small>(você edita)</small></th><th></th></tr></thead><tbody>
           ${linhas
             .map((l) => {
               const podeCobrar = l.whatsapp && l.link;
@@ -431,6 +432,12 @@ function pageSuperAdmin() {
               <td><b>${escaparHtml(l.nome)}</b></td>
               <td class="small-muted">${l.whatsapp ? escaparHtml(l.whatsapp) : '<span style="color:var(--iniciar);">sem WhatsApp</span>'}</td>
               <td><span class="pill ${l.status === 'Em dia' ? 'pill-alavancar' : l.status === 'Atrasado' || l.status === 'Cancelado' ? 'pill-iniciar' : 'pill-neutral'}">${l.status}</span></td>
+              <td>
+                <select id="plano_${l.id}" style="min-width:130px;">
+                  ${PLANOS_NORTE.map((p) => `<option value="${p.nome}" ${l.plano === p.nome ? 'selected' : ''}>${p.nome} (até ${p.limiteColaboradores})</option>`).join('')}
+                </select>
+                <button class="btn btn-sm btn-ghost" onclick="salvarPlanoEmpresa('${l.id}')">Salvar plano</button>
+              </td>
               <td>
                 <input id="link_pag_${l.id}" type="url" placeholder="https://invoice.infinitepay.io/..." value="${escaparHtml(l.link || '')}" style="min-width:220px;">
                 <button class="btn btn-sm btn-ghost" onclick="salvarLinkPagamentoEmpresa('${l.id}')">Salvar link</button>
@@ -627,6 +634,32 @@ async function salvarLinkPagamentoEmpresa(empresaId) {
     d.payload.empresa.faturamento.linkPagamento = link || null;
   }
   showToast('Link de pagamento salvo.');
+  render();
+}
+
+// Salva o plano de uma empresa direto pelo painel do Super Admin. Usa a
+// função SQL super_admin_definir_plano (ver sql/29-super-admin-definir-plano.sql),
+// que só mexe nesse campo e só roda pra Super Admin.
+async function salvarPlanoEmpresa(empresaId) {
+  const select = document.getElementById(`plano_${empresaId}`);
+  if (!select) return;
+  const plano = select.value;
+  const { error } = await sb.rpc('super_admin_definir_plano', {
+    p_empresa_id: empresaId,
+    p_plano: plano,
+  });
+  if (error) {
+    console.error('Falha ao salvar plano', error);
+    showToast('Não foi possível salvar o plano. Verifique se a migration 29 foi aplicada.');
+    return;
+  }
+  const d = _superAdminPayloads.find((p) => p.empresa_id === empresaId);
+  if (d && d.payload) {
+    d.payload.empresa = d.payload.empresa || {};
+    d.payload.empresa.faturamento = d.payload.empresa.faturamento || {};
+    d.payload.empresa.faturamento.plano = plano;
+  }
+  showToast(`Plano atualizado para ${plano}.`);
   render();
 }
 
