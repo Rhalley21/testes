@@ -341,6 +341,134 @@ function reabrirCandidatoRS(candidatoId) {
   render();
 }
 
+/* ---------- Scorecard de entrevista ---------- */
+// Critérios vêm das competências comportamentais já cadastradas no
+// desenho do cargo — não inventa um formulário novo por fora do que a
+// empresa já definiu pra aquele cargo.
+let _rsScorecardAberto = null; // id do candidato com o formulário aberto
+let _rsScorecardExpandido = null; // id do candidato com a lista de scorecards já enviados aberta
+
+function abrirScorecardRS(candidatoId) {
+  _rsScorecardAberto = candidatoId;
+  render();
+}
+
+function criarScorecardRS(candidatoId) {
+  const cand = state.rs.candidatos.find((c) => c.id === candidatoId);
+  const vaga = cand && state.rs.requisicoes.find((r) => r.id === cand.vagaId);
+  const cargo = vaga && state.cargos.find((c) => c.id === vaga.cargoId);
+  const criterios = cargo?.desenho?.competenciasComportamentais?.length
+    ? cargo.desenho.competenciasComportamentais
+    : ['Comunicação', 'Postura profissional', 'Alinhamento com a vaga'];
+  const notas = criterios.map(
+    (_, i) => parseInt(document.getElementById(`rs_sc_nota_${candidatoId}_${i}`).value, 10) || 3
+  );
+  const recomendacao = document.getElementById(`rs_sc_recomendacao_${candidatoId}`).value;
+  const observacoes = document.getElementById(`rs_sc_obs_${candidatoId}`).value.trim();
+  cand.scorecards = cand.scorecards || [];
+  cand.scorecards.push({
+    id: uid(),
+    avaliadorId: meuPerfilId,
+    criterios: criterios.map((nome, i) => ({ nome, nota: notas[i] })),
+    recomendacao,
+    observacoes,
+    criadoEm: new Date().toISOString(),
+  });
+  _rsScorecardAberto = null;
+  showToast('Scorecard registrado.');
+  render();
+}
+
+function _rsMediaScorecard(sc) {
+  if (!sc.criterios.length) return 0;
+  return sc.criterios.reduce((soma, c) => soma + c.nota, 0) / sc.criterios.length;
+}
+
+function renderScorecardRS(candidatoId) {
+  const cand = state.rs.candidatos.find((c) => c.id === candidatoId);
+  if (!cand) return '';
+  const vaga = state.rs.requisicoes.find((r) => r.id === cand.vagaId);
+  const cargo = vaga && state.cargos.find((c) => c.id === vaga.cargoId);
+  const criterios = cargo?.desenho?.competenciasComportamentais?.length
+    ? cargo.desenho.competenciasComportamentais
+    : ['Comunicação', 'Postura profissional', 'Alinhamento com a vaga'];
+  const scorecards = cand.scorecards || [];
+
+  return `
+    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <button class="btn btn-ghost btn-sm" onclick="_rsScorecardExpandido = _rsScorecardExpandido==='${candidatoId}'?null:'${candidatoId}'; render();">
+          📋 Scorecards (${scorecards.length})
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="abrirScorecardRS('${candidatoId}')">+ Novo scorecard</button>
+      </div>
+      ${
+        _rsScorecardAberto === candidatoId
+          ? `<div class="card" style="margin-top:8px;">
+          <h4 style="font-size:13px;margin-bottom:8px;">Novo scorecard de entrevista</h4>
+          ${criterios
+            .map(
+              (crit, i) => `
+            <div class="field" style="margin-bottom:8px;">
+              <label>${escaparHtml(crit)} <small>(1 a 5)</small></label>
+              <select id="rs_sc_nota_${candidatoId}_${i}">
+                <option value="1">1 — Muito abaixo do esperado</option>
+                <option value="2">2 — Abaixo do esperado</option>
+                <option value="3" selected>3 — Dentro do esperado</option>
+                <option value="4">4 — Acima do esperado</option>
+                <option value="5">5 — Muito acima do esperado</option>
+              </select>
+            </div>`
+            )
+            .join('')}
+          <div class="field"><label>Recomendação</label>
+            <select id="rs_sc_recomendacao_${candidatoId}">
+              <option value="avancar">Avançar no processo</option>
+              <option value="neutro">Neutro / preciso de outra opinião</option>
+              <option value="nao_avancar">Não avançar</option>
+            </select>
+          </div>
+          <div class="field"><label>Observações</label><textarea id="rs_sc_obs_${candidatoId}"></textarea></div>
+          <button class="btn btn-primary btn-sm" onclick="criarScorecardRS('${candidatoId}')">Salvar scorecard</button>
+          <button class="btn btn-ghost btn-sm" onclick="_rsScorecardAberto=null;render();">Cancelar</button>
+        </div>`
+          : ''
+      }
+      ${
+        _rsScorecardExpandido === candidatoId && scorecards.length
+          ? `<div style="margin-top:8px;">
+          ${scorecards
+            .map((sc) => {
+              const avaliador = (_perfisEmpresa || []).find((p) => p.id === sc.avaliadorId);
+              const media = _rsMediaScorecard(sc);
+              const corRecomendacao =
+                sc.recomendacao === 'avancar'
+                  ? 'pill-alavancar'
+                  : sc.recomendacao === 'nao_avancar'
+                    ? 'pill-iniciar'
+                    : 'pill-desenvolver';
+              const labelRecomendacao =
+                sc.recomendacao === 'avancar'
+                  ? 'Avançar'
+                  : sc.recomendacao === 'nao_avancar'
+                    ? 'Não avançar'
+                    : 'Neutro';
+              return `<div style="padding:8px 0;border-top:1px solid var(--line);font-size:12.5px;">
+              <div style="display:flex;justify-content:space-between;">
+                <b>${avaliador ? escaparHtml(avaliador.nome) : 'Avaliador'}</b>
+                <span>Média: <b>${media.toFixed(1)}</b> · <span class="pill ${corRecomendacao}" style="font-size:10px;">${labelRecomendacao}</span></span>
+              </div>
+              <div class="small-muted" style="margin-top:2px;">${sc.criterios.map((c) => `${escaparHtml(c.nome)}: ${c.nota}`).join(' · ')}</div>
+              ${sc.observacoes ? `<div class="small-muted" style="margin-top:2px;">"${escaparHtml(sc.observacoes)}"</div>` : ''}
+            </div>`;
+            })
+            .join('')}
+        </div>`
+          : ''
+      }
+    </div>`;
+}
+
 // Converte um candidato Aprovado em colaborador — reaproveita só os dados
 // necessários (nome e contato), preservando o histórico do processo seletivo.
 function converterCandidatoEmColaboradorRS(candidatoId) {
@@ -363,6 +491,65 @@ function converterCandidatoEmColaboradorRS(candidatoId) {
   render();
 }
 
+// Indicadores de recrutamento — tempo de contratação e taxa de aceite.
+// Calculados sob demanda a partir do que já existe (requisições e
+// candidatos), sem precisar guardar nenhum número à parte.
+function renderIndicadoresRS() {
+  const requisicoesConvertidas = state.rs.requisicoes.filter(
+    (r) => r.publicadaEm && state.rs.candidatos.some((c) => c.vagaId === r.id && c.convertidoEm)
+  );
+  let tempoMedioDias = null;
+  if (requisicoesConvertidas.length) {
+    const dias = requisicoesConvertidas.map((r) => {
+      const candidatoConvertido = state.rs.candidatos.find((c) => c.vagaId === r.id && c.convertidoEm);
+      return (new Date(candidatoConvertido.convertidoEm) - new Date(r.publicadaEm)) / 86400000;
+    });
+    tempoMedioDias = Math.round(dias.reduce((a, b) => a + b, 0) / dias.length);
+  }
+
+  // Taxa de aceite: dos candidatos que chegaram a receber uma proposta
+  // (etapa "proposta" em algum momento do histórico), quantos realmente
+  // foram aprovados (aceitaram) vs os que foram reprovados depois disso.
+  const passaramPorProposta = state.rs.candidatos.filter((c) => (c.historico || []).some((h) => h.para === 'proposta'));
+  const aceitaram = passaramPorProposta.filter((c) => c.etapa === 'aprovado' && !c.reprovado).length;
+  const taxaAceite = passaramPorProposta.length ? Math.round((aceitaram / passaramPorProposta.length) * 100) : null;
+
+  const totalCandidatos = state.rs.candidatos.length;
+  const totalVagasPublicadas = state.rs.requisicoes.filter((r) => r.publicada).length;
+  const candidatosPorVaga = totalVagasPublicadas
+    ? Math.round((totalCandidatos / totalVagasPublicadas) * 10) / 10
+    : null;
+
+  if (tempoMedioDias === null && taxaAceite === null && candidatosPorVaga === null) return '';
+  return `
+    <div class="painel-kpi-inetris">
+      <div class="kpi-card-inetris">
+        <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+        <div>
+          <div class="kpi-card-label">Tempo médio de contratação</div>
+          <div class="kpi-card-valor">${tempoMedioDias !== null ? `${tempoMedioDias} dias` : '—'}</div>
+          <div class="kpi-card-nota">Da publicação até a conversão em colaborador</div>
+        </div>
+      </div>
+      <div class="kpi-card-inetris">
+        <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+        <div>
+          <div class="kpi-card-label">Taxa de aceite</div>
+          <div class="kpi-card-valor">${taxaAceite !== null ? `${taxaAceite}%` : '—'}</div>
+          <div class="kpi-card-nota">${passaramPorProposta.length ? `${aceitaram} de ${passaramPorProposta.length} propostas aceitas` : 'Nenhuma proposta feita ainda'}</div>
+        </div>
+      </div>
+      <div class="kpi-card-inetris">
+        <div class="kpi-card-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/></svg></div>
+        <div>
+          <div class="kpi-card-label">Candidatos por vaga</div>
+          <div class="kpi-card-valor">${candidatosPorVaga !== null ? candidatosPorVaga : '—'}</div>
+          <div class="kpi-card-nota">Média entre as vagas publicadas</div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function pageRS() {
   garantirRS();
   const souGestor = ['owner', 'rh'].includes(meuPapelReal);
@@ -373,8 +560,10 @@ function pageRS() {
       <div class="eyebrow">Pessoas</div>
       <h1>R&S — Recrutamento e Seleção</h1>
       <p class="page-desc">Do pedido de vaga até a contratação. A vaga herda os dados do cargo, sem alterar o desenho original.</p>
-      <div class="notice info" style="margin-top:10px;">🚧 Fase 1: requisição com aprovação e pipeline de candidatos, com cadastro manual — ainda não há página pública de candidatura.</div>
+      <div class="notice info" style="margin-top:10px;">✅ Requisição com aprovação, pipeline de candidatos, página pública de candidatura, e-mails automáticos por etapa, scorecard de entrevista e indicadores de recrutamento — módulo completo.</div>
     </div>
+
+    ${renderIndicadoresRS()}
 
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
@@ -608,7 +797,8 @@ function renderPipelineCandidatosRS(vaga) {
                       : `<button class="btn btn-sm btn-ghost" onclick="reprovarCandidatoRS('${c.id}')">Reprovar</button>`
                 }
               </td>
-            </tr>`
+            </tr>
+            <tr style="${c.reprovado ? 'opacity:0.6;' : ''}"><td colspan="5" style="padding-top:0;">${renderScorecardRS(c.id)}</td></tr>`
               )
               .join('')}
           </tbody></table>`

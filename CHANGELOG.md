@@ -3,6 +3,32 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.95.0 — R&S completo: scorecard de entrevista e indicadores
+Fecha os dois itens que faltavam do módulo de Recrutamento e Seleção:
+
+- **Scorecard de entrevista**: em cada candidato, um botão "+ Novo
+  scorecard" abre um formulário com as **competências comportamentais já
+  cadastradas no desenho do cargo** (não inventa critério novo) — cada uma
+  avaliada de 1 a 5, mais uma recomendação (avançar / neutro / não
+  avançar) e observações. Vários avaliadores podem registrar o próprio
+  scorecard pro mesmo candidato; a lista mostra a média de cada um e quem
+  avaliou.
+- **Indicadores de recrutamento**: três KPIs no topo da tela —
+  **tempo médio de contratação** (da publicação da vaga até a conversão em
+  colaborador), **taxa de aceite** (dos candidatos que chegaram a receber
+  proposta, quantos realmente aceitaram), e candidatos por vaga. Calculado
+  sob demanda a partir dos dados que já existem — testei as duas contas
+  principais e batem certo.
+
+Com isso, o módulo R&S está completo conforme a especificação original.
+Sem mudança de banco.
+
+## v0.94.4 — R&S: aviso da tela atualizado
+O aviso dizia "ainda não há página pública de candidatura" — desatualizado
+desde que ela foi construída e testada com sucesso. Agora reflete o que
+realmente já funciona (requisição, pipeline, página pública, e-mails por
+etapa) e o que ainda falta (scorecard de entrevista, indicadores).
+
 ## v0.94.3 — Correção: "Converter em colaborador" não fazia nada
 A função inteira tinha sido apagada por acidente numa edição anterior
 (mesma classe de erro que já aconteceu antes nesta sessão: só o botão
