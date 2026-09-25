@@ -124,6 +124,25 @@ serve(async (req: Request) => {
         });
       }
 
+      // Confirmação por e-mail na hora — a pessoa não deveria ficar sem
+      // saber se a candidatura foi recebida até o RH decidir importar.
+      // Best-effort: se o envio falhar, a candidatura já está salva de
+      // qualquer forma, então não bloqueia a resposta pro visitante.
+      try {
+        const { data: vagaInfo } = await admin.from('rs_vagas_publicas').select('titulo').eq('id', body.vagaPublicaId).maybeSingle();
+        await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/enviar-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+          body: JSON.stringify({
+            destinatario: body.email,
+            assunto: 'Recebemos sua candidatura',
+            corpoHtml: `<p>Olá, ${body.nome}!</p><p>Recebemos sua candidatura para a vaga <b>${vagaInfo?.titulo || 'divulgada'}</b>. Nossa equipe vai analisar seu perfil e você será avisado(a) por e-mail a cada atualização.</p>`,
+          }),
+        });
+      } catch (e) {
+        console.warn('Falha ao enviar e-mail de confirmação de candidatura', e);
+      }
+
       return jsonResponse({ protocolo: candidatura.id });
     }
 

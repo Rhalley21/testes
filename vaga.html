@@ -10,7 +10,7 @@
      Edge Function "rs" (ações públicas: vaga_publica e
      candidatura_criar). Acesse como: vaga.html?v=<id da vaga>
      ============================================================ -->
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer></script>
     <style>
       :root {
         --gold: #b8894b;
@@ -253,11 +253,26 @@
       <label class="consent"><input type="checkbox" id="f_privacidade" required> Li e aceito o aviso de privacidade acima. *</label>
       <label class="consent"><input type="checkbox" id="f_banco_talentos"> Aceito ficar disponível no banco de talentos para futuras vagas compatíveis.</label>
 
-      <div class="g-recaptcha" data-sitekey="${RECAPTCHA_SITE_KEY}"></div>
+      <div id="recaptcha_container"></div>
 
       <div id="f_erro" class="erro" style="display:none;"></div>
       <button type="submit" class="btn" id="f_enviar">Enviar candidatura</button>
     </form>`;
+
+        // Renderização EXPLÍCITA do reCAPTCHA — necessária porque o formulário é
+        // inserido na página depois (via innerHTML), então o scaneamento
+        // automático do script (que só roda uma vez, ao carregar a página) nunca
+        // encontra essa div. Sem isso, getResponse() falha com "No reCAPTCHA
+        // clients exist." Espera o script carregar (pode chegar depois deste
+        // ponto, já que é async/defer) antes de tentar renderizar.
+        function _renderRecaptchaQuandoPronto() {
+          if (typeof grecaptcha === 'undefined' || !grecaptcha.render) {
+            setTimeout(_renderRecaptchaQuandoPronto, 200);
+            return;
+          }
+          window._recaptchaWidgetId = grecaptcha.render('recaptcha_container', { sitekey: RECAPTCHA_SITE_KEY });
+        }
+        _renderRecaptchaQuandoPronto();
 
         document.getElementById('form_candidatura').addEventListener('submit', async (e) => {
           e.preventDefault();
@@ -271,7 +286,10 @@
           const arquivo = document.getElementById('f_curriculo').files[0];
           const aceitePrivacidade = document.getElementById('f_privacidade').checked;
           const aceiteBancoTalentos = document.getElementById('f_banco_talentos').checked;
-          const recaptchaToken = typeof grecaptcha !== 'undefined' ? grecaptcha.getResponse() : '';
+          const recaptchaToken =
+            typeof grecaptcha !== 'undefined' && window._recaptchaWidgetId !== undefined
+              ? grecaptcha.getResponse(window._recaptchaWidgetId)
+              : '';
 
           if (!nome || !email || !arquivo) {
             erroEl.textContent = 'Preencha nome, e-mail e anexe o currículo.';
@@ -319,7 +337,8 @@
             erroEl.style.display = 'block';
             btn.disabled = false;
             btn.textContent = 'Enviar candidatura';
-            if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
+            if (typeof grecaptcha !== 'undefined' && window._recaptchaWidgetId !== undefined)
+              grecaptcha.reset(window._recaptchaWidgetId);
           }
         });
       }

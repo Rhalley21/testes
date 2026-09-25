@@ -3,6 +3,29 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.94.2 — Correção: reCAPTCHA travava o envio ("No reCAPTCHA clients exist")
+O formulário da página pública é montado depois que os dados da vaga
+carregam — mas o reCAPTCHA só escaneia a página automaticamente uma vez,
+no carregamento inicial, e nunca via mais tarde. Resultado: o widget nunca
+era registrado de verdade, e ao tentar validar, o erro "No reCAPTCHA
+clients exist" travava o botão em "Enviando…" pra sempre. Corrigido:
+agora o widget é renderizado explicitamente por código (esperando o
+script do Google carregar, com nova tentativa a cada 200ms se precisar),
+depois que o formulário já está na tela. Testada a lógica de espera.
+
+## v0.94.1 — R&S: e-mail automático ao candidato em toda mudança de etapa
+O candidato agora é avisado por e-mail sempre que o RH move ele pelo
+pipeline (nova candidatura, triagem, contato inicial, avaliação,
+entrevista, finalista, proposta, aprovado) e também quando é reprovado —
+com uma mensagem específica pra cada etapa, explicando o que está
+acontecendo. A confirmação de recebimento agora dispara **na hora**, direto
+da página pública, sem esperar o RH importar a candidatura. Envio é
+best-effort: se falhar (e-mail inválido, serviço fora do ar), não trava o
+pipeline — só registra no console.
+
+Requer reimplantar a Edge Function "rs" (ganhou o envio de confirmação).
+Sem mudança de SQL.
+
 ## v0.94.0 — "Gerar dados de teste" agora cobre o sistema inteiro
 Pra usar em apresentações, sem faltar nada. Antes gerava só o básico
 (estrutura mínima, 2 cargos, 2 colaboradores, 1 ciclo aberto). Agora gera:

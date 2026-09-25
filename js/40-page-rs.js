@@ -184,6 +184,72 @@ function abrirNovoCandidatoRS(vagaId) {
   render();
 }
 
+// Templates de e-mail por etapa — o candidato é avisado a cada mudança,
+// pra nunca ficar "no vácuo" sobre o processo. Best-effort: se o envio
+// falhar (e-mail inválido, serviço fora do ar), só registra no console —
+// nunca trava o RH de mover o candidato no pipeline.
+const RS_EMAIL_POR_ETAPA = {
+  nova: {
+    assunto: 'Recebemos sua candidatura',
+    corpo: (nome, vaga) =>
+      `<p>Olá, ${nome}!</p><p>Recebemos sua candidatura para a vaga <b>${vaga}</b>. Nossa equipe vai analisar seu perfil e retornaremos em breve.</p>`,
+  },
+  triagem: {
+    assunto: 'Sua candidatura está em triagem',
+    corpo: (nome, vaga) =>
+      `<p>Olá, ${nome}!</p><p>Seu currículo para a vaga <b>${vaga}</b> está sendo analisado pela nossa equipe de recrutamento.</p>`,
+  },
+  contato_inicial: {
+    assunto: 'Vamos entrar em contato com você',
+    corpo: (nome, vaga) =>
+      `<p>Olá, ${nome}!</p><p>Boas notícias — avançamos com sua candidatura para <b>${vaga}</b>. Em breve entraremos em contato para os próximos passos.</p>`,
+  },
+  avaliacao: {
+    assunto: 'Sua candidatura está em avaliação',
+    corpo: (nome, vaga) =>
+      `<p>Olá, ${nome}!</p><p>Seu perfil para a vaga <b>${vaga}</b> está sendo avaliado com atenção pela nossa equipe.</p>`,
+  },
+  entrevista: {
+    assunto: 'Você foi selecionado(a) para uma entrevista',
+    corpo: (nome, vaga) =>
+      `<p>Olá, ${nome}!</p><p>Você avançou para a etapa de <b>entrevista</b> na vaga <b>${vaga}</b>. Em breve alguém da nossa equipe vai combinar o horário com você.</p>`,
+  },
+  finalista: {
+    assunto: 'Você está entre os finalistas!',
+    corpo: (nome, vaga) =>
+      `<p>Olá, ${nome}!</p><p>Ótima notícia — você está entre os <b>finalistas</b> para a vaga <b>${vaga}</b>. Estamos concluindo a avaliação e retornaremos em breve.</p>`,
+  },
+  proposta: {
+    assunto: 'Estamos preparando uma proposta para você',
+    corpo: (nome, vaga) =>
+      `<p>Olá, ${nome}!</p><p>Temos uma ótima notícia — estamos preparando uma proposta para você na vaga <b>${vaga}</b>. Em breve entraremos em contato com os detalhes.</p>`,
+  },
+  aprovado: {
+    assunto: 'Parabéns! Você foi aprovado(a)',
+    corpo: (nome, vaga) =>
+      `<p>Olá, ${nome}!</p><p><b>Parabéns!</b> Você foi aprovado(a) para a vaga <b>${vaga}</b>. Nossa equipe entrará em contato com os próximos passos para sua contratação.</p>`,
+  },
+  reprovado: {
+    assunto: 'Sobre sua candidatura',
+    corpo: (nome, vaga) =>
+      `<p>Olá, ${nome}!</p><p>Agradecemos muito seu interesse e o tempo dedicado ao processo seletivo para a vaga <b>${vaga}</b>. Neste momento, optamos por seguir com outro(a) candidato(a). Seu perfil fica registrado para futuras oportunidades compatíveis.</p>`,
+  },
+};
+
+async function enviarEmailEtapaRS(candidato, etapa) {
+  const tpl = RS_EMAIL_POR_ETAPA[etapa];
+  if (!tpl || !candidato.email) return;
+  const vaga = state.rs.requisicoes.find((r) => r.id === candidato.vagaId);
+  const nomeVaga = vaga ? state.cargos.find((c) => c.id === vaga.cargoId)?.nome || vaga.codigo : 'nossa vaga';
+  try {
+    await sb.functions.invoke('enviar-email', {
+      body: { destinatario: candidato.email, assunto: tpl.assunto, corpoHtml: tpl.corpo(candidato.nome, nomeVaga) },
+    });
+  } catch (e) {
+    console.warn('Falha ao enviar e-mail de atualização de candidatura (não bloqueia o pipeline)', e);
+  }
+}
+
 function criarCandidatoRS(vagaId) {
   const nome = document.getElementById('rs_cand_nome').value.trim();
   const email = document.getElementById('rs_cand_email').value.trim();
@@ -204,7 +270,7 @@ function criarCandidatoRS(vagaId) {
   ) {
     return;
   }
-  state.rs.candidatos.push({
+  const novoCandidato = {
     id: uid(),
     vagaId,
     nome,
@@ -224,9 +290,11 @@ function criarCandidatoRS(vagaId) {
       },
     ],
     ...novoCarimbo(),
-  });
+  };
+  state.rs.candidatos.push(novoCandidato);
+  enviarEmailEtapaRS(novoCandidato, 'nova');
   _rsNovoCandidatoAberto = null;
-  showToast('Candidato cadastrado.');
+  showToast('Candidato cadastrado. E-mail de confirmação enviado.');
   render();
 }
 
@@ -243,15 +311,15 @@ function moverEtapaCandidatoRS(candidatoId, novaEtapa) {
     em: new Date().toISOString(),
     observacao: '',
   });
+  enviarEmailEtapaRS(cand, novaEtapa);
+  showToast(`Etapa atualizada — e-mail enviado a ${cand.nome}.`);
   render();
 }
 
 function reprovarCandidatoRS(candidatoId) {
   const cand = state.rs.candidatos.find((c) => c.id === candidatoId);
   if (!cand) return;
-  const motivo = prompt(
-    'Motivo da reprovação/desistência (fica no histórico, não é enviado ao candidato automaticamente):'
-  );
+  const motivo = prompt('Motivo da reprovação/desistência (fica no histórico). O candidato será avisado por e-mail.');
   if (motivo === null) return;
   cand.reprovado = true;
   cand.historico.push({
@@ -261,6 +329,8 @@ function reprovarCandidatoRS(candidatoId) {
     em: new Date().toISOString(),
     observacao: motivo,
   });
+  enviarEmailEtapaRS(cand, 'reprovado');
+  showToast(`Candidato reprovado — e-mail enviado a ${cand.nome}.`);
   render();
 }
 
