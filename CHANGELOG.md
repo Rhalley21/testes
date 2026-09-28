@@ -3,6 +3,20 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.97.3 — Correção real: tela branca (ReferenceError: renderTelaAuth is not defined)
+A correção anterior (v0.97.2) causou um erro novo, capturado certinho pelo
+print do console: `renderTelaAuth is not defined`. Causa real: o Supabase
+dispara o evento inicial de sessão **muito cedo** — antes mesmo de todos
+os arquivos `<script>` da página terminarem de carregar. Como
+`renderTelaAuth` só existe depois que `js/35-tela-entrada.js` (carregado
+bem mais tarde na lista) termina de rodar, esse evento early podia
+disparar ANTES dela existir, quebrando a página inteira (tela branca).
+
+Corrigido com o mesmo tipo de proteção já usada antes pro reCAPTCHA: antes
+de chamar `renderTelaAuth()`, o código agora confere se ela já existe — se
+não existir ainda, tenta de novo a cada 50ms, até existir de verdade.
+Testada a lógica de espera.
+
 ## v0.97.2 — Correção real: landing não aparecia nem em aba anônima
 A correção anterior (v0.96.0) estava certa, mas incompleta: existe um
 SEGUNDO ponto no código que decide o que mostrar na abertura — o listener

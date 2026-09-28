@@ -452,6 +452,21 @@ async function processarTokensDaUrlSeHouver() {
   return { session: null, tipo: null };
 }
 
+// BUG CORRIGIDO: o Supabase dispara o evento inicial de sessão MUITO cedo
+// (antes de todos os arquivos <script> da página terminarem de carregar) —
+// por isso, chamar renderTelaAuth() direto aqui podia disparar um
+// "renderTelaAuth is not defined", já que essa função só existe depois que
+// js/35-tela-entrada.js (carregado bem mais tarde) termina de rodar. Em vez
+// de reordenar todos os arquivos (arriscado), esperamos a função existir de
+// verdade antes de chamar — tenta de novo a cada 50ms se ainda não existir.
+function _chamarRenderTelaAuthQuandoPronto() {
+  if (typeof renderTelaAuth !== 'function') {
+    setTimeout(_chamarRenderTelaAuthQuandoPronto, 50);
+    return;
+  }
+  renderTelaAuth();
+}
+
 sb.auth.onAuthStateChange((evento, sessao) => {
   if (_tratandoLinkDeRecuperacao) return; // já está na tela de nova senha — não deixa nenhum outro evento atropelar
   if (sessao) {
@@ -472,7 +487,7 @@ sb.auth.onAuthStateChange((evento, sessao) => {
     // (mais abaixo) já tinha decidido mostrar. renderTelaAuth() respeita
     // _telaInicial: mostra a landing pra quem nunca logou nesta aba, e o
     // login pra quem acabou de sair (depois de já ter navegado até lá).
-    renderTelaAuth();
+    _chamarRenderTelaAuthQuandoPronto();
   }
 });
 
@@ -516,7 +531,7 @@ sb.auth.onAuthStateChange((evento, sessao) => {
   if (data.session) {
     iniciarComSessao(data.session);
   } else {
-    renderTelaAuth();
+    _chamarRenderTelaAuthQuandoPronto();
   }
 })();
 
