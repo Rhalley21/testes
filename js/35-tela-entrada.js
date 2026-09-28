@@ -142,10 +142,10 @@ function _cardPlanoLanding(p, destaque) {
     <div class="landing-plano ${destaque ? 'destaque' : ''}">
       ${destaque ? '<div class="landing-plano-tag">Mais escolhido</div>' : ''}
       <div class="landing-plano-nome">${p.nome}</div>
+      <div class="landing-plano-faixa">${p.detalhe}</div>
       <div class="landing-plano-preco">${formatarPrecoPlano(p.precoNovo)}<span>/mês</span></div>
-      <div class="landing-plano-detalhe">${p.detalhe}</div>
-      <div class="landing-plano-detalhe">+ ${formatarPrecoPlano(p.implantacao)} de implantação (única vez)</div>
-      <button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%;" onclick="abrirSolicitacaoContratacao('${p.nome}')">Quero contratar agora</button>
+      <div class="landing-plano-implantacao">Implantação (única vez): <b>${formatarPrecoPlano(p.implantacao)}</b></div>
+      <button class="btn ${destaque ? 'btn-primary' : 'btn-ghost'} btn-sm" onclick="abrirSolicitacaoContratacao('${p.nome}')">Quero contratar agora</button>
     </div>`;
 }
 
@@ -171,14 +171,18 @@ function renderLanding() {
       </section>
 
       <section class="landing-planos" id="landing-planos">
-        <h2>Escolha o plano ideal para o tamanho da sua equipe</h2>
+        <h2>Escolha o plano do tamanho da sua equipe</h2>
+        <p class="landing-planos-sub">A mensalidade é por faixa de colaboradores. A implantação é cobrada uma única vez, na contratação.</p>
         <div class="landing-planos-grid">
           ${_cardPlanoLanding(PLANOS_NORTE[0], false)}
           ${_cardPlanoLanding(PLANOS_NORTE[1], true)}
           ${_cardPlanoLanding(PLANOS_NORTE[2], false)}
         </div>
-        <p class="landing-planos-nota">Valores mensais. Cliente novo paga o valor cheio; cliente que já é da casa tem condição especial, válida por 12 meses. Todos os planos incluem 7 dias de teste grátis, sem compromisso.</p>
-        <p class="landing-planos-nota">Acima de 60 colaboradores? <a href="#landing-contratacao" onclick="abrirSolicitacaoContratacao('Personalizado');return false;">Fale com a gente</a> para uma proposta personalizada.</p>
+        <p class="landing-planos-nota">Todos os planos incluem 7 dias de teste grátis, sem compromisso.</p>
+        <div class="landing-planos-personalizado">
+          <span>Mais de 60 colaboradores?</span>
+          <a href="#landing-contratacao" onclick="abrirSolicitacaoContratacao('Personalizado');return false;">Fale com a gente para uma proposta personalizada</a>
+        </div>
       </section>
 
       <section class="landing-teste" id="landing-contratacao">

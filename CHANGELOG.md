@@ -3,6 +3,19 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.97.4 — Redesign da seção de preços da landing
+Trocado o layout genérico de 3 cards soltos (com selo flutuante, texto em
+caixa alta, escala no card do meio) por um **painel único de preços**,
+mais parecido com uma ficha comercial de verdade: colunas separadas por
+linhas verticais, plano recomendado destacado só por um fundo suave (sem
+badge nem escala), preço com números tabulares, rótulos em minúscula.
+
+A implantação (única vez) deixou de ser um "+ R$X" solto e virou uma linha
+própria, separada por um traço, com a palavra "implantação" por extenso —
+mais claro que é um valor separado da mensalidade. Testei o resultado
+renderizado (desktop e mobile) com um navegador de verdade antes de
+finalizar.
+
 ## v0.97.3 — Correção real: tela branca (ReferenceError: renderTelaAuth is not defined)
 A correção anterior (v0.97.2) causou um erro novo, capturado certinho pelo
 print do console: `renderTelaAuth is not defined`. Causa real: o Supabase
