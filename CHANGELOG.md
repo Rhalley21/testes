@@ -3,6 +3,29 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.98.3 — Landing interna removida de vez (não depende mais de configuração)
+A correção anterior (v0.98.2) só mudava o padrão — ainda era possível a
+landing interna aparecer em certas condições. Agora `renderTelaAuth()`
+vai **sempre** direto pro login, sem exceção: a página `planos.html` é a
+única landing do sistema a partir de agora. As funções antigas
+(`renderLanding`, `irParaLanding`) continuam no arquivo, só não são mais
+chamadas por nenhum caminho de entrada.
+
+## v0.98.2 — Removida a landing interna redundante do app.html
+Com a página `planos.html` (agora `index.html`) fazendo o papel de landing
+comercial completa, a landing interna antiga (dentro do próprio sistema,
+mostrada por padrão pra quem não estava logado) ficou redundante e
+confusa — quem chegasse em `app.html` via link direto via de novo os
+planos, só que numa versão mais simples e desatualizada. Agora
+`app.html` vai direto pro login quando não há sessão — sem passar por
+nenhuma landing intermediária. A função interna continua existindo no
+código, só não é mais a porta de entrada padrão.
+
+Requer reimplantar só o arquivo (sem SQL nem Edge Function). Importante:
+o número de versão dos `<script>` do app.html também foi atualizado
+(v0.98.2), pra garantir que o navegador busque os arquivos novos e não
+fique preso em cache antigo.
+
 ## v0.98.1 — A página de planos virou a porta de entrada do site
 Reorganização de endereços, a pedido: agora quem visita o endereço
 principal (`/`) vê primeiro a **página de planos** (recursos, preços,
