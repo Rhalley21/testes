@@ -14,6 +14,7 @@ let _superAdminCodigos = [];
 let _superAdminMetricas = null;
 let _superAdminPayloads = [];
 let _superAdminSolicitacoes = [];
+let _superAdminSolicitacoesContratacao = [];
 let _superAdminNovoRotulo = '';
 let _superAdminNovoPonto = false; // escolha sim/não do módulo Ponto pra empresa que usar este código
 
@@ -25,6 +26,7 @@ async function carregarDadosSuperAdmin() {
     { data: codigos, error: erroCodigos },
     { data: payloads, error: erroPayloads },
     { data: solicitacoes },
+    { data: solicitacoesContratacao },
   ] = await Promise.all([
     sb
       .from('empresas')
@@ -43,8 +45,13 @@ async function carregarDadosSuperAdmin() {
       .from('solicitacoes_teste')
       .select('id, nome_solicitante, email, nome_empresa, telefone, status, codigo_gerado, criado_em')
       .order('criado_em', { ascending: false }),
+    sb
+      .from('solicitacoes_contratacao')
+      .select('id, nome_solicitante, email, nome_empresa, telefone, plano_desejado, observacoes, status, criado_em')
+      .order('criado_em', { ascending: false }),
   ]);
   _superAdminSolicitacoes = solicitacoes || [];
+  _superAdminSolicitacoesContratacao = solicitacoesContratacao || [];
   if (erroEmpresas || erroCodigos || erroPayloads)
     showToast(
       'Não foi possível carregar os dados: ' + (erroEmpresas?.message || erroCodigos?.message || erroPayloads?.message)
@@ -246,6 +253,22 @@ async function recusarSolicitacaoTeste(solicitacaoId) {
     .update({ status: 'recusada', decidido_em: new Date().toISOString(), decidido_por: meuPerfilId })
     .eq('id', solicitacaoId);
   showToast('Solicitação recusada.');
+  await carregarDadosSuperAdmin();
+}
+
+async function atualizarStatusContratacao(solicitacaoId) {
+  const select = document.getElementById(`sc_status_${solicitacaoId}`);
+  if (!select) return;
+  const { error } = await sb
+    .from('solicitacoes_contratacao')
+    .update({ status: select.value, decidido_em: new Date().toISOString(), decidido_por: meuPerfilId })
+    .eq('id', solicitacaoId);
+  if (error) {
+    console.error('Falha ao atualizar status da contratação', error);
+    showToast('Não foi possível salvar. Verifique se a migration 30 foi aplicada.');
+    return;
+  }
+  showToast('Status atualizado.');
   await carregarDadosSuperAdmin();
 }
 
@@ -477,6 +500,43 @@ function pageSuperAdmin() {
             .join('')}
         </tbody></table>`
           : '<div class="empty">Nenhuma solicitação de teste ainda. Elas aparecem aqui quando alguém pede pelo site.</div>'
+      }
+    </div>
+
+    <div class="card">
+      <h3>Solicitações de contratação direta <small>${_superAdminSolicitacoesContratacao.filter((s) => s.status === 'pendente').length} pendente(s)</small></h3>
+      <p class="page-desc">Quem clicou em "Quero contratar agora" na landing (em vez de pedir teste grátis) — combine o pagamento e ajuste o plano da empresa na tabela acima.</p>
+      ${
+        _superAdminSolicitacoesContratacao.length
+          ? `<table><thead><tr><th>Empresa</th><th>Solicitante</th><th>Contato</th><th>Plano</th><th>Quando</th><th>Status</th><th></th></tr></thead><tbody>
+          ${_superAdminSolicitacoesContratacao
+            .map(
+              (s) => `<tr>
+              <td><b>${escaparHtml(s.nome_empresa)}</b>${s.observacoes ? `<br><span class="small-muted">"${escaparHtml(s.observacoes)}"</span>` : ''}</td>
+              <td class="small-muted">${escaparHtml(s.nome_solicitante)}</td>
+              <td class="small-muted">${escaparHtml(s.email)}${s.telefone ? '<br>' + escaparHtml(s.telefone) : ''}</td>
+              <td><span class="pill pill-desenvolver">${escaparHtml(s.plano_desejado)}</span></td>
+              <td class="small-muted">${new Date(s.criado_em).toLocaleDateString('pt-BR')}</td>
+              <td>${
+                s.status === 'pendente'
+                  ? '<span class="pill pill-neutral">Pendente</span>'
+                  : s.status === 'em_contato'
+                    ? '<span class="pill pill-desenvolver">Em contato</span>'
+                    : s.status === 'fechada'
+                      ? '<span class="pill pill-alavancar">Fechada</span>'
+                      : '<span class="pill pill-iniciar">Perdida</span>'
+              }</td>
+              <td style="text-align:right;white-space:nowrap;">
+                <select id="sc_status_${s.id}" style="max-width:120px;">
+                  ${['pendente', 'em_contato', 'fechada', 'perdida'].map((st) => `<option value="${st}" ${s.status === st ? 'selected' : ''}>${st === 'pendente' ? 'Pendente' : st === 'em_contato' ? 'Em contato' : st === 'fechada' ? 'Fechada' : 'Perdida'}</option>`).join('')}
+                </select>
+                <button class="btn btn-sm btn-ghost" onclick="atualizarStatusContratacao('${s.id}')">Salvar</button>
+              </td>
+            </tr>`
+            )
+            .join('')}
+        </tbody></table>`
+          : '<div class="empty">Nenhuma solicitação de contratação ainda. Elas aparecem aqui quando alguém clica em "Quero contratar agora" na landing.</div>'
       }
     </div>
 

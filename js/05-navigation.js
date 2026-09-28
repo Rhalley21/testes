@@ -118,36 +118,53 @@ let _ultimaRotaRenderizada = null;
 let _ultimoCicloAtivoRenderizado = undefined;
 function render() {
   const app = document.getElementById('app');
-  // Botão de voltar automático: aparece em todas as telas menos o painel
-  // (que é a tela inicial). Volta pra tela anterior, como o do navegador.
-  const mostrarVoltar = state.route && state.route !== 'dashboard_role';
-  const botaoVoltar = mostrarVoltar
-    ? `<button class="btn-voltar-global" onclick="voltarTela()" title="Voltar para a tela anterior">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        Voltar
-      </button>`
-    : '';
-  app.innerHTML = `
-    ${renderSidebar()}
-    <main>${botaoVoltar}${renderRoute()}</main>
-  `;
-  // BUG CORRIGIDO: antes, TODA chamada de render() forçava a rolagem pro
-  // topo da página — inclusive ações simples dentro da mesma tela (ex.:
-  // marcar uma nota Iniciar/Desenvolver/Alavancar numa avaliação longa),
-  // fazendo a pessoa perder a posição e ter que rolar de novo a cada clique.
-  // Agora só rola pro topo quando a pessoa realmente muda de tela (rota) ou
-  // abre/fecha um ciclo — nunca por causa de uma interação dentro da mesma tela.
   const mudouDeTela = state.route !== _ultimaRotaRenderizada || state.cicloAtivo !== _ultimoCicloAtivoRenderizado;
-  if (mudouDeTela) window.scrollTo(0, 0);
-  _ultimaRotaRenderizada = state.route;
-  _ultimoCicloAtivoRenderizado = state.cicloAtivo;
-  agendarSalvamento();
-  aplicarMarcaDagua();
-  // Gráficos (Chart.js) precisam ser montados depois do HTML já estar na
-  // tela — inicializarGraficosDashboard() sozinha detecta se os canvas
-  // existem (só quando estamos no dashboard do Administrador) e não faz
-  // nada nas outras telas.
-  inicializarGraficosDashboard();
+
+  const desenhar = () => {
+    // Botão de voltar automático: aparece em todas as telas menos o painel
+    // (que é a tela inicial). Volta pra tela anterior, como o do navegador.
+    const mostrarVoltar = state.route && state.route !== 'dashboard_role';
+    const botaoVoltar = mostrarVoltar
+      ? `<button class="btn-voltar-global" onclick="voltarTela()" title="Voltar para a tela anterior">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Voltar
+        </button>`
+      : '';
+    app.innerHTML = `
+      ${renderSidebar()}
+      <main>${botaoVoltar}${renderRoute()}</main>
+    `;
+    // BUG CORRIGIDO: antes, TODA chamada de render() forçava a rolagem pro
+    // topo da página — inclusive ações simples dentro da mesma tela (ex.:
+    // marcar uma nota Iniciar/Desenvolver/Alavancar numa avaliação longa),
+    // fazendo a pessoa perder a posição e ter que rolar de novo a cada clique.
+    // Agora só rola pro topo quando a pessoa realmente muda de tela (rota) ou
+    // abre/fecha um ciclo — nunca por causa de uma interação dentro da mesma tela.
+    if (mudouDeTela) window.scrollTo(0, 0);
+    _ultimaRotaRenderizada = state.route;
+    _ultimoCicloAtivoRenderizado = state.cicloAtivo;
+    agendarSalvamento();
+    aplicarMarcaDagua();
+    // Gráficos (Chart.js) precisam ser montados depois do HTML já estar na
+    // tela — inicializarGraficosDashboard() sozinha detecta se os canvas
+    // existem (só quando estamos no dashboard do Administrador) e não faz
+    // nada nas outras telas.
+    inicializarGraficosDashboard();
+  };
+
+  if (mudouDeTela) {
+    // BUG CORRIGIDO: ao trocar de tela para uma página pesada (o Dashboard,
+    // com vários cards e gráficos), o navegador podia continuar mostrando
+    // pixels da tela antiga por uma fração de segundo enquanto montava a
+    // nova — dando um efeito visível de sobreposição/"fantasma" (relatado
+    // com vídeo). Limpando a tela primeiro e só desenhando o conteúdo novo
+    // no próximo quadro de pintura do navegador, garante que a tela antiga
+    // já sumiu antes do conteúdo pesado começar a aparecer.
+    app.innerHTML = '';
+    requestAnimationFrame(desenhar);
+  } else {
+    desenhar();
+  }
 }
 
 function logoEmpresaAtual() {

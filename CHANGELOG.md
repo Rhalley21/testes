@@ -3,6 +3,60 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.97.1 — Valores reais dos planos + taxa de implantação + regra dos 12 meses
+Os preços mensais já estavam certos (Essencial 297/197, Gestão 597/397,
+Estratégico 997/697). O que faltava:
+- **Taxa de implantação** (única vez): R$ 590 (até 10), R$ 990 (11 a 30),
+  R$ 1.490 (31 a 60) — mostrada na landing, junto com cada plano.
+- **Nota sobre acima de 60 colaboradores**: "proposta personalizada",
+  com link direto pro formulário de contratação.
+- **Correção real**: a tela de Pagamento (dentro do sistema, pra quem já é
+  cliente) estava mostrando o preço de **cliente novo** — errado, já que
+  quem está logado ali já é cliente. Agora calcula o preço certo com base
+  na data de início do contrato: **preço de cliente atual** (com desconto)
+  durante os primeiros 12 meses, e volta pro **valor cheio** depois disso
+  — exatamente como a regra diz. Testei os três cenários (dentro dos 12
+  meses, depois dos 12 meses, sem data de início cadastrada) e todos batem
+  certo.
+
+Sem mudança de banco.
+
+## v0.97.0 — Landing: "Quero contratar agora" (Fase 1, sem pagamento automático ainda)
+Cada plano na landing ganhou um botão **"Quero contratar agora"**, além do
+fluxo de teste grátis já existente — pra quem já decidiu e quer pular
+direto pra contratação. Abre um formulário (nome, e-mail, empresa,
+telefone, observações), grava a solicitação, e avisa o Instituto INETRIS
+por e-mail.
+
+Fase 1: **sem link de pagamento automático ainda** — fica registrado pro
+Instituto entrar em contato e combinar o pagamento manualmente (mesmo
+modelo já usado na cobrança por WhatsApp). Quando os valores/forma de
+pagamento forem definidos, entra a Fase 2 com o link automático.
+
+**Painel do Super Admin**: nova seção "Solicitações de contratação direta",
+com status (Pendente → Em contato → Fechada/Perdida) que você atualiza
+conforme conversa com o cliente.
+
+Requer rodar sql/30-solicitacoes-contratacao.sql no projeto principal.
+
+## v0.96.1 — Correção: tela "fantasma" ao trocar de página (visível a olho nu)
+Reportado por vídeo: ao trocar de tela pra uma página pesada (o Dashboard,
+com vários gráficos e cards), por uma fração de segundo a tela antiga
+aparecia sobreposta à nova, como um efeito de "fantasma". Analisei quadro
+a quadro e confirmei: acontecia só nessa transição específica (a mais
+pesada de montar), não nas outras — reproduzindo exatamente o padrão de
+uma tela demorando mais tempo pra ser pintada pelo navegador enquanto a
+antiga ainda não tinha sumido da tela.
+
+Corrigido: ao trocar de rota (não em toda atualização de tela — só quando
+muda de página de verdade), o sistema agora limpa a tela primeiro e só
+desenha o conteúdo novo no próximo quadro de pintura do navegador. Isso
+garante que a tela antiga já sumiu antes do conteúdo pesado começar a
+aparecer, eliminando a sobreposição. Testada a lógica: confirma que limpa
+antes de desenhar ao trocar de tela, e que NÃO limpa à toa quando é só
+uma atualização dentro da mesma tela (evita um "flash" branco desnecessário
+em ações do dia a dia).
+
 ## v0.96.0 — Reativada a tela de entrada comercial (landing + teste grátis)
 Antes de logar, o sistema volta a mostrar a landing comercial (hero, planos
 com preços reais vindos de `PLANOS_NORTE`, formulário de solicitação de

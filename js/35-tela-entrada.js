@@ -15,6 +15,14 @@ let _solicTesteEnviada = false;
 let _solicTesteEnviando = false;
 let _solicTeste = { nome: '', email: '', empresa: '', telefone: '' };
 
+// Contratação direta (Fase 1 — sem link de pagamento automático ainda,
+// fica registrado pro Instituto INETRIS entrar em contato e fechar
+// manualmente, igual já fazemos com a cobrança por WhatsApp).
+let _solicContratacaoAberta = null; // nome do plano escolhido, ou null se fechado
+let _solicContratacaoEnviada = false;
+let _solicContratacaoEnviando = false;
+let _solicContratacao = { nome: '', email: '', empresa: '', telefone: '', observacoes: '' };
+
 function irParaLogin() {
   _telaInicial = 'login';
   renderTelaAuth();
@@ -77,6 +85,58 @@ async function enviarSolicitacaoTeste() {
   renderLanding();
 }
 
+function abrirSolicitacaoContratacao(nomePlano) {
+  _solicContratacaoAberta = nomePlano;
+  _solicContratacaoEnviada = false;
+  renderLanding();
+  setTimeout(() => document.getElementById('landing-contratacao')?.scrollIntoView({ behavior: 'smooth' }), 50);
+}
+
+async function enviarSolicitacaoContratacao() {
+  const nome = document.getElementById('sc-nome').value.trim();
+  const email = document.getElementById('sc-email').value.trim();
+  const empresa = document.getElementById('sc-empresa').value.trim();
+  const telefone = document.getElementById('sc-telefone').value.trim();
+  const observacoes = document.getElementById('sc-observacoes').value.trim();
+  if (!nome || !email || !empresa) {
+    showToast('Preencha nome, e-mail e nome da empresa.');
+    return;
+  }
+  _solicContratacao = { nome, email, empresa, telefone, observacoes };
+  _solicContratacaoEnviando = true;
+  renderLanding();
+
+  const { error } = await sb.from('solicitacoes_contratacao').insert({
+    nome_solicitante: nome,
+    email,
+    nome_empresa: empresa,
+    telefone: telefone || null,
+    plano_desejado: _solicContratacaoAberta,
+    observacoes: observacoes || null,
+  });
+  _solicContratacaoEnviando = false;
+
+  if (error) {
+    console.error('Falha ao enviar solicitação de contratação', error);
+    showToast('Não foi possível enviar sua solicitação. Tente novamente.');
+    renderLanding();
+    return;
+  }
+
+  sb.functions
+    .invoke('enviar-email', {
+      body: {
+        destinatario: 'inetris25@gmail.com',
+        assunto: `Nova solicitação de CONTRATAÇÃO (${_solicContratacaoAberta}) — ${empresa}`,
+        corpoHtml: `<p><b>${nome}</b> (${email}) quer contratar o plano <b>${_solicContratacaoAberta}</b> para a empresa <b>${empresa}</b>.${telefone ? `<br>Telefone: ${telefone}` : ''}${observacoes ? `<br>Observações: ${observacoes}` : ''}</p><p>Veja no painel Super Admin → Solicitações de contratação, e entre em contato para fechar o pagamento.</p>`,
+      },
+    })
+    .catch(() => {});
+
+  _solicContratacaoEnviada = true;
+  renderLanding();
+}
+
 function _cardPlanoLanding(p, destaque) {
   return `
     <div class="landing-plano ${destaque ? 'destaque' : ''}">
@@ -84,6 +144,8 @@ function _cardPlanoLanding(p, destaque) {
       <div class="landing-plano-nome">${p.nome}</div>
       <div class="landing-plano-preco">${formatarPrecoPlano(p.precoNovo)}<span>/mês</span></div>
       <div class="landing-plano-detalhe">${p.detalhe}</div>
+      <div class="landing-plano-detalhe">+ ${formatarPrecoPlano(p.implantacao)} de implantação (única vez)</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%;" onclick="abrirSolicitacaoContratacao('${p.nome}')">Quero contratar agora</button>
     </div>`;
 }
 
@@ -115,7 +177,35 @@ function renderLanding() {
           ${_cardPlanoLanding(PLANOS_NORTE[1], true)}
           ${_cardPlanoLanding(PLANOS_NORTE[2], false)}
         </div>
-        <p class="landing-planos-nota">Valores mensais. Todos os planos incluem 7 dias de teste grátis, sem compromisso.</p>
+        <p class="landing-planos-nota">Valores mensais. Cliente novo paga o valor cheio; cliente que já é da casa tem condição especial, válida por 12 meses. Todos os planos incluem 7 dias de teste grátis, sem compromisso.</p>
+        <p class="landing-planos-nota">Acima de 60 colaboradores? <a href="#landing-contratacao" onclick="abrirSolicitacaoContratacao('Personalizado');return false;">Fale com a gente</a> para uma proposta personalizada.</p>
+      </section>
+
+      <section class="landing-teste" id="landing-contratacao">
+        ${
+          !_solicContratacaoAberta
+            ? ''
+            : _solicContratacaoEnviada
+              ? `
+          <div class="landing-teste-ok">
+            <div class="landing-teste-check">✓</div>
+            <h3>Solicitação enviada!</h3>
+            <p>Recebemos seu interesse no plano <b>${escaparHtml(_solicContratacaoAberta)}</b>. O Instituto INETRIS vai entrar em contato com <b>${escaparHtml(_solicContratacao.email)}</b> para combinar o pagamento e liberar seu acesso.</p>
+            <button class="btn" onclick="_solicContratacaoAberta=null;renderLanding();">Voltar aos planos</button>
+          </div>`
+              : `
+          <h3>Contratar o plano ${escaparHtml(_solicContratacaoAberta)}</h3>
+          <p class="landing-teste-desc">Preencha os dados e o Instituto INETRIS vai entrar em contato para combinar o pagamento e liberar seu acesso.</p>
+          <div class="landing-teste-form">
+            <div class="field"><label>Seu nome</label><input id="sc-nome" type="text" value="${escaparHtml(_solicContratacao.nome)}"></div>
+            <div class="field"><label>E-mail</label><input id="sc-email" type="email" value="${escaparHtml(_solicContratacao.email)}"></div>
+            <div class="field"><label>Nome da empresa</label><input id="sc-empresa" type="text" value="${escaparHtml(_solicContratacao.empresa)}"></div>
+            <div class="field"><label>Telefone / WhatsApp <small>(opcional)</small></label><input id="sc-telefone" type="tel" value="${escaparHtml(_solicContratacao.telefone)}"></div>
+            <div class="field"><label>Observações <small>(opcional)</small></label><input id="sc-observacoes" type="text" value="${escaparHtml(_solicContratacao.observacoes)}"></div>
+            <button class="btn btn-primary btn-lg" style="width:100%;justify-content:center;" onclick="enviarSolicitacaoContratacao()" ${_solicContratacaoEnviando ? 'disabled' : ''}>${_solicContratacaoEnviando ? 'Enviando…' : 'Enviar solicitação'}</button>
+            <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;" onclick="_solicContratacaoAberta=null;renderLanding();">Cancelar</button>
+          </div>`
+        }
       </section>
 
       <section class="landing-teste">
