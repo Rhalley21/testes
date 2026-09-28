@@ -3,6 +3,17 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.97.2 — Correção real: landing não aparecia nem em aba anônima
+A correção anterior (v0.96.0) estava certa, mas incompleta: existe um
+SEGUNDO ponto no código que decide o que mostrar na abertura — o listener
+`onAuthStateChange` do Supabase, que dispara sozinho assim que a página
+carrega, mesmo sem nenhuma sessão. Esse segundo ponto chamava
+`renderLogin()` direto, sobrescrevendo a landing que o primeiro ponto já
+tinha decidido mostrar — por isso continuava só login, até em aba anônima
+(confirmado com print). Corrigido: os dois pontos agora concordam
+(`renderTelaAuth()`), e testei os três cenários (visita nova, clicar em
+Entrar, fazer logout) — todos mostram a tela certa.
+
 ## v0.97.1 — Valores reais dos planos + taxa de implantação + regra dos 12 meses
 Os preços mensais já estavam certos (Essencial 297/197, Gestão 597/397,
 Estratégico 997/697). O que faltava:

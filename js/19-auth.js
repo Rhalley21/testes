@@ -466,7 +466,13 @@ sb.auth.onAuthStateChange((evento, sessao) => {
     sessaoAtual = null;
     empresaIdAtual = null;
     _cargaInicialOk = false;
-    renderLogin();
+    // BUG CORRIGIDO: este evento dispara sozinho assim que a página abre
+    // (mesmo sem nenhuma sessão) — e chamar renderLogin() aqui direto
+    // sobrescrevia a landing comercial que o outro trecho de inicialização
+    // (mais abaixo) já tinha decidido mostrar. renderTelaAuth() respeita
+    // _telaInicial: mostra a landing pra quem nunca logou nesta aba, e o
+    // login pra quem acabou de sair (depois de já ter navegado até lá).
+    renderTelaAuth();
   }
 });
 
