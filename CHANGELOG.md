@@ -3,6 +3,21 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.98.1 — A página de planos virou a porta de entrada do site
+Reorganização de endereços, a pedido: agora quem visita o endereço
+principal (`/`) vê primeiro a **página de planos** (recursos, preços,
+FAQ) — não a tela de login. O sistema em si continua funcionando
+normalmente, só que agora no endereço **`/app.html`**.
+
+- `index.html` → passou a ser a página de planos (era `planos.html`).
+- `app.html` → o sistema completo (login, dashboard, todos os módulos) —
+  cópia exata do que antes vivia em `index.html`.
+- A página de planos ganhou um botão **"Já sou cliente · Entrar"** no
+  menu, ao lado de "Testar grátis", levando direto pro `/app.html`.
+
+Quem acessa `/app.html` direto (link salvo, favorito) continua
+funcionando exatamente como antes — nada mudou ali além do endereço.
+
 ## v0.98.0 — Nova página pública: planos.html
 Adicionada a landing page completa de planos e recursos (`planos.html`),
 lado a lado com `index.html` e `vaga.html` no mesmo site. Todos os botões
