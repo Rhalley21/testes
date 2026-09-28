@@ -41,11 +41,12 @@ function irParaLanding() {
 
 // Ponto de entrada da autenticação: decide entre landing e login.
 function renderTelaAuth() {
-  if (_telaInicial === 'login') {
-    renderLogin();
-  } else {
-    renderLanding();
-  }
+  // A landing comercial interna (renderLanding) foi removida como porta de
+  // entrada — a página planos.html (fora do app.html) é agora a única
+  // landing do sistema. Sempre vai direto pro login, não importa o valor
+  // de _telaInicial (a função renderLanding() continua existindo no
+  // arquivo, só não é mais chamada por aqui).
+  renderLogin();
 }
 
 async function enviarSolicitacaoTeste() {
