@@ -3,6 +3,17 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.98.0 — Nova página pública: planos.html
+Adicionada a landing page completa de planos e recursos (`planos.html`),
+lado a lado com `index.html` e `vaga.html` no mesmo site. Todos os botões
+de contato ("Testar grátis", "Quero contratar agora", etc.) abrem o
+WhatsApp direto, em nova aba, com uma mensagem inicial já preenchida, pro
+número (55) 89 9985-7062.
+
+Essa página é independente do sistema logado — pode ser divulgada
+separadamente (redes sociais, anúncios) sem exigir login. Sem SQL, sem
+Edge Function.
+
 ## v0.97.4 — Redesign da seção de preços da landing
 Trocado o layout genérico de 3 cards soltos (com selo flutuante, texto em
 caixa alta, escala no card do meio) por um **painel único de preços**,
