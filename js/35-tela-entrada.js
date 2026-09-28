@@ -8,9 +8,16 @@
    login normal (renderLogin).
 
    Estado _telaInicial: 'landing' (esta tela) | 'login' (o de sempre).
+
+   Desde que a página planos.html (fora do app.html) passou a ser a
+   landing comercial de verdade — mais completa, com todos os módulos
+   e o painel de preços — esta tela interna ficou redundante como
+   porta de entrada padrão: quem chega no app.html já veio de lá.
+   Por isso o padrão agora é 'login' direto; a função irParaLanding()
+   continua existindo caso um dia se queira voltar a mostrá-la.
    ========================================================= */
 
-let _telaInicial = 'landing';
+let _telaInicial = 'login';
 let _solicTesteEnviada = false;
 let _solicTesteEnviando = false;
 let _solicTeste = { nome: '', email: '', empresa: '', telefone: '' };
@@ -34,11 +41,12 @@ function irParaLanding() {
 
 // Ponto de entrada da autenticação: decide entre landing e login.
 function renderTelaAuth() {
-  if (_telaInicial === 'login') {
-    renderLogin();
-  } else {
-    renderLanding();
-  }
+  // A landing comercial interna (renderLanding) foi removida como porta de
+  // entrada — a página planos.html (fora do app.html) é agora a única
+  // landing do sistema. Sempre vai direto pro login, não importa o valor
+  // de _telaInicial (a função renderLanding() continua existindo no
+  // arquivo, só não é mais chamada por aqui).
+  renderLogin();
 }
 
 async function enviarSolicitacaoTeste() {
