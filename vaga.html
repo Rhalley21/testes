@@ -112,6 +112,39 @@
         color: var(--ink-dim);
         margin-bottom: 16px;
       }
+      .field2col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .check-row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        font-size: 14px;
+      }
+      .check-row label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: normal;
+      }
+      .office-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .office-row small {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--ink-dim);
+      }
+      @media (max-width: 480px) {
+        .field2col,
+        .office-row {
+          grid-template-columns: 1fr;
+        }
+      }
       .consent {
         display: flex;
         align-items: flex-start;
@@ -249,7 +282,38 @@
       <div class="field"><label>E-mail *</label><input type="email" id="f_email" required></div>
       <div class="field"><label>Telefone / WhatsApp</label><input type="tel" id="f_telefone"></div>
       <div class="field"><label>Currículo (PDF, até 5MB) *</label><input type="file" id="f_curriculo" accept="application/pdf" required></div>
+      <div class="field2col">
+        <div class="field"><label>Cidade atual</label><input type="text" id="f_cidade"></div>
+        <div class="field"><label>Formação superior</label>
+          <select id="f_formacao"><option value="nao_possui">Não possuo</option><option value="cursando">Cursando</option><option value="completo">Completo</option></select>
+        </div>
+      </div>
+      <div class="field"><label>Experiência anterior nessa função <small>(opcional, algumas linhas já ajudam)</small></label><textarea id="f_experiencia" rows="2"></textarea></div>
+      <div class="field"><label>Disponibilidade de horários</label>
+        <select id="f_disponibilidade"><option value="comercial">Horário comercial</option><option value="turnos">Turnos</option><option value="flexivel">Flexível</option><option value="fins_de_semana">Inclui finais de semana</option></select>
+      </div>
+      <div class="field"><label>Você possui:</label>
+        <div class="check-row">
+          <label><input type="checkbox" id="f_moto"> Moto</label>
+          <label><input type="checkbox" id="f_notebook"> Notebook</label>
+          <label><input type="checkbox" id="f_smartphone"> Smartphone</label>
+        </div>
+      </div>
+      <div class="field2col">
+        <div class="field"><label>Intimidade com tecnologia</label>
+          <select id="f_tecnologia"><option value="basico">Básica</option><option value="intermediario">Intermediária</option><option value="avancado">Avançada</option></select>
+        </div>
+        <div class="field"><label>LinkedIn <small>(opcional)</small></label><input type="url" id="f_linkedin" placeholder="linkedin.com/in/..."></div>
+      </div>
+      <div class="field"><label>Conhecimento em pacote Office</label>
+        <div class="office-row">
+          <div><small>Excel</small><select id="f_excel"><option value="nao_possui">Não possuo</option><option value="basico">Básico</option><option value="intermediario">Intermediário</option><option value="avancado">Avançado</option></select></div>
+          <div><small>Word</small><select id="f_word"><option value="nao_possui">Não possuo</option><option value="basico">Básico</option><option value="intermediario">Intermediário</option><option value="avancado">Avançado</option></select></div>
+          <div><small>PowerPoint</small><select id="f_powerpoint"><option value="nao_possui">Não possuo</option><option value="basico">Básico</option><option value="intermediario">Intermediário</option><option value="avancado">Avançado</option></select></div>
+        </div>
+      </div>
 
+      <label class="consent"><input type="checkbox" id="f_maior18" required> ${vaga.jovem_aprendiz ? 'Tenho 16 anos ou mais (vaga de Jovem Aprendiz).' : 'Tenho 18 anos ou mais.'} *</label>
       <label class="consent"><input type="checkbox" id="f_privacidade" required> Li e aceito o aviso de privacidade acima. *</label>
       <label class="consent"><input type="checkbox" id="f_banco_talentos"> Aceito ficar disponível no banco de talentos para futuras vagas compatíveis.</label>
 
@@ -286,6 +350,22 @@
           const arquivo = document.getElementById('f_curriculo').files[0];
           const aceitePrivacidade = document.getElementById('f_privacidade').checked;
           const aceiteBancoTalentos = document.getElementById('f_banco_talentos').checked;
+          const maior18 = document.getElementById('f_maior18').checked;
+          const perfil = {
+            maior18,
+            cidadeAtual: document.getElementById('f_cidade').value.trim(),
+            formacaoSuperior: document.getElementById('f_formacao').value,
+            experienciaAnteriorFuncao: document.getElementById('f_experiencia').value.trim(),
+            disponibilidadeHorarios: document.getElementById('f_disponibilidade').value,
+            possuiMoto: document.getElementById('f_moto').checked,
+            possuiNotebook: document.getElementById('f_notebook').checked,
+            possuiSmartphone: document.getElementById('f_smartphone').checked,
+            intimidadeTecnologia: document.getElementById('f_tecnologia').value,
+            linkedin: document.getElementById('f_linkedin').value.trim(),
+            conhecimentoExcel: document.getElementById('f_excel').value,
+            conhecimentoWord: document.getElementById('f_word').value,
+            conhecimentoPowerpoint: document.getElementById('f_powerpoint').value,
+          };
           const recaptchaToken =
             typeof grecaptcha !== 'undefined' && window._recaptchaWidgetId !== undefined
               ? grecaptcha.getResponse(window._recaptchaWidgetId)
@@ -293,6 +373,13 @@
 
           if (!nome || !email || !arquivo) {
             erroEl.textContent = 'Preencha nome, e-mail e anexe o currículo.';
+            erroEl.style.display = 'block';
+            return;
+          }
+          if (!maior18) {
+            erroEl.textContent = vaga?.jovem_aprendiz
+              ? 'É necessário confirmar que você tem 16 anos ou mais.'
+              : 'É necessário confirmar que você tem 18 anos ou mais.';
             erroEl.style.display = 'block';
             return;
           }
@@ -329,6 +416,7 @@
               curriculoBase64,
               aceitePrivacidade,
               aceiteBancoTalentos,
+              perfil,
               recaptchaToken,
             });
             renderSucesso(data.protocolo);
