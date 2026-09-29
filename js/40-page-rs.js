@@ -152,7 +152,13 @@ async function publicarVagaRS(id) {
 
 function linkPublicoRS(r) {
   if (!r.vagaPublicaId) return '';
-  return `${location.origin}${location.pathname.replace('index.html', '')}vaga.html?v=${r.vagaPublicaId}`;
+  // BUG CORRIGIDO: antes, isso dependia do nome do arquivo atual ser
+  // "index.html" (trocava por vazio) — quebrou quando o sistema passou a
+  // rodar em "app.html" (v0.98.1), virando "app.htmlvaga.html" sem barra
+  // nenhuma. Agora pega só a PASTA (tudo até a última barra), não importa
+  // qual é o nome do arquivo atual.
+  const pasta = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);
+  return `${location.origin}${pasta}vaga.html?v=${r.vagaPublicaId}`;
 }
 
 function copiarLinkPublicoRS(id) {
