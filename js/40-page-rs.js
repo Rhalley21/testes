@@ -80,6 +80,32 @@ function criarRequisicaoRS() {
     publicada: false,
     encerrada: false,
     candidatosCount: 0,
+    // Perfil desejado pra vaga — usado no pipeline pra comparar com o que
+    // o candidato informou na candidatura, e pode alimentar a página
+    // pública (requisitos/atividades) quando publicar.
+    perfilDesejado: {
+      nivelMaturidade: document.getElementById('rs_req_nivel').value,
+      perfilDiscDesejado: document.getElementById('rs_req_disc').value.trim(),
+      personalidadeOutra: document.getElementById('rs_req_personalidade').value.trim(),
+      hardSkills: document.getElementById('rs_req_hard').value.trim(),
+      softSkills: document.getElementById('rs_req_soft').value.trim(),
+      principaisAtividades: document.getElementById('rs_req_atividades').value.trim(),
+      salarioFixo: document.getElementById('rs_req_salario').value.trim(),
+      remuneracaoVariavel: document.getElementById('rs_req_variavel').value.trim(),
+      formatoContratacao: document.getElementById('rs_req_formato').value,
+      disponibilidadeHorarios: document.getElementById('rs_req_disponibilidade').value,
+      experienciaAnteriorNecessaria: document.getElementById('rs_req_experiencia').value.trim(),
+      requisitoMoto: document.getElementById('rs_req_moto').checked,
+      requisitoNotebook: document.getElementById('rs_req_notebook').checked,
+      requisitoSmartphone: document.getElementById('rs_req_smartphone').checked,
+      intimidadeTecnologiaNecessaria: document.getElementById('rs_req_tecnologia').value,
+      excelNecessario: document.getElementById('rs_req_excel').value,
+      wordNecessario: document.getElementById('rs_req_word').value,
+      powerpointNecessario: document.getElementById('rs_req_powerpoint').value,
+      internoExterno: document.getElementById('rs_req_local_tipo').value,
+      cidade: document.getElementById('rs_req_cidade').value.trim(),
+      formacaoSuperiorNecessaria: document.getElementById('rs_req_formacao').value,
+    },
     ...novoCarimbo(),
   });
   _rsNovaRequisicaoAberta = false;
@@ -122,6 +148,7 @@ async function publicarVagaRS(id) {
   const mostrarSalario = document.getElementById('rs_pub_mostrar_salario').checked;
   const faixaSalarial = document.getElementById('rs_pub_faixa').value.trim();
   const mostrarEmpresa = document.getElementById('rs_pub_mostrar_empresa').checked;
+  const jovemAprendiz = r.perfilDesejado?.formatoContratacao === 'Jovem Aprendiz';
 
   const { data, error } = await sb.functions.invoke('rs', {
     body: {
@@ -135,6 +162,7 @@ async function publicarVagaRS(id) {
       mostrarSalario,
       faixaSalarial,
       mostrarEmpresa,
+      jovemAprendiz,
       nomeEmpresaExibicao: state.empresa?.nomeFantasia || '',
     },
   });
@@ -390,6 +418,66 @@ function _rsMediaScorecard(sc) {
   return sc.criterios.reduce((soma, c) => soma + c.nota, 0) / sc.criterios.length;
 }
 
+let _rsPerfilExpandido = null; // id do candidato com o perfil detalhado aberto
+
+const RS_LABEL_NIVEL = {
+  nao_exigido: 'Não exigido',
+  nao_possui: 'Não possui',
+  basico: 'Básico',
+  intermediario: 'Intermediário',
+  avancado: 'Avançado',
+};
+const RS_LABEL_FORMACAO = {
+  nao_exigido: 'Não exigida',
+  nao_possui: 'Não possui',
+  cursando: 'Cursando',
+  completo: 'Completa',
+};
+const RS_LABEL_DISPONIBILIDADE = {
+  comercial: 'Horário comercial',
+  turnos: 'Turnos',
+  flexivel: 'Flexível',
+  fins_de_semana: 'Inclui finais de semana',
+};
+
+function renderPerfilCandidatoRS(c) {
+  if (!c.perfil) return '';
+  const p = c.perfil;
+  const linhas = [
+    ['Maior de 18 anos', p.maior18 ? 'Sim' : '—'],
+    ['Cidade atual', p.cidadeAtual || '—'],
+    ['Formação superior', RS_LABEL_FORMACAO[p.formacaoSuperior] || '—'],
+    ['Disponibilidade', RS_LABEL_DISPONIBILIDADE[p.disponibilidadeHorarios] || '—'],
+    [
+      'Possui',
+      [p.possuiMoto && 'Moto', p.possuiNotebook && 'Notebook', p.possuiSmartphone && 'Smartphone']
+        .filter(Boolean)
+        .join(', ') || 'Nenhum informado',
+    ],
+    ['Intimidade com tecnologia', RS_LABEL_NIVEL[p.intimidadeTecnologia] || '—'],
+    [
+      'Excel / Word / PowerPoint',
+      `${RS_LABEL_NIVEL[p.conhecimentoExcel] || '—'} / ${RS_LABEL_NIVEL[p.conhecimentoWord] || '—'} / ${RS_LABEL_NIVEL[p.conhecimentoPowerpoint] || '—'}`,
+    ],
+    ['LinkedIn', p.linkedin || '—'],
+  ];
+  if (p.experienciaAnteriorFuncao) linhas.push(['Experiência anterior', p.experienciaAnteriorFuncao]);
+
+  return `
+    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);">
+      <button class="btn btn-ghost btn-sm" onclick="_rsPerfilExpandido = _rsPerfilExpandido==='${c.id}'?null:'${c.id}'; render();">
+        👤 ${_rsPerfilExpandido === c.id ? 'Ocultar perfil do candidato' : 'Ver perfil do candidato'}
+      </button>
+      ${
+        _rsPerfilExpandido === c.id
+          ? `<div class="card" style="margin-top:8px;font-size:12.5px;">
+          ${linhas.map(([label, valor]) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid var(--line);"><span class="small-muted">${label}</span><span style="text-align:right;">${escaparHtml(String(valor))}</span></div>`).join('')}
+        </div>`
+          : ''
+      }
+    </div>`;
+}
+
 function renderScorecardRS(candidatoId) {
   const cand = state.rs.candidatos.find((c) => c.id === candidatoId);
   if (!cand) return '';
@@ -609,6 +697,60 @@ function pageRS() {
             <div class="field"><label>Prazo desejado</label><input id="rs_req_prazo" type="date"></div>
           </div>
           <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:8px 0;"><input id="rs_req_confidencial" type="checkbox"> Vaga confidencial (não exibir nome do cargo/empresa externamente)</label>
+
+          <h4 style="font-size:13px;margin:16px 0 8px;border-top:1px solid var(--line);padding-top:12px;">Perfil desejado para a vaga</h4>
+          <div class="grid3">
+            <div class="field"><label>Nível de maturidade</label>
+              <select id="rs_req_nivel"><option value="Júnior">Júnior</option><option value="Pleno">Pleno</option><option value="Sênior">Sênior</option></select>
+            </div>
+            <div class="field"><label>Perfil DISC desejado</label><input id="rs_req_disc" type="text" placeholder="Ex: Dominância e Influência"></div>
+            <div class="field"><label>Outro teste de personalidade <small>(GALT, Enneagrama, etc.)</small></label><input id="rs_req_personalidade" type="text"></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label>Hard skills necessárias</label><textarea id="rs_req_hard" rows="2"></textarea></div>
+            <div class="field"><label>Soft skills necessárias</label><textarea id="rs_req_soft" rows="2"></textarea></div>
+          </div>
+          <div class="field"><label>Principais atividades do colaborador</label><textarea id="rs_req_atividades" rows="2"></textarea></div>
+
+          <h4 style="font-size:13px;margin:16px 0 8px;border-top:1px solid var(--line);padding-top:12px;">Remuneração e formato</h4>
+          <div class="grid3">
+            <div class="field"><label>Salário fixo</label><input id="rs_req_salario" type="text" placeholder="R$"></div>
+            <div class="field"><label>Remuneração variável</label><input id="rs_req_variavel" type="text" placeholder="Ex: comissão, PLR"></div>
+            <div class="field"><label>Formato de contratação</label>
+              <select id="rs_req_formato"><option>CLT</option><option>PJ</option><option>Estágio</option><option>Jovem Aprendiz</option><option>Temporário</option><option>Freelancer</option></select>
+            </div>
+          </div>
+          <div class="grid3">
+            <div class="field"><label>Disponibilidade de horários</label>
+              <select id="rs_req_disponibilidade"><option value="comercial">Horário comercial</option><option value="turnos">Turnos</option><option value="flexivel">Flexível</option><option value="fins_de_semana">Inclui finais de semana</option></select>
+            </div>
+            <div class="field"><label>Interno e/ou externo</label>
+              <select id="rs_req_local_tipo"><option>Interna</option><option>Externa</option><option>Híbrida</option></select>
+            </div>
+            <div class="field"><label>Cidade</label><input id="rs_req_cidade" type="text"></div>
+          </div>
+          <div class="field"><label>Experiência anterior necessária</label><input id="rs_req_experiencia" type="text"></div>
+
+          <h4 style="font-size:13px;margin:16px 0 8px;border-top:1px solid var(--line);padding-top:12px;">Requisitos técnicos</h4>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-bottom:10px;">
+            <label style="display:flex;align-items:center;gap:6px;"><input id="rs_req_moto" type="checkbox"> Possuir moto</label>
+            <label style="display:flex;align-items:center;gap:6px;"><input id="rs_req_notebook" type="checkbox"> Possuir notebook</label>
+            <label style="display:flex;align-items:center;gap:6px;"><input id="rs_req_smartphone" type="checkbox"> Possuir smartphone</label>
+          </div>
+          <div class="grid3">
+            <div class="field"><label>Intimidade com tecnologia</label>
+              <select id="rs_req_tecnologia"><option value="basico">Básica</option><option value="intermediario">Intermediária</option><option value="avancado">Avançada</option></select>
+            </div>
+            <div class="field"><label>Formação superior necessária</label>
+              <select id="rs_req_formacao"><option value="nao_exigido">Não exigida</option><option value="cursando">Cursando</option><option value="completo">Completa</option></select>
+            </div>
+          </div>
+          <div class="grid3">
+            <div class="field"><label>Excel necessário</label><select id="rs_req_excel"><option value="nao_exigido">Não exigido</option><option value="basico">Básico</option><option value="intermediario">Intermediário</option><option value="avancado">Avançado</option></select></div>
+            <div class="field"><label>Word necessário</label><select id="rs_req_word"><option value="nao_exigido">Não exigido</option><option value="basico">Básico</option><option value="intermediario">Intermediário</option><option value="avancado">Avançado</option></select></div>
+            <div class="field"><label>PowerPoint necessário</label><select id="rs_req_powerpoint"><option value="nao_exigido">Não exigido</option><option value="basico">Básico</option><option value="intermediario">Intermediário</option><option value="avancado">Avançado</option></select></div>
+          </div>
+
           <button class="btn btn-primary" onclick="criarRequisicaoRS()">Enviar para aprovação</button>
           <button class="btn btn-ghost" onclick="_rsNovaRequisicaoAberta=false;render();">Cancelar</button>
         </div>`
@@ -711,6 +853,7 @@ async function importarCandidaturaRS(candidaturaId, vagaId) {
     telefone: c.telefone,
     origem: 'Página pública',
     curriculo: '',
+    perfil: c.perfil || null,
     etapa: 'nova',
     reprovado: false,
     historico: [
@@ -804,7 +947,7 @@ function renderPipelineCandidatosRS(vaga) {
                 }
               </td>
             </tr>
-            <tr style="${c.reprovado ? 'opacity:0.6;' : ''}"><td colspan="5" style="padding-top:0;">${renderScorecardRS(c.id)}</td></tr>`
+            <tr style="${c.reprovado ? 'opacity:0.6;' : ''}"><td colspan="5" style="padding-top:0;">${renderPerfilCandidatoRS(c)}${renderScorecardRS(c.id)}</td></tr>`
               )
               .join('')}
           </tbody></table>`
