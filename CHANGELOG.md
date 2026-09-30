@@ -3,6 +3,114 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.99.4 — Auditoria de segurança + monitoramento de erros (Sentry)
+Dois itens da lista de "o que falta pra vender", ambos concluídos:
+
+**Auditoria de segurança (RLS entre empresas):** revisei as 34 políticas
+de acesso do sistema, uma por uma. Encontrada 1 falha real: a política de
+criar notificação só conferia a empresa de quem cria, nunca conferia se o
+destinatário pertencia à mesma empresa — permitindo, em teoria, notificar
+qualquer pessoa de qualquer empresa. Corrigida (`33-fix-notificacoes-cross-empresa.sql`),
+testada com o cenário de ataque simulado. As outras 33 políticas foram
+conferidas e estão corretas.
+
+**Monitoramento de erros (Sentry):** adicionado em todas as páginas do
+site (sistema, planos, candidatura pública) — qualquer erro real de
+JavaScript que acontecer pra qualquer pessoa agora é capturado
+automaticamente e aparece no painel do Sentry, com detalhes de onde e
+quando aconteceu. Antes, só se ficava sabendo se o cliente avisasse.
+
+Requer rodar sql/33-fix-notificacoes-cross-empresa.sql no projeto
+principal. O Sentry já está ativo assim que subir os arquivos HTML —
+sem configuração adicional.
+
+## v0.99.3 — Revisão completa do código: 1 bug real encontrado e corrigido
+A pedido, reli o projeto inteiro procurando bugs, com vários métodos:
+cruzamento de toda função chamada (onclick/onchange) contra toda função
+declarada, IDs duplicados de formulário, nomes de coluna do código
+comparados com as restrições reais do banco (`check` constraints), e
+todo `getElementById` comparado com os IDs de fato criados no HTML —
+em cada arquivo e no projeto inteiro.
+
+**Encontrado 1 bug real:** o gerador de "dados de teste" do Ponto criava
+uma justificativa com `tipo: 'atraso'` — valor que não existe na lista
+permitida pelo banco (só `'atraso_saida'`, `'falta'`, `'ajuste_ponto'`,
+`'atestado'`). Isso fazia essa parte específica da geração de dados de
+demonstração falhar sempre. Corrigido pra `'atraso_saida'`. Não afetava
+justificativas reais criadas por colaboradores — só o gerador de teste.
+
+Os outros achados da varredura (2 pares de IDs duplicados, algumas
+funções aparentemente "não declaradas") foram todos conferidos e
+confirmados como falsos positivos — código correto, só padrões que
+minha varredura automática não reconhecia de primeira.
+
+Requer reimplantar a Edge Function "ponto".
+
+## v0.99.2 — R&S: tela de publicar não pede mais info repetida
+A tela "Configurar página pública" pedia pra digitar de novo descrição,
+requisitos e cidade — coisas que já tinham sido preenchidas no perfil
+desejado da requisição. Agora isso é montado automaticamente: descrição
+vem das principais atividades, requisitos juntam hard skills, soft
+skills, experiência e formação (só o que fizer sentido, nada de campo
+vazio ou "não exigido" aparecendo à toa), e cidade vem direto da
+requisição. Sobrou só o essencial pra decidir na hora de publicar:
+título, modalidade, e se mostra salário/nome da empresa.
+
+## v0.99.1 — R&S: idade mínima de 16 anos para vagas de Jovem Aprendiz
+Diferente de coletar a idade exata (que é sobre perfil demográfico e cai
+na Lei 9.029/1995), isso é uma exigência legal de elegibilidade por tipo
+de contrato — a CLT permite Jovem Aprendiz a partir de 16 anos, mas exige
+18 nos demais formatos. Agora:
+- "Formato de contratação" na requisição ganhou a opção **Jovem
+  Aprendiz**.
+- Ao publicar a vaga, o sistema detecta sozinho esse formato e ajusta a
+  página pública automaticamente: mostra "Tenho 16 anos ou mais" nessas
+  vagas, e "Tenho 18 anos ou mais" em todas as outras — sem precisar de
+  nenhum passo extra do RH.
+
+Continua sendo só uma confirmação de elegibilidade (não substitui a
+conferência de documento na contratação de verdade). Requer rodar
+sql/32-rs-jovem-aprendiz.sql e reimplantar a Edge Function "rs".
+
+## v0.99.0 — R&S: perfil detalhado — vaga e candidato
+Expansão grande, a pedido, dividida em duas partes:
+
+**O que a vaga pede** (formulário de requisição, preenchido pelo RH):
+nível de maturidade, perfil DISC desejado, outro teste de personalidade,
+hard skills, soft skills, principais atividades, salário fixo,
+remuneração variável, formato de contratação, disponibilidade de
+horários, interno/externo, cidade, experiência anterior necessária,
+requisitos técnicos (moto/notebook/smartphone), intimidade com
+tecnologia, formação superior necessária, e nível exigido de
+Excel/Word/PowerPoint.
+
+**O que o candidato informa** (página pública, mantido simples e rápido
+de preencher): cidade atual, formação superior, experiência anterior,
+disponibilidade de horários, o que possui (moto/notebook/smartphone),
+intimidade com tecnologia, conhecimento em Excel/Word/PowerPoint, e
+LinkedIn (opcional). O RH vê tudo isso num botão "Ver perfil do
+candidato", dentro do pipeline.
+
+**Duas informações da lista original ficaram de fora, de propósito:**
+idade exata e gênero — coletar isso no formulário de candidatura fere a
+Lei 9.029/1995 (que proíbe usar sexo, idade e outros critérios
+protegidos como filtro de contratação). Mantido o checkbox "Tenho 18
+anos ou mais" no lugar de idade — confirma elegibilidade sem coletar o
+número.
+
+Requer rodar sql/31-rs-perfil-candidato.sql (adiciona uma coluna
+flexível pras respostas do candidato) e reimplantar a Edge Function "rs".
+
+## v0.98.4 — Correção: link público da vaga dava 404 (app.htmlvaga.html)
+Quando o sistema passou a rodar em `app.html` em vez de `index.html`
+(v0.98.1), o link público de cada vaga do R&S quebrou — a função que o
+monta trocava "index.html" por vazio, e como esse nome não existe mais,
+o resultado virava `app.htmlvaga.html` (sem barra nenhuma), um endereço
+que não existe. Corrigido pra usar só a pasta atual, não importa o nome
+do arquivo. Testei com "app.html", "index.html" e sem nome de arquivo —
+os três geram o link certo agora. Vale imediatamente pras vagas já
+publicadas antes, sem precisar republicar nada.
+
 ## v0.98.3 — Landing interna removida de vez (não depende mais de configuração)
 A correção anterior (v0.98.2) só mudava o padrão — ainda era possível a
 landing interna aparecer em certas condições. Agora `renderTelaAuth()`

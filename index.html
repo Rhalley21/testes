@@ -1,6 +1,15 @@
 <!doctype html>
 <html lang="pt-BR">
   <head>
+    <!-- Sentry — monitoramento de erros (ver app.html pra explicação). -->
+    <script src="https://browser.sentry-cdn.com/7.120.0/bundle.min.js" crossorigin="anonymous"></script>
+    <script>
+      Sentry.init({
+        dsn: 'https://159a28096928627be9f215b267266383@o4512175915663360.ingest.us.sentry.io/4512175921823744',
+        tracesSampleRate: 0.1,
+        initialScope: { tags: { pagina: 'planos' } },
+      });
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>INETRIS — Sistema de Avaliação e Desempenho | Planos</title>
