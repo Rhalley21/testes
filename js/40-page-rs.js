@@ -140,15 +140,29 @@ async function publicarVagaRS(id) {
   const r = state.rs.requisicoes.find((x) => x.id === id);
   if (!r || r.status !== 'aprovada') return;
   const cargo = state.cargos.find((c) => c.id === r.cargoId);
+  const pd = r.perfilDesejado || {};
   const titulo = document.getElementById('rs_pub_titulo').value.trim() || cargo?.nome || 'Vaga';
-  const descricao = document.getElementById('rs_pub_descricao').value.trim();
-  const requisitos = document.getElementById('rs_pub_requisitos').value.trim();
-  const local = document.getElementById('rs_pub_local').value.trim();
   const modalidade = document.getElementById('rs_pub_modalidade').value;
   const mostrarSalario = document.getElementById('rs_pub_mostrar_salario').checked;
   const faixaSalarial = document.getElementById('rs_pub_faixa').value.trim();
   const mostrarEmpresa = document.getElementById('rs_pub_mostrar_empresa').checked;
-  const jovemAprendiz = r.perfilDesejado?.formatoContratacao === 'Jovem Aprendiz';
+  const jovemAprendiz = pd.formatoContratacao === 'Jovem Aprendiz';
+
+  // Descrição, requisitos e local não são mais digitados de novo aqui —
+  // vêm automaticamente do que já foi preenchido na requisição (perfil
+  // desejado), pra não pedir a mesma informação duas vezes.
+  const descricao = pd.principaisAtividades || r.missaoHerdada || '';
+  const requisitos = [
+    pd.hardSkills && `Hard skills: ${pd.hardSkills}`,
+    pd.softSkills && `Soft skills: ${pd.softSkills}`,
+    pd.experienciaAnteriorNecessaria && `Experiência: ${pd.experienciaAnteriorNecessaria}`,
+    pd.formacaoSuperiorNecessaria &&
+      pd.formacaoSuperiorNecessaria !== 'nao_exigido' &&
+      `Formação superior: ${RS_LABEL_FORMACAO[pd.formacaoSuperiorNecessaria] || pd.formacaoSuperiorNecessaria}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const local = pd.cidade || '';
 
   const { data, error } = await sb.functions.invoke('rs', {
     body: {
@@ -797,17 +811,16 @@ function pageRS() {
                   ? `<tr><td colspan="5">
                 <div class="card" style="background:var(--surface-2);margin-top:0;">
                   <h3 style="font-size:14px;">Configurar página pública — ${escaparHtml(r.codigo)}</h3>
+                  <div class="notice info" style="font-size:12.5px;margin-bottom:10px;">Descrição, requisitos e cidade já vêm do perfil preenchido na requisição — não precisa digitar de novo.</div>
                   <div class="field"><label>Título da vaga (como candidatos verão)</label><input id="rs_pub_titulo" type="text" value="${escaparHtml(cargo?.nome || '')}"></div>
-                  <div class="field"><label>Descrição</label><textarea id="rs_pub_descricao">${escaparHtml(r.missaoHerdada || '')}</textarea></div>
-                  <div class="field"><label>Requisitos</label><textarea id="rs_pub_requisitos">${(r.responsabilidadesHerdadas || []).map((x) => (typeof x === 'string' ? x : x.nome || '')).join('\n')}</textarea></div>
                   <div class="grid2">
-                    <div class="field"><label>Local</label><input id="rs_pub_local" type="text"></div>
                     <div class="field"><label>Modalidade</label>
                       <select id="rs_pub_modalidade"><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Remoto">Remoto</option></select>
                     </div>
+                    <div class="field"><label>Cidade <small>(vem da requisição)</small></label><input type="text" value="${escaparHtml(r.perfilDesejado?.cidade || '')}" disabled></div>
                   </div>
-                  <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:6px 0;"><input id="rs_pub_mostrar_salario" type="checkbox"> Mostrar faixa salarial na página pública</label>
-                  <div class="field"><label>Faixa salarial <small>(só aparece se marcado acima)</small></label><input id="rs_pub_faixa" type="text" placeholder="Ex: R$ 2.500 a R$ 3.200"></div>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:6px 0;"><input id="rs_pub_mostrar_salario" type="checkbox" ${r.perfilDesejado?.salarioFixo ? 'checked' : ''}> Mostrar faixa salarial na página pública</label>
+                  <div class="field"><label>Faixa salarial <small>(só aparece se marcado acima)</small></label><input id="rs_pub_faixa" type="text" placeholder="Ex: R$ 2.500 a R$ 3.200" value="${escaparHtml(r.perfilDesejado?.salarioFixo || '')}"></div>
                   <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:6px 0;"><input id="rs_pub_mostrar_empresa" type="checkbox" checked> Mostrar o nome da empresa (desmarque para vaga confidencial)</label>
                   <button class="btn btn-primary btn-sm" onclick="publicarVagaRS('${r.id}')">Publicar vaga</button>
                   <button class="btn btn-ghost btn-sm" onclick="_rsConfigurarPublicaAberta=null;render();">Cancelar</button>

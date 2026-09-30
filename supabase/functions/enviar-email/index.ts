@@ -12,10 +12,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-// Troque pelo remetente configurado no seu domínio verificado no Resend,
-// assim que tiver um (ex.: "Plataforma NORTE <notificacoes@institutoinetris.com.br>").
-// Enquanto não tiver domínio próprio, o Resend permite usar este endereço de teste:
-const REMETENTE_PADRAO = "Plataforma NORTE <onboarding@resend.dev>";
+// Domínio inetris.com.br verificado no Resend (30/09/2026) — agora pode
+// mandar pra qualquer destinatário, não só pro e-mail da conta Resend.
+const REMETENTE_PADRAO = "INETRIS <notificacoes@inetris.com.br>";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

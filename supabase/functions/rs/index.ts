@@ -58,7 +58,7 @@ serve(async (req: Request) => {
     if (action === 'vaga_publica') {
       const { data, error } = await admin
         .from('rs_vagas_publicas')
-        .select('id, titulo, descricao, requisitos, local, modalidade, mostrar_salario, faixa_salarial, mostrar_empresa, nome_empresa_exibicao, ativa')
+        .select('id, titulo, descricao, requisitos, local, modalidade, mostrar_salario, faixa_salarial, mostrar_empresa, nome_empresa_exibicao, jovem_aprendiz, ativa')
         .eq('id', body.vagaPublicaId)
         .maybeSingle();
       if (error) return jsonResponse({ error: error.message }, 500);
@@ -108,6 +108,7 @@ serve(async (req: Request) => {
           curriculo_path: curriculoPath,
           aceite_privacidade: true,
           aceite_banco_talentos: !!body.aceiteBancoTalentos,
+          perfil: body.perfil || {},
         })
         .select('id')
         .single();
@@ -183,6 +184,7 @@ serve(async (req: Request) => {
         faixa_salarial: body.faixaSalarial || null,
         mostrar_empresa: body.mostrarEmpresa !== false,
         nome_empresa_exibicao: body.nomeEmpresaExibicao || null,
+        jovem_aprendiz: !!body.jovemAprendiz,
         ativa: true,
         atualizado_em: new Date().toISOString(),
       };
@@ -216,7 +218,7 @@ serve(async (req: Request) => {
       if (!vagaPub) return jsonResponse({ candidaturas: [] });
       const { data, error } = await admin
         .from('rs_candidaturas_publicas')
-        .select('id, nome, email, telefone, curriculo_path, aceite_banco_talentos, criado_em')
+        .select('id, nome, email, telefone, curriculo_path, aceite_banco_talentos, perfil, criado_em')
         .eq('vaga_publica_id', vagaPub.id)
         .eq('importada', false)
         .order('criado_em', { ascending: false });
@@ -237,7 +239,7 @@ serve(async (req: Request) => {
     if (action === 'importar_candidatura') {
       const { data: cand, error } = await admin
         .from('rs_candidaturas_publicas')
-        .select('id, nome, email, telefone, empresa_id')
+        .select('id, nome, email, telefone, empresa_id, perfil')
         .eq('id', body.candidaturaId)
         .eq('empresa_id', perfil.empresa_id)
         .maybeSingle();

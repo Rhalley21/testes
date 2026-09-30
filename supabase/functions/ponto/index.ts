@@ -262,7 +262,7 @@ serve(async (req: Request) => {
         {
           empresa_id: perfil.empresa_id,
           perfil_id: perfil.id,
-          tipo: 'atraso',
+          tipo: 'atraso_saida',
           data_ref: dataJustifPendente.toISOString().slice(0, 10),
           motivo: 'Consulta médica pela manhã (exemplo de demonstração)',
           status: 'pendente',
