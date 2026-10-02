@@ -21,6 +21,9 @@ let _telaInicial = 'login';
 let _solicTesteEnviada = false;
 let _solicTesteEnviando = false;
 let _solicTeste = { nome: '', email: '', empresa: '', telefone: '' };
+// Mesma Site Key (pública) já usada em vaga.html — o domínio já está
+// cadastrado no reCAPTCHA, não precisa de uma chave separada.
+const RECAPTCHA_SITE_KEY_LANDING = '6LfeLM0tAAAAAEkhPUj62-mvS-IbcAzJbvYF3l0h';
 
 // Contratação direta (Fase 1 — sem link de pagamento automático ainda,
 // fica registrado pro Instituto INETRIS entrar em contato e fechar
@@ -49,45 +52,62 @@ function renderTelaAuth() {
   renderLogin();
 }
 
+// Pra quando o Google carregar o script do reCAPTCHA depois deste ponto
+// já ter rodado (mesma proteção de timing já usada em vaga.html).
+function _renderRecaptchaLandingQuandoPronto() {
+  if (
+    typeof grecaptcha === 'undefined' ||
+    !grecaptcha.render ||
+    document.getElementById('recaptcha_teste_container')?.childElementCount
+  ) {
+    if (!document.getElementById('recaptcha_teste_container')) return; // tela mudou, desiste
+    setTimeout(_renderRecaptchaLandingQuandoPronto, 200);
+    return;
+  }
+  window._recaptchaTesteWidgetId = grecaptcha.render('recaptcha_teste_container', {
+    sitekey: RECAPTCHA_SITE_KEY_LANDING,
+  });
+}
+
 async function enviarSolicitacaoTeste() {
   const nome = document.getElementById('st-nome').value.trim();
   const email = document.getElementById('st-email').value.trim();
   const empresa = document.getElementById('st-empresa').value.trim();
   const telefone = document.getElementById('st-telefone').value.trim();
+  const recaptchaToken =
+    typeof grecaptcha !== 'undefined' && window._recaptchaTesteWidgetId !== undefined
+      ? grecaptcha.getResponse(window._recaptchaTesteWidgetId)
+      : '';
+
   if (!nome || !email || !empresa) {
     showToast('Preencha nome, e-mail e nome da empresa.');
+    return;
+  }
+  if (!recaptchaToken) {
+    showToast('Confirme que você não é um robô antes de enviar.');
     return;
   }
   _solicTeste = { nome, email, empresa, telefone };
   _solicTesteEnviando = true;
   renderLanding();
 
-  const { error } = await sb.from('solicitacoes_teste').insert({
-    nome_solicitante: nome,
-    email,
-    nome_empresa: empresa,
-    telefone: telefone || null,
+  // Automação total (decisão de produto): esta função já gera o código de
+  // licença, aprova a solicitação e manda o e-mail com o código — tudo de
+  // uma vez, sem precisar do Super Admin clicar em "Aprovar". A única
+  // proteção contra abuso é o reCAPTCHA acima.
+  const { data, error } = await sb.functions.invoke('teste-gratis', {
+    body: { nome, email, empresa, telefone, recaptchaToken },
   });
   _solicTesteEnviando = false;
 
-  if (error) {
-    console.error('Falha ao enviar solicitação', error);
-    showToast('Não foi possível enviar sua solicitação. Tente novamente.');
+  if (error || data?.error) {
+    console.error('Falha ao liberar teste grátis', error || data?.error);
+    showToast((data && data.error) || 'Não foi possível liberar seu teste agora. Tente novamente.');
+    if (typeof grecaptcha !== 'undefined' && window._recaptchaTesteWidgetId !== undefined)
+      grecaptcha.reset(window._recaptchaTesteWidgetId);
     renderLanding();
     return;
   }
-
-  // Aviso por e-mail pro INETRIS (não bloqueia; se o e-mail falhar, a
-  // solicitação já foi gravada e aparece no painel do Super Admin).
-  sb.functions
-    .invoke('enviar-email', {
-      body: {
-        destinatario: 'inetris25@gmail.com',
-        assunto: `Nova solicitação de teste grátis — ${empresa}`,
-        corpoHtml: `<p><b>${nome}</b> (${email}) solicitou um teste grátis para a empresa <b>${empresa}</b>.${telefone ? `<br>Telefone: ${telefone}` : ''}</p><p>Aprove no painel Super Admin → Solicitações de teste.</p>`,
-      },
-    })
-    .catch(() => {});
 
   _solicTesteEnviada = true;
   renderLanding();
@@ -226,8 +246,8 @@ function renderLanding() {
             ? `
           <div class="landing-teste-ok">
             <div class="landing-teste-check">✓</div>
-            <h3>Solicitação enviada!</h3>
-            <p>Recebemos seu pedido de teste grátis. O Instituto INETRIS vai analisar e enviar o acesso para <b>${escaparHtml(_solicTeste.email)}</b> em breve.</p>
+            <h3>Teste liberado!</h3>
+            <p>Enviamos o código de acesso para <b>${escaparHtml(_solicTeste.email)}</b> — confira sua caixa de entrada (e o spam, por garantia) para começar agora mesmo.</p>
             <button class="btn" onclick="_solicTesteEnviada=false;renderLanding();">Enviar outra solicitação</button>
           </div>`
             : `
@@ -238,15 +258,17 @@ function renderLanding() {
             <div class="field"><label>E-mail</label><input id="st-email" type="email" value="${escaparHtml(_solicTeste.email)}"></div>
             <div class="field"><label>Nome da empresa</label><input id="st-empresa" type="text" value="${escaparHtml(_solicTeste.empresa)}"></div>
             <div class="field"><label>Telefone / WhatsApp <small>(opcional)</small></label><input id="st-telefone" type="tel" value="${escaparHtml(_solicTeste.telefone)}"></div>
+            <div id="recaptcha_teste_container" style="margin-bottom:12px;"></div>
             <button class="btn btn-primary btn-lg" style="width:100%;justify-content:center;" onclick="enviarSolicitacaoTeste()" ${_solicTesteEnviando ? 'disabled' : ''}>${_solicTesteEnviando ? 'Enviando…' : 'Solicitar teste grátis'}</button>
           </div>`
         }
       </section>
 
       <footer class="landing-rodape">
-        <span>Instituto INETRIS — Sistema de Gestão de Pessoas</span>
+        <span>Instituto INETRIS — Sistema de Gestão de Pessoas · <a href="termos.html" style="color:inherit;">Termos de Uso</a> · <a href="privacidade.html" style="color:inherit;">Política de Privacidade</a></span>
         <button class="btn btn-ghost btn-sm" onclick="irParaLogin()">Entrar no sistema</button>
       </footer>
     </div>
   `;
+  if (!_solicTesteEnviada) _renderRecaptchaLandingQuandoPronto();
 }

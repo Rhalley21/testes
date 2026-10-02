@@ -15,6 +15,7 @@ let _superAdminMetricas = null;
 let _superAdminPayloads = [];
 let _superAdminSolicitacoes = [];
 let _superAdminSolicitacoesContratacao = [];
+let _superAdminChamados = [];
 let _superAdminNovoRotulo = '';
 let _superAdminNovoPonto = false; // escolha sim/não do módulo Ponto pra empresa que usar este código
 
@@ -27,6 +28,7 @@ async function carregarDadosSuperAdmin() {
     { data: payloads, error: erroPayloads },
     { data: solicitacoes },
     { data: solicitacoesContratacao },
+    { data: chamados },
   ] = await Promise.all([
     sb
       .from('empresas')
@@ -49,9 +51,14 @@ async function carregarDadosSuperAdmin() {
       .from('solicitacoes_contratacao')
       .select('id, nome_solicitante, email, nome_empresa, telefone, plano_desejado, observacoes, status, criado_em')
       .order('criado_em', { ascending: false }),
+    sb
+      .from('chamados_suporte')
+      .select('id, empresa_id, nome_solicitante, email, assunto, mensagem, status, resposta, criado_em')
+      .order('criado_em', { ascending: false }),
   ]);
   _superAdminSolicitacoes = solicitacoes || [];
   _superAdminSolicitacoesContratacao = solicitacoesContratacao || [];
+  _superAdminChamados = chamados || [];
   if (erroEmpresas || erroCodigos || erroPayloads)
     showToast(
       'Não foi possível carregar os dados: ' + (erroEmpresas?.message || erroCodigos?.message || erroPayloads?.message)
@@ -272,6 +279,41 @@ async function atualizarStatusContratacao(solicitacaoId) {
   await carregarDadosSuperAdmin();
 }
 
+async function atualizarChamadoSuporte(chamadoId) {
+  const select = document.getElementById(`ch_status_${chamadoId}`);
+  const textarea = document.getElementById(`ch_resposta_${chamadoId}`);
+  if (!select || !textarea) return;
+  const resposta = textarea.value.trim();
+  const { error } = await sb
+    .from('chamados_suporte')
+    .update({
+      status: select.value,
+      resposta: resposta || null,
+      atualizado_em: new Date().toISOString(),
+      atualizado_por: meuPerfilId,
+    })
+    .eq('id', chamadoId);
+  if (error) {
+    console.error('Falha ao atualizar chamado', error);
+    showToast('Não foi possível salvar. Verifique se a migration 34 foi aplicada.');
+    return;
+  }
+  const chamado = _superAdminChamados.find((c) => c.id === chamadoId);
+  if (resposta && chamado?.email) {
+    sb.functions
+      .invoke('enviar-email', {
+        body: {
+          destinatario: chamado.email,
+          assunto: `Resposta ao seu chamado: ${chamado.assunto}`,
+          corpoHtml: `<p>Olá!</p><p>Sobre o chamado <b>"${chamado.assunto}"</b>, o suporte da INETRIS respondeu:</p><p>${resposta.replace(/\n/g, '<br>')}</p>`,
+        },
+      })
+      .catch(() => {});
+  }
+  showToast('Chamado atualizado.');
+  await carregarDadosSuperAdmin();
+}
+
 async function gerarNovoCodigoLicenca() {
   const codigo = gerarCodigoLicencaLetras();
   const rotulo = _superAdminNovoRotulo.trim() || null;
@@ -323,6 +365,25 @@ async function suspenderEmpresa(empresaId, nomeEmpresa) {
   showToast(`Acesso de "${nomeEmpresa}" suspenso.`);
   await carregarDadosSuperAdmin();
 }
+// Converte uma empresa em teste grátis pra cliente pagante — libera o
+// acesso de vez (não depende mais de trial_ate), sem apagar nada que já
+// foi cadastrado durante o teste.
+async function marcarEmpresaComoPagante(empresaId, nomeEmpresa) {
+  if (
+    !confirm(
+      `Marcar "${nomeEmpresa}" como cliente pagante? O acesso passa a valer sem depender mais do prazo de teste grátis.`
+    )
+  )
+    return;
+  const { error } = await sb.from('empresas').update({ is_pagante: true }).eq('id', empresaId);
+  if (error) {
+    showToast('Não foi possível marcar como pagante: ' + error.message);
+    return;
+  }
+  showToast(`"${nomeEmpresa}" agora é cliente pagante — acesso liberado.`);
+  await carregarDadosSuperAdmin();
+}
+
 async function reativarEmpresa(empresaId, nomeEmpresa) {
   if (!confirm(`Reativar o acesso de "${nomeEmpresa}"?`)) return;
   const { error } = await sb
@@ -541,6 +602,34 @@ function pageSuperAdmin() {
     </div>
 
     <div class="card">
+      <h3>Chamados de suporte <small>${_superAdminChamados.filter((c) => c.status !== 'resolvido').length} em aberto</small></h3>
+      ${
+        _superAdminChamados.length
+          ? `<table><thead><tr><th>Empresa</th><th>Assunto</th><th>Status</th><th>Resposta</th><th></th></tr></thead><tbody>
+          ${_superAdminChamados
+            .map((c) => {
+              const nomeEmpresa =
+                _superAdminPayloads.find((e) => e.empresa_id === c.empresa_id)?.payload?.empresa?.nomeFantasia ||
+                c.empresa_id;
+              return `<tr>
+              <td><b>${escaparHtml(nomeEmpresa)}</b></td>
+              <td>${escaparHtml(c.assunto)}<div class="small-muted" style="margin-top:2px;">${escaparHtml(c.mensagem)}</div></td>
+              <td>
+                <select id="ch_status_${c.id}" style="max-width:130px;">
+                  ${['aberto', 'em_andamento', 'resolvido'].map((st) => `<option value="${st}" ${c.status === st ? 'selected' : ''}>${st === 'aberto' ? 'Aberto' : st === 'em_andamento' ? 'Em andamento' : 'Resolvido'}</option>`).join('')}
+                </select>
+              </td>
+              <td><textarea id="ch_resposta_${c.id}" rows="2" style="min-width:180px;" placeholder="Resposta para o cliente">${escaparHtml(c.resposta || '')}</textarea></td>
+              <td><button class="btn btn-sm btn-ghost" onclick="atualizarChamadoSuporte('${c.id}')">Salvar</button></td>
+            </tr>`;
+            })
+            .join('')}
+        </tbody></table>`
+          : '<div class="empty">Nenhum chamado de suporte ainda.</div>'
+      }
+    </div>
+
+    <div class="card">
       <h3>Gerar novo código de licença</h3>
       <p class="page-desc">Cria um código de uso único. Envie por WhatsApp/e-mail pra empresa-cliente — ela usa esse código na tela de cadastro, no lugar de "Nome da empresa" sozinho.</p>
       <div class="field"><label>Rótulo (opcional, só pra você identificar depois — ex.: "Lacle")</label>
@@ -620,6 +709,10 @@ function pageSuperAdmin() {
               e.id === empresaIdAtual
                 ? '<span class="small-muted">Não é possível suspender aqui</span>'
                 : `${
+                    !e.is_pagante && e.trial_ate
+                      ? `<button class="btn btn-sm btn-primary" onclick="marcarEmpresaComoPagante('${e.id}','${escaparParaOnclick(e.nome_fantasia)}')">Marcar como pagante</button>`
+                      : ''
+                  }${
                     e.acesso_suspenso
                       ? `<button class="btn btn-sm btn-ghost" onclick="reativarEmpresa('${e.id}','${escaparParaOnclick(e.nome_fantasia)}')">Reativar</button>`
                       : `<button class="btn btn-sm btn-ghost" style="color:var(--iniciar);" onclick="suspenderEmpresa('${e.id}','${escaparParaOnclick(e.nome_fantasia)}')">Suspender</button>`

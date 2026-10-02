@@ -46,6 +46,8 @@ function renderRoute() {
       return pagePagamento();
     case 'auditoria':
       return pageAuditoria();
+    case 'central_ajuda':
+      return pageCentralAjuda();
     case 'clima':
       return pageClima();
     case 'nr1':
@@ -667,6 +669,66 @@ function pageDashboard() {
 }
 
 /* ---------- Administrador: visão geral da empresa, indicadores estratégicos, evolução consolidada ---------- */
+// Checklist de primeiros passos — só aparece pra quem ainda não completou o
+// básico, calculado a partir do estado real da empresa (não de um contador
+// manual). Some sozinho quando tudo estiver feito; também dá pra fechar
+// manualmente antes disso, se a pessoa preferir.
+function renderChecklistOnboarding() {
+  if (state.configuracoes?.onboardingOculto) return '';
+  const passos = [
+    {
+      titulo: 'Complete o cadastro da empresa',
+      feito: !!(state.empresa?.razaoSocial && state.empresa?.cnpj),
+      rota: 'empresa',
+    },
+    {
+      titulo: 'Crie a estrutura organizacional',
+      feito: state.estrutura.length > 0,
+      rota: 'estrutura',
+    },
+    {
+      titulo: 'Publique pelo menos um cargo',
+      feito: state.cargos.some((c) => c.desenho?.aprovado),
+      rota: 'cargos',
+    },
+    {
+      titulo: 'Cadastre seus colaboradores',
+      feito: state.colaboradores.some((c) => !c.inativo),
+      rota: 'colaboradores',
+    },
+    {
+      titulo: 'Abra o primeiro ciclo de avaliação',
+      feito: state.ciclos.length > 0,
+      rota: 'ciclos',
+    },
+  ];
+  const concluidos = passos.filter((p) => p.feito).length;
+  if (concluidos === passos.length) return '';
+
+  return `
+    <div class="card" style="border-left:3px solid var(--gold);">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <h3 style="margin:0;">Primeiros passos <small>${concluidos} de ${passos.length} concluídos</small></h3>
+        <button class="btn btn-ghost btn-sm" onclick="state.configuracoes = state.configuracoes || {}; state.configuracoes.onboardingOculto = true; render();">Ocultar</button>
+      </div>
+      <div style="margin:10px 0 4px;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden;">
+        <div style="height:100%;width:${(concluidos / passos.length) * 100}%;background:var(--gold);border-radius:99px;"></div>
+      </div>
+      <div style="display:grid;gap:8px;margin-top:12px;">
+        ${passos
+          .map(
+            (p) => `
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;${p.feito ? '' : 'border-top:1px solid var(--line);'}">
+            <span style="${p.feito ? 'color:var(--ink-faint);text-decoration:line-through;' : ''}">${p.feito ? '✓' : '○'} ${p.titulo}</span>
+            ${!p.feito ? `<button class="btn btn-sm btn-primary" onclick="goto('${p.rota}')">Ir</button>` : ''}
+          </div>`
+          )
+          .join('')}
+      </div>
+    </div>
+  `;
+}
+
 function renderDashboardAdmin(abertos, pdisAtivos, encerrados) {
   const unidades = state.estrutura.filter((n) => n.tipo === 'unidade');
   const porUnidade = unidades.map((u) => {
@@ -804,6 +866,7 @@ function renderDashboardAdmin(abertos, pdisAtivos, encerrados) {
   };
 
   return `
+    ${renderChecklistOnboarding()}
     ${
       meuPapelReal === 'owner'
         ? `

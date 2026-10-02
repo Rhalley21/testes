@@ -1,6 +1,7 @@
 const PAPEL_PARA_ROLE = { owner: 'admin', rh: 'rh', lider: 'gestor', colaborador: 'colaborador' };
 let modoLogin = 'entrar'; // entrar | cadastrar
 let temConviteLogin = false;
+let aceiteTermosLogin = false;
 let erroLogin = null;
 let carregandoLogin = false;
 // BUG CORRIGIDO: o formulário de login não preservava o que a pessoa já
@@ -15,11 +16,13 @@ let valorCodigoLogin = '';
 let valorCodigoLicencaLogin = ''; // Código de licença — obrigatório pra criar uma Empresa nova (controle do dono do NORTE)
 
 /* ---------- Bloqueio de login após 5 tentativas falhas (Fluxo de Navegação, Cap. 1.2) ----------
-   Camada de UX no cliente, com persistência em localStorage (por e-mail) para
-   sobreviver a um refresh da página. IMPORTANTE: isto não substitui um
-   rate-limit real no backend — alguém que chame a API do Supabase diretamente
-   (fora desta tela) não é bloqueado por este contador. Para bloqueio robusto,
-   complementar com rate-limiting/Auth Hooks no próprio Supabase. */
+   Duas camadas: localStorage (resposta instantânea, só nesse navegador) +
+   a Edge Function "login-bloqueio" (fonte de verdade de verdade, no banco,
+   por e-mail — sobrevive a limpar o navegador e vale em qualquer
+   dispositivo). Mesmo assim, quem chamar a API de autenticação do Supabase
+   bem por fora da nossa tela de login não passa por nenhuma das duas — pra
+   fechar essa brecha específica, precisaria de um Auth Hook configurado
+   direto no painel do Supabase. */
 const LOGIN_MAX_TENTATIVAS = 5;
 const LOGIN_BLOQUEIO_MINUTOS = 15;
 function chaveTentativasLogin(email) {
@@ -142,6 +145,14 @@ function renderLogin() {
           <div class="field"><label>E-mail</label><input id="li-email" type="email" required value="${valorEmailLogin}" oninput="valorEmailLogin=this.value;"></div>
           <div class="field"><label>Senha</label><input id="li-senha" type="password" minlength="6" required value="${valorSenhaLogin}" oninput="valorSenhaLogin=this.value;"></div>
           ${modoLogin === 'entrar' ? `<p style="text-align:right;margin:-6px 0 12px;"><a href="#" style="font-size:12.5px;color:var(--ink-dim);" onclick="esqueciSenhaLogin();return false;">Esqueci minha senha</a></p>` : ''}
+          ${
+            modoLogin === 'cadastrar'
+              ? `<label style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--ink-dim);margin:4px 0 14px;">
+              <input type="checkbox" id="li-aceite-termos" ${aceiteTermosLogin ? 'checked' : ''} onchange="aceiteTermosLogin=this.checked;" style="margin-top:2px;">
+              <span>Li e aceito os <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</span>
+            </label>`
+              : ''
+          }
           ${erroLogin ? `<p style="color:var(--iniciar);font-size:12.5px;margin:-4px 0 12px;">${erroLogin}</p>` : ''}
           <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="${modoLogin === 'entrar' ? 'entrarLogin()' : 'cadastrarLogin()'}" ${carregandoLogin || statusAtual.bloqueado ? 'disabled' : ''}>
             ${carregandoLogin ? 'Aguarde…' : statusAtual.bloqueado ? `Bloqueado (${statusAtual.minutosRestantes} min)` : modoLogin === 'entrar' ? 'Entrar' : 'Criar conta'}
@@ -188,6 +199,23 @@ async function esqueciSenhaLogin() {
   renderLogin();
 }
 
+// Checagem real de bloqueio: no SERVIDOR (banco de dados), não só no
+// localStorage — sobrevive a limpar o navegador e vale em qualquer
+// dispositivo. Se a função não responder por algum motivo (rede, ainda
+// não implantada), deixa passar — um problema de infraestrutura não deve
+// travar o login de todo mundo; o localStorage continua como uma camada
+// extra, mais rápida, de qualquer forma.
+async function chamarLoginBloqueio(action, email) {
+  try {
+    const { data, error } = await sb.functions.invoke('login-bloqueio', { body: { action, email } });
+    if (error) return null;
+    return data;
+  } catch (e) {
+    console.warn('login-bloqueio indisponível, seguindo só com a checagem local', e);
+    return null;
+  }
+}
+
 async function entrarLogin() {
   const email = valorEmailLogin.trim();
   const senha = valorSenhaLogin;
@@ -197,9 +225,15 @@ async function entrarLogin() {
     return;
   }
 
-  const status = statusBloqueioLogin(email);
-  if (status.bloqueado) {
-    erroLogin = `Muitas tentativas de login incorretas. Tente novamente em ${status.minutosRestantes} minuto(s).`;
+  const statusLocal = statusBloqueioLogin(email);
+  if (statusLocal.bloqueado) {
+    erroLogin = `Muitas tentativas de login incorretas. Tente novamente em ${statusLocal.minutosRestantes} minuto(s).`;
+    renderLogin();
+    return;
+  }
+  const statusServidor = await chamarLoginBloqueio('checar', email);
+  if (statusServidor?.bloqueado) {
+    erroLogin = `Muitas tentativas de login incorretas. Tente novamente em ${statusServidor.minutosRestantes} minuto(s).`;
     renderLogin();
     return;
   }
@@ -211,6 +245,7 @@ async function entrarLogin() {
   carregandoLogin = false;
   if (error) {
     const dados = registrarTentativaFalha(email);
+    await chamarLoginBloqueio('registrar_falha', email);
     const restantes = LOGIN_MAX_TENTATIVAS - dados.count;
     erroLogin = dados.bloqueadoAte
       ? `Muitas tentativas incorretas. Login bloqueado por ${LOGIN_BLOQUEIO_MINUTOS} minutos.`
@@ -219,6 +254,7 @@ async function entrarLogin() {
     return;
   }
   limparTentativasLogin(email);
+  chamarLoginBloqueio('limpar', email).catch(() => {});
   valorSenhaLogin = ''; // não deixa a senha digitada residindo em memória além do necessário
   // se der certo, o listener onAuthStateChange cuida de iniciar o app
 }
@@ -264,6 +300,11 @@ async function cadastrarLogin() {
     renderLogin();
     return;
   }
+  if (!aceiteTermosLogin) {
+    erroLogin = 'É necessário aceitar os Termos de Uso e a Política de Privacidade para criar a conta.';
+    renderLogin();
+    return;
+  }
 
   carregandoLogin = true;
   erroLogin = null;
@@ -271,7 +312,16 @@ async function cadastrarLogin() {
   const { error } = await sb.auth.signUp({
     email,
     password: senha,
-    options: { data: { nome, nome_empresa: nomeEmpresa, codigo_convite: codigo, codigo_licenca: codigoLicenca } },
+    options: {
+      data: {
+        nome,
+        nome_empresa: nomeEmpresa,
+        codigo_convite: codigo,
+        codigo_licenca: codigoLicenca,
+        aceite_termos: true,
+        aceite_termos_em: new Date().toISOString(),
+      },
+    },
   });
   carregandoLogin = false;
   if (error) {

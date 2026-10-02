@@ -41,6 +41,7 @@ const STEPS_BASE = [
   { id: 'configuracoes', label: 'Configurações', group: 'Base', papeis: ['owner'] },
   { id: 'pagamento', label: 'Pagamento', group: 'Base', papeis: ['owner'] }, // assinatura/mensalidade — só o Administrador da empresa
   { id: 'auditoria', label: 'Auditoria', group: 'Base', papeis: ['owner', 'rh'] },
+  { id: 'central_ajuda', label: 'Central de Ajuda', group: 'Base' }, // sem `papeis`: todo mundo pode abrir um chamado
   { id: 'dashboard_role', label: 'Dashboards', group: 'Base' },
   // Só visível pra quem é Super Admin da PLATAFORMA (dono do NORTE) — não
   // tem relação com o papel dentro de uma Empresa (owner/rh/lider/colaborador).

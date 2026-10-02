@@ -44,6 +44,23 @@ async function validarRecaptcha(token: string): Promise<boolean> {
 
 const ACOES_PUBLICAS = ['vaga_publica', 'candidatura_criar'];
 
+// Confere quantas tentativas essa chave (normalmente o IP) já fez pra essa
+// ação na janela de tempo — se já bateu no limite, recusa. Senão, registra
+// mais uma tentativa e deixa passar (ver sql/35-rate-limit.sql).
+async function dentroDoLimite(admin: any, chave: string, acao: string, maxTentativas: number, janelaHoras: number): Promise<boolean> {
+  const desde = new Date(Date.now() - janelaHoras * 3600000).toISOString();
+  const { count } = await admin.from('rate_limit_log').select('*', { count: 'exact', head: true }).eq('chave', chave).eq('acao', acao).gte('criado_em', desde);
+  if ((count || 0) >= maxTentativas) return false;
+  await admin.from('rate_limit_log').insert({ chave, acao });
+  return true;
+}
+
+function ipDoRequisitante(req: Request): string {
+  const encaminhado = req.headers.get('x-forwarded-for');
+  if (encaminhado) return encaminhado.split(',')[0].trim();
+  return req.headers.get('cf-connecting-ip') || 'desconhecido';
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -67,6 +84,11 @@ serve(async (req: Request) => {
     }
 
     if (action === 'candidatura_criar') {
+      // No máximo 10 candidaturas por IP a cada 1h — dá espaço de sobra pra
+      // alguém se candidatar a várias vagas, mas barra envio em massa.
+      if (!(await dentroDoLimite(admin, ipDoRequisitante(req), 'candidatura_rs', 10, 1))) {
+        return jsonResponse({ error: 'Muitas candidaturas enviadas deste endereço em pouco tempo. Tente novamente mais tarde.' }, 429);
+      }
       const recaptchaOk = await validarRecaptcha(body.recaptchaToken);
       if (!recaptchaOk) {
         return jsonResponse({ error: 'Não foi possível confirmar que você não é um robô. Tente novamente.' }, 400);
@@ -81,20 +103,36 @@ serve(async (req: Request) => {
       if (!vaga || !vaga.ativa) return jsonResponse({ error: 'Esta vaga não está mais recebendo candidaturas.' }, 409);
 
       // Currículo: obrigatório, PDF, limite de tamanho (5MB em base64 ~ 6.7MB de texto).
+      // BUG DE SEGURANÇA CORRIGIDO: antes, só confiávamos no content-type que
+      // o navegador declarava — alguém podia renomear qualquer arquivo pra
+      // ".pdf" e o sistema aceitava sem checar. Agora confere a "assinatura"
+      // real do arquivo: todo PDF de verdade começa com os bytes %PDF- —
+      // se não bater, recusa a candidatura inteira (não é só ignorado em
+      // silêncio, já que o currículo é obrigatório).
       let curriculoPath: string | null = null;
       if (body.curriculoBase64) {
-        try {
-          const base64 = String(body.curriculoBase64).split(',').pop() || '';
-          if (base64.length > 7_000_000) {
-            return jsonResponse({ error: 'Currículo muito grande (máximo 5MB).' }, 400);
-          }
-          const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-          const nome = `${vaga.empresa_id}/${vaga.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`;
-          const up = await admin.storage.from('curriculos-rs').upload(nome, bytes, { contentType: 'application/pdf', upsert: false });
-          if (!up.error) curriculoPath = nome;
-        } catch (e) {
-          console.error('Falha ao subir currículo', e);
+        const base64 = String(body.curriculoBase64).split(',').pop() || '';
+        if (base64.length > 7_000_000) {
+          return jsonResponse({ error: 'Currículo muito grande (máximo 5MB).' }, 400);
         }
+        let bytes: Uint8Array;
+        try {
+          bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        } catch {
+          return jsonResponse({ error: 'Não foi possível ler o arquivo do currículo. Tente anexar de novo.' }, 400);
+        }
+        const ASSINATURA_PDF = [0x25, 0x50, 0x44, 0x46, 0x2d]; // "%PDF-"
+        const ehPdfDeVerdade = ASSINATURA_PDF.every((b, i) => bytes[i] === b);
+        if (!ehPdfDeVerdade) {
+          return jsonResponse({ error: 'O arquivo enviado não é um PDF válido. Verifique e tente novamente.' }, 400);
+        }
+        const nome = `${vaga.empresa_id}/${vaga.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`;
+        const up = await admin.storage.from('curriculos-rs').upload(nome, bytes, { contentType: 'application/pdf', upsert: false });
+        if (up.error) {
+          console.error('Falha ao subir currículo', up.error);
+          return jsonResponse({ error: 'Não foi possível salvar o currículo. Tente novamente.' }, 500);
+        }
+        curriculoPath = nome;
       }
 
       const { data: candidatura, error: erroCand } = await admin
