@@ -718,7 +718,7 @@
           <a href="#planos">Planos</a>
           <a href="#faq">Dúvidas</a>
           <a class="btn btn-g" href="app.html">Já sou cliente · Entrar</a>
-          <a class="btn btn-p" href="#" data-cta>Testar grátis</a>
+          <a class="btn btn-p" href="#teste-gratis" data-cta-teste>Testar grátis</a>
         </div>
       </div>
     </nav>
@@ -732,7 +732,7 @@
           INETRIS organiza a gestão de pessoas da sua empresa de ponta a ponta.
         </p>
         <div class="cta-row">
-          <a class="btn btn-p" href="#" data-cta>Começar teste grátis de 7 dias</a>
+          <a class="btn btn-p" href="#teste-gratis" data-cta-teste>Começar teste grátis de 7 dias</a>
           <a class="btn btn-g" href="#planos">Ver planos</a>
         </div>
         <div class="trial">
@@ -984,6 +984,67 @@
         </div>
       </section>
 
+      <section id="teste-gratis" class="wrap">
+        <div class="sh rv">
+          <span class="kicker">Teste grátis</span>
+          <h2>Comece seu teste grátis de 7 dias</h2>
+          <p>Preencha e receba o código de acesso por e-mail, na hora.</p>
+        </div>
+        <div
+          id="teste_gratis_card"
+          class="pricing-panel rv"
+          style="max-width: 480px; margin: 0 auto; display: block; padding: 30px 32px"
+        >
+          <div id="teste_gratis_form">
+            <div class="field" style="margin-bottom: 14px">
+              <label>Seu nome</label>
+              <input
+                id="tg-nome"
+                type="text"
+                style="width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px"
+              />
+            </div>
+            <div class="field" style="margin-bottom: 14px">
+              <label>E-mail</label>
+              <input
+                id="tg-email"
+                type="email"
+                style="width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px"
+              />
+            </div>
+            <div class="field" style="margin-bottom: 14px">
+              <label>Nome da empresa</label>
+              <input
+                id="tg-empresa"
+                type="text"
+                style="width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px"
+              />
+            </div>
+            <div class="field" style="margin-bottom: 14px">
+              <label>
+                Telefone / WhatsApp
+                <small>(opcional)</small>
+              </label>
+              <input
+                id="tg-telefone"
+                type="tel"
+                style="width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px"
+              />
+            </div>
+            <div id="recaptcha_teste_container" style="margin-bottom: 14px"></div>
+            <div id="tg-erro" style="display: none; color: #dc2626; font-size: 13px; margin-bottom: 10px"></div>
+            <button
+              class="btn btn-p"
+              id="tg-botao"
+              onclick="enviarTesteGratisLanding()"
+              style="width: 100%; justify-content: center"
+            >
+              Solicitar teste grátis
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section id="faq" class="wrap">
         <div class="sh rv">
           <span class="kicker">Dúvidas frequentes</span>
@@ -1039,13 +1100,13 @@
         <div class="final rv">
           <h2>Pronto para organizar a gestão de pessoas da sua empresa?</h2>
           <p>Comece agora seu teste gratuito de 7 dias e conheça o INETRIS na prática.</p>
-          <a class="btn btn-p" href="#" data-cta>Quero conhecer o INETRIS</a>
+          <a class="btn btn-p" href="#teste-gratis" data-cta-teste>Quero conhecer o INETRIS</a>
         </div>
       </section>
     </main>
 
     <footer>INETRIS • Sistema de Avaliação e Desempenho</footer>
-    <div class="sticky"><a class="btn btn-p" href="#" data-cta>Testar grátis por 7 dias</a></div>
+    <div class="sticky"><a class="btn btn-p" href="#teste-gratis" data-cta-teste>Testar grátis por 7 dias</a></div>
 
     <script>
       // Defina aqui o link de contato/WhatsApp/cadastro (ex.: "https://wa.me/55...")
@@ -1063,6 +1124,76 @@
       }
       btns.forEach((b) => (b.onclick = () => setMode(b.dataset.m)));
       setMode('loy');
+
+      // ---- Teste grátis automático: mesma Edge Function "teste-gratis"
+      // já usada no resto do sistema (gera o código, aprova e manda o
+      // e-mail, tudo numa chamada só, protegida por reCAPTCHA). ----
+      const SUPABASE_URL_LANDING = 'https://mgkmvrgfmuexgxkuslur.supabase.co';
+      const SUPABASE_ANON_KEY_LANDING = 'sb_publishable_uOz0hehVdqv_7Q2LBzVbzg_J6ZH40fh';
+      const RECAPTCHA_SITE_KEY_LANDING = '6LfeLM0tAAAAAEkhPUj62-mvS-IbcAzJbvYF3l0h';
+      let recaptchaTesteWidgetId;
+
+      function renderRecaptchaTesteQuandoPronto() {
+        if (typeof grecaptcha === 'undefined' || !grecaptcha.render) {
+          setTimeout(renderRecaptchaTesteQuandoPronto, 200);
+          return;
+        }
+        recaptchaTesteWidgetId = grecaptcha.render('recaptcha_teste_container', {
+          sitekey: RECAPTCHA_SITE_KEY_LANDING,
+        });
+      }
+      renderRecaptchaTesteQuandoPronto();
+
+      async function enviarTesteGratisLanding() {
+        const nome = document.getElementById('tg-nome').value.trim();
+        const email = document.getElementById('tg-email').value.trim();
+        const empresa = document.getElementById('tg-empresa').value.trim();
+        const telefone = document.getElementById('tg-telefone').value.trim();
+        const erroEl = document.getElementById('tg-erro');
+        const botao = document.getElementById('tg-botao');
+        const recaptchaToken = typeof grecaptcha !== 'undefined' ? grecaptcha.getResponse(recaptchaTesteWidgetId) : '';
+        erroEl.style.display = 'none';
+
+        if (!nome || !email || !empresa) {
+          erroEl.textContent = 'Preencha nome, e-mail e nome da empresa.';
+          erroEl.style.display = 'block';
+          return;
+        }
+        if (!recaptchaToken) {
+          erroEl.textContent = 'Confirme que você não é um robô antes de enviar.';
+          erroEl.style.display = 'block';
+          return;
+        }
+
+        botao.disabled = true;
+        botao.textContent = 'Enviando…';
+        try {
+          const resp = await fetch(`${SUPABASE_URL_LANDING}/functions/v1/teste-gratis`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${SUPABASE_ANON_KEY_LANDING}`,
+              apikey: SUPABASE_ANON_KEY_LANDING,
+            },
+            body: JSON.stringify({ nome, email, empresa, telefone, recaptchaToken }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.error || 'Não foi possível liberar seu teste agora.');
+
+          document.getElementById('teste_gratis_form').innerHTML = `
+            <div style="text-align:center;padding:10px 0;">
+              <div style="width:52px;height:52px;border-radius:50%;background:#eaf7ef;color:#15803d;font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">✓</div>
+              <h3 style="margin:0 0 8px;">Teste liberado!</h3>
+              <p style="color:var(--muted);margin:0;">Enviamos o código de acesso para <b>${email.replace(/</g, '&lt;')}</b> — confira sua caixa de entrada (e o spam, por garantia).</p>
+            </div>`;
+        } catch (err) {
+          erroEl.textContent = err.message || 'Não foi possível enviar. Tente novamente.';
+          erroEl.style.display = 'block';
+          botao.disabled = false;
+          botao.textContent = 'Solicitar teste grátis';
+          if (typeof grecaptcha !== 'undefined') grecaptcha.reset(recaptchaTesteWidgetId);
+        }
+      }
       const io = new IntersectionObserver(
         (es) =>
           es.forEach((e) => {
