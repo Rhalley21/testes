@@ -1,13 +1,14 @@
 {
   "name": "plataforma-norte",
-  "version": "0.99.4",
+  "version": "0.101.1",
   "private": true,
   "description": "Plataforma NORTE — Metodologia NORTE, Instituto INETRIS",
   "scripts": {
     "lint": "eslint js --max-warnings=0",
     "format": "prettier --write \"**/*.{js,css,html,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,css,html,json,md}\"",
-    "check:sintaxe": "for f in js/*.js; do node --check \"$f\" || exit 1; done"
+    "check:sintaxe": "for f in js/*.js; do node --check \"$f\" || exit 1; done",
+    "test": "node --test"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

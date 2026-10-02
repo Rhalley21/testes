@@ -3,6 +3,175 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.101.1 — Dois reforços de segurança: currículo de verdade + bloqueio no servidor
+
+**1) Validação real do arquivo de currículo:** antes, o sistema confiava
+no que o navegador dizia que o arquivo era ("Content-Type: PDF"), sem
+checar o conteúdo de verdade — alguém podia renomear qualquer arquivo
+pra ".pdf" e o sistema aceitava. Agora confere a assinatura real do
+arquivo (todo PDF de verdade começa com os bytes `%PDF-`) antes de
+aceitar — se não bater, recusa a candidatura com um aviso claro. Testado
+com PDF de verdade, HTML disfarçado e executável disfarçado.
+
+**2) Bloqueio de login movido pro servidor:** o bloqueio após 5 tentativas
+erradas vivia só no `localStorage` do navegador — limpar o navegador ou
+trocar de dispositivo contornava completamente. Nova Edge Function
+"login-bloqueio" torna isso real: o contador vive no banco, por e-mail,
+e vale em qualquer lugar. Testada a lógica de bloqueio na 6ª tentativa.
+
+**Limitação que continua existindo, por transparência:** nenhuma das duas
+camadas (localStorage + banco) impede alguém de chamar a API de
+autenticação do Supabase diretamente, por fora da nossa tela de login —
+fechar essa brecha específica exigiria configurar um Auth Hook direto no
+painel do Supabase (um passo mais avançado, não feito nesta rodada).
+
+Requer rodar sql/35-rate-limit.sql (se ainda não tiver rodado — a tabela
+já existia, só reaproveitamos) e reimplantar a Edge Function "rs" e a
+nova "login-bloqueio".
+
+## v0.101.0 — Termos de Uso / Privacidade ligados ao sistema + canal LGPD
+Os dois últimos itens pendentes da revisão de "pronto pra vender":
+
+**Termos e Política de Privacidade:**
+- Campos em colchetes preenchidos: data (30/09/2026) e Encarregado de
+  Dados (Instituto INETRIS — halleyrafael78@gmail.com).
+- Publicados como páginas do site: `termos.html` e `privacidade.html`,
+  linkadas no rodapé da landing e dentro da Central de Ajuda.
+- **Checkbox obrigatório** no formulário de cadastro ("Li e aceito os
+  Termos de Uso e a Política de Privacidade") — sem marcar, não cria
+  conta.
+- A data exata do aceite fica registrada por pessoa (`perfis.termos_aceitos_em`),
+  como prova em caso de disputa — não é só um "sim/não".
+- **Continua pendente**: revisão por advogado antes de qualquer contrato
+  real (texto em si não mudou, só os campos que estavam em aberto).
+
+**Canal de direitos da LGPD:**
+- Botão **"Solicitar meus dados (LGPD)"** na Central de Ajuda, que já
+  abre um chamado com o pedido pré-formatado (acesso, correção, exclusão,
+  portabilidade) — só preencher o detalhe.
+- Candidatos do R&S (que não logam no sistema) têm o e-mail do
+  Encarregado de Dados diretamente no aviso de privacidade da página
+  pública de candidatura, e um link pra Política completa.
+
+Requer rodar sql/36-aceite-termos.sql (adiciona a coluna e atualiza a
+trigger de cadastro). Sem mudança de Edge Function.
+
+## v0.100.0 — Super Admin: botão "Marcar como pagante"
+Investigando a pergunta sobre o que acontece depois dos 7 dias de teste,
+confirmei que o comportamento já estava certo desde que o módulo foi
+construído: o acesso é bloqueado automaticamente quando o teste expira
+(`trial_ate` vencido e `is_pagante` ainda falso), mas **os dados nunca
+são apagados** — ficam intactos, prontos pra quando o cliente decidir
+assinar.
+
+**Mas encontrei uma lacuna real**: não existia, em lugar nenhum da
+interface, um jeito de marcar uma empresa como "virou cliente pagante" —
+a única forma de reverter o bloqueio era um UPDATE manual direto no
+banco. Corrigido: nova coluna de ação no painel do Super Admin, **"Marcar
+como pagante"**, que aparece pra qualquer empresa ainda em teste grátis
+(expirado ou não) e libera o acesso de vez, sem depender mais do prazo.
+
+Sem mudança de banco (só usa a coluna `is_pagante` que já existia).
+
+## v0.99.9 — Limite de taxa (rate limit) nas Edge Functions públicas
+Camada extra de proteção contra abuso, pra complementar o reCAPTCHA (que
+sozinho não é à prova de bots profissionais):
+
+- **Teste grátis**: no máximo 3 solicitações por IP a cada 24 horas.
+- **Candidatura do R&S**: no máximo 10 candidaturas por IP a cada 1 hora.
+
+Quem passar do limite recebe um aviso claro pra tentar mais tarde (erro
+429), em vez de travar silenciosamente. Testei a lógica (permite até o
+limite, bloqueia depois, e IPs diferentes não se afetam entre si).
+
+Requer rodar sql/35-rate-limit.sql e reimplantar as Edge Functions
+"teste-gratis" e "rs".
+
+## v0.99.8 — Teste grátis 100% automático (decisão: sem revisão manual)
+Antes, cada pedido de teste grátis exigia você clicar em "Aprovar" no
+painel do Super Admin. A partir de agora, quem preenche o formulário na
+landing recebe o código de acesso **na hora**, por e-mail — sem esperar
+ninguém.
+
+- Nova Edge Function pública (`teste-gratis`): gera o código de licença,
+  registra a solicitação já aprovada, e envia o e-mail — tudo numa
+  chamada só, sem exigir login.
+- O formulário de teste grátis ganhou um **reCAPTCHA** (a única proteção
+  contra abuso, já que não existe mais revisão humana — decisão tomada
+  conscientemente).
+- **Bug real corrigido de passagem**: o e-mail de aprovação manual (o
+  fluxo antigo) usava os nomes de campo errados (`para`/`html` em vez de
+  `destinatario`/`corpoHtml`) — o mesmo tipo de bug já corrigido em outro
+  lugar do sistema, mas que tinha passado despercebido aqui. Como esse
+  fluxo manual deixa de ser usado, o bug fica sem efeito prático, mas o
+  texto da confirmação na tela (que ainda dizia "o Instituto vai analisar
+  e enviar em breve") também foi atualizado pra refletir a entrega
+  instantânea.
+
+Requer reimplantar a Edge Function nova "teste-gratis" (e configurar o
+secret RECAPTCHA_SECRET_KEY nela, o mesmo valor já usado na função "rs").
+Sem mudança de SQL.
+
+## v0.99.7 — Testes automatizados: primeiros 19, nas contas mais críticas
+Item 2 do "que falta pra vender" — começando pelos cálculos onde um erro
+silencioso seria mais grave: classificação de desempenho (Iniciar/
+Desenvolver/Alavancar), matriz de risco do NR1, e preço/limite de
+colaboradores por plano.
+
+**Como funciona:** os testes carregam os arquivos JS **de verdade** do
+sistema (não uma cópia reescrita da lógica, que poderia divergir com o
+tempo) dentro de uma "caixa de areia" do Node, com `document`/`state`
+simulados só o suficiente pra rodar. Roda com `npm test`, usando o test
+runner que já vem embutido no Node — sem dependência nova nenhuma.
+
+Durante a escrita, um dos testes que eu mesmo escrevi errado apontou pra
+um comportamento real do cálculo de fidelidade (usa hora exata, não só a
+data) — corrigido o teste, não o código, depois de confirmar que o
+comportamento real estava certo. Fica registrado como exemplo de como
+testes ajudam a entender o sistema, não só a pegar bug.
+
+19 testes, 19 passando. Cobertura inicial — mais cálculos críticos (banco
+de horas, indicadores de R&S) ficam pra uma próxima rodada.
+
+Sem mudança de banco, sem mudança em nenhum arquivo que roda no navegador
+— só arquivos novos dentro de `tests/`.
+
+## v0.99.6 — Suporte estruturado: Central de Ajuda
+Item 1 do "que falta pra vender" — antes, todo suporte era você
+respondendo direto por fora. Agora:
+
+- **Nova página "Central de Ajuda"**, visível pra qualquer usuário
+  logado, com FAQ (perguntas frequentes já escritas) e um botão pra
+  **abrir chamado** (assunto + mensagem).
+- Cada chamado tem status (Aberto → Em andamento → Resolvido), visível
+  pra toda a empresa que abriu — não se perde mais numa conversa de
+  WhatsApp.
+- Você recebe um e-mail assim que um chamado novo é aberto.
+- **Painel do Super Admin**: nova seção com todos os chamados de todas
+  as empresas, num só lugar — você muda o status e escreve uma resposta,
+  que já dispara um e-mail de volta pro cliente automaticamente.
+
+Também corrigido, de passagem: a consulta de perfis da empresa nunca
+buscava o campo `email` — usado agora pela Central de Ajuda, mas que
+também deixa esse dado disponível pra outras partes do sistema que
+precisarem.
+
+Requer rodar sql/34-central-de-ajuda.sql no projeto principal.
+
+## v0.99.5 — Onboarding: checklist de primeiros passos
+Empresa nova, sem ninguém do lado ajudando, agora vê um card no topo do
+Dashboard do Administrador: "Primeiros passos", com uma barra de
+progresso e 5 itens — cadastro da empresa, estrutura organizacional,
+publicar um cargo, cadastrar colaboradores, abrir o primeiro ciclo de
+avaliação. Cada item tem um botão "Ir" direto pra tela certa. O
+progresso é calculado a partir dos dados reais (não é um contador manual
+que pode dessincronizar) — testei os cenários de empresa vazia, empresa
+completa, e o caso de borda de colaborador cadastrado mas inativo (não
+conta como concluído). O card some sozinho quando os 5 passos estiverem
+feitos, e também pode ser ocultado manualmente antes disso.
+
+Sem mudança de banco.
+
 ## v0.99.4 — Auditoria de segurança + monitoramento de erros (Sentry)
 Dois itens da lista de "o que falta pra vender", ambos concluídos:
 
