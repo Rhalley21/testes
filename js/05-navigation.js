@@ -29,6 +29,13 @@ const STEPS_BASE = [
     papeis: ['owner', 'rh'],
     apenasSePontoHabilitado: true,
   }, // RH/Admin conferem as batidas com as fotos
+  {
+    id: 'folha_papel',
+    label: 'Folha de Ponto (papel)',
+    group: 'Pessoas',
+    papeis: ['owner', 'rh'],
+    apenasSePontoHabilitado: true,
+  }, // RH fotografa a folha de ponto escrita à mão; o sistema lê, o RH confere e confirma
   { id: 'clima', label: 'Pesquisa de Clima / eNPS', group: 'Pessoas' },
   { id: 'nr1', label: 'NR1 — Riscos Psicossociais', group: 'Pessoas' }, // todo mundo responde a própria pesquisa; owner/rh veem a gestão dentro da página
   { id: 'rs', label: 'R&S — Recrutamento', group: 'Pessoas', papeis: ['owner', 'rh', 'lider'] }, // requisição, aprovação e pipeline de candidatos
@@ -90,6 +97,8 @@ function stepUnlocked(id) {
     case 'totem_ponto':
       return true;
     case 'conferencia_ponto':
+      return true;
+    case 'folha_papel':
       return true;
     case 'ciclos':
       return state.colaboradores.length > 0;

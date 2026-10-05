@@ -48,6 +48,8 @@ function renderRoute() {
       return pageAuditoria();
     case 'central_ajuda':
       return pageCentralAjuda();
+    case 'folha_papel':
+      return pageFolhaPapel();
     case 'clima':
       return pageClima();
     case 'nr1':
