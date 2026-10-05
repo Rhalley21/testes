@@ -3,6 +3,141 @@
 Registro de versões da própria plataforma (não confundir com o versionamento
 de Desenho de Cargo, que é por cargo/empresa — ver RN024).
 
+## v0.103.0 — Folha de ponto em papel: lista de presença do dia
+Feedback de uso real: muitas empresas não têm folha mensal por pessoa —
+têm uma **lista do dia**, onde cada funcionário escreve o nome e a hora,
+sem colunas, e o mesmo nome aparece de novo na saída. A primeira versão só
+entendia a folha mensal organizada; este fluxo cobre o outro formato.
+
+**Como funciona**
+- Botão **Importar lista do dia** na tela Folha de Ponto (papel). A IA lê
+  a **data do topo** e agrupa os horários por nome.
+- Entrada/saída não dependem da posição na folha: os horários de cada
+  pessoa são colocados **na ordem do relógio** (1º = entrada, 2º = saída,
+  3º = volta do almoço...), então linhas fora de ordem não atrapalham.
+- O sistema **sugere quem é cada nome** (ignora acento e "de/da", aceita
+  nome parcial, inicial "S." e uma letra trocada em nome longo) e mostra a
+  sugestão pra conferência. Regras que protegem de erro silencioso:
+  só "Maria" com duas Marias fica **sem sugestão**; "Mario" não vira
+  "Maria"; abreviação ou letra aproximada nunca conta como "exato";
+  nome que ninguém tem fica como "não identificado".
+- Tabela de conferência: escolher o colaborador de cada nome (ou ignorar),
+  corrigir horários, ver o total do dia (com ⚠ quando falta um par).
+  Linhas duvidosas ficam destacadas até serem conferidas.
+- **Aplicar às folhas**: cada pessoa recebe esse **dia** na folha do mês
+  dela — como **rascunho** (nada é confirmado automaticamente). Quem já
+  tinha horários naquele dia escolhe **Somar** (junta sem repetir — importar
+  a mesma foto duas vezes não duplica nada) ou **Substituir**. Folha já
+  confirmada fica bloqueada (é preciso reabrir). Nomes escritos de dois
+  jeitos que apontam pro mesmo colaborador são somados.
+- A foto da lista fica ligada à folha de cada pessoa ("Ver foto (dia 10)").
+  Como é uma foto só para várias folhas, apagar um rascunho **não** apaga a
+  foto enquanto outra folha ainda a usa (checagem feita no servidor).
+- Os totais, o PDF e o Excel do mês já existentes funcionam sem mudança.
+
+**Para ativar**: só reimplantar a Edge Function `folha-ponto` e subir o
+zip. Sem SQL novo, sem secret novo.
+
+**Testes**: 90 no total (31 novos): sanitização da lista (ordem dos
+horários, nomes repetidos, data inválida, entrada hostil), data do
+Brasil, casamento de nomes (incluindo os casos ambíguos), e mesclar/
+aplicar dia. Escrevendo os testes, um deles apontou uma falha real da
+primeira regra de sugestão ("Maria S." era tratado como exato para
+Maria Silva por causa da inicial) — corrigida antes da entrega.
+
+**Limites conhecidos**: turno que atravessa a meia-noite não é pareado
+entre folhas de dias diferentes (a saída da madrugada cai na lista do dia
+seguinte e aparece como horário sem par); se alguém esquece de assinar
+uma vez, os pares podem ficar trocados — o ⚠ de "horário sem par" e a
+conferência do RH existem pra isso.
+
+## v0.102.0 — Folha de ponto em papel (foto lida por IA, conferida pelo RH)
+Pra empresas que ainda registram o ponto à mão: o RH fotografa a folha, o
+sistema lê os horários, o RH confere e confirma, e saem os totais e
+relatórios do mês.
+
+**Como funciona**
+- Nova tela **Folha de Ponto (papel)** (Administrador e RH; liga junto
+  com o módulo Ponto). Escolhe a competência e o colaborador, envia a
+  foto (a foto é reduzida no navegador antes de subir).
+- Edge Function nova **`folha-ponto`**: confere que o arquivo é imagem de
+  verdade pela assinatura dos bytes (mesma lição do currículo), guarda no
+  bucket **privado** `folhas-ponto-papel` e pede ao Claude (visão) a
+  transcrição. A resposta da IA é tratada como dado não confiável: horários
+  inválidos, dias fora do mês, tipos inventados e textos longos são
+  descartados/limitados antes de chegar ao navegador.
+- A IA **só sugere**. Tudo aparece numa tabela editável dia a dia; dias com
+  leitura duvidosa ficam destacados (amarelo/vermelho) até alguém conferir.
+  Nada vira registro até o RH clicar em **Confirmar**.
+- Avisos automáticos: nome lido na folha diferente do colaborador escolhido,
+  mês diferente da competência, marcação sem par, período maior que 16h,
+  dias úteis sem marcação.
+- Folha **confirmada fica travada** (inclusive contra edição direta pela
+  API — trigger no banco). Pra alterar: Reabrir, com motivo obrigatório,
+  tudo registrado na auditoria (lida / confirmada / reaberta / excluída).
+- Totais por colaborador: dias, horas trabalhadas, atrasos, horas extras,
+  saldo, faltas e pendências — mesma regra de atraso/extra (com
+  tolerância) do ponto eletrônico, pra os dois ficarem comparáveis. Turno
+  que atravessa a meia-noite é tratado à parte.
+- Relatórios: **PDF da folha** (com linhas de assinatura) e **Excel do mês**
+  com todos os colaboradores (horas em h:mm e em decimal, pra folha de
+  pagamento).
+- Foto muito pequena/letra miúda? Dá pra enviar meia folha por vez
+  (dias 1–16 e 17–31): as leituras se somam.
+
+**Custo e limites** — cada leitura é uma chamada paga à API da Anthropic
+(na SUA conta). Teto de 150 leituras por empresa a cada 30 dias
+(`LIMITE_LEITURAS` na função), pra um cliente não gerar uso sem limite.
+
+**Documentos legais atualizados**: Anthropic entra como prestador de
+serviço na Política de Privacidade (a foto é enviada a ela só quando o
+recurso é usado); os Termos passam a dizer que o Cliente confere a
+transcrição e guarda o papel original; a página de vendas cita o recurso.
+Continua pendente a revisão por advogado.
+
+**Testes**: 40 novos (59 no total) — cálculos de horas/atraso/extra/falta,
+turno noturno, tolerância, checagens de nome e mês, e a validação de
+imagem e a sanitização da resposta da IA (que rodam sobre o código real
+da Edge Function).
+
+**Para ativar**
+1. Rodar `sql/37-folha-ponto-papel.sql` (tabela, travas e bucket privado).
+2. Implantar a Edge Function `folha-ponto` e configurar o secret
+   `ANTHROPIC_API_KEY` (opcional: `ANTHROPIC_MODEL`, padrão
+   `claude-sonnet-5-5`).
+3. Testar com UMA foto real antes de liberar pros clientes.
+
+**Limites desta primeira versão**: a folha em papel fica numa tabela
+própria e **não alimenta** o banco de horas/fechamento de competência do
+ponto eletrônico (os relatórios dela são os da própria tela); líder e
+colaborador não enxergam essas folhas.
+
+## v0.101.2 — Correção real: "Começar teste grátis" ia pro WhatsApp
+Achado arquitetural: ao longo da sessão, construímos um fluxo de teste
+grátis 100% automático (Edge Function "teste-gratis", reCAPTCHA, geração
+de código na hora) — mas ele vivia em `js/35-tela-entrada.js`, usado
+dentro do `app.html`. Quando a landing nova (`index.html`/`planos.html`,
+estática e independente) virou a porta de entrada do site, e a landing
+interna do `app.html` foi desativada (foi pra direto o login), esse
+fluxo automático ficou "órfão" — nenhuma página viva apontava mais pra
+ele. Enquanto isso, **todos** os botões da landing nova (incluindo os de
+teste grátis) estavam ligados ao mesmo link de WhatsApp, sem distinção.
+
+Corrigido: a landing nova agora tem o formulário de teste grátis de
+verdade (nome, e-mail, empresa, telefone, reCAPTCHA), chamando a mesma
+Edge Function "teste-gratis" que já existe — direto nela, sem depender
+de mais nenhum arquivo. Só os 4 botões de "teste grátis"/"conhecer o
+INETRIS" foram redirecionados pro formulário; os de "Quero contratar
+agora" e "Fale com a gente" continuam indo pro WhatsApp, como já estava.
+Testado: os 4 apontam pro formulário, os outros 4 continuam pro
+WhatsApp — nenhum dos dois grupos se confundiu.
+
+`planos.html` (a cópia que também fica acessível) foi sincronizado com
+o mesmo conteúdo.
+
+Sem mudança de banco, sem mudança de Edge Function (só reaproveita a que
+já existia).
+
 ## v0.101.1 — Dois reforços de segurança: currículo de verdade + bloqueio no servidor
 
 **1) Validação real do arquivo de currículo:** antes, o sistema confiava
