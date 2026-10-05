@@ -2372,3 +2372,16 @@ hr.sep {
   border-color: var(--gold);
   box-shadow: 0 0 0 2px var(--gold-soft);
 }
+
+/* Folha de ponto em papel (js/42-page-folha-papel.js) */
+.fp-tabela td,
+.fp-tabela th {
+  padding: 5px 6px;
+  vertical-align: middle;
+}
+.fp-hora {
+  width: 64px;
+  text-align: center;
+  padding: 5px 4px;
+  font-variant-numeric: tabular-nums;
+}
